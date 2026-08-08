@@ -1,8 +1,19 @@
 # Design System — `web/` dashboard
 
-**Status: Implemented**. The dashboard is an internal, single-user, localhost-only tool — this document records the conventions it actually follows so future changes stay coherent, not a product-grade design system.
+**Status: Implemented**. The dashboard is an internal, single-user, localhost-only tool. This document records the conventions it actually follows so future changes stay coherent — it is not a product-grade design system.
 
 Source of truth for tokens: [`web/src/index.css`](../../web/src/index.css). Primitives live in `web/src/components/ui/`, composed components in `web/src/components/`, layout chrome in `web/src/components/layout/`.
+
+## 0) Intent
+
+This is an engineering tool, so it should read like one: **data first, chrome last**. Concretely, the things it deliberately does *not* do:
+
+- No tinted icon tile next to every heading or metric.
+- No gradient text, gradient borders, or hover glow halos.
+- No decorative motion — nothing floats, pulses, or staggers just to look alive.
+- No badge where plain text says the same thing.
+
+Colour, motion and iconography are reserved for carrying meaning (state, direction, affordance). If an element can be removed without losing information, it is removed.
 
 ## 1) Foundations
 
@@ -12,68 +23,72 @@ All colours are OKLCH CSS variables defined twice — once on `:root` (light) an
 
 | Token | Tailwind class | Used for |
 |-------|----------------|----------|
-| `--brand` | `bg-brand` / `text-brand` | The single accent hue (violet). Icons, active nav, focus ring, primary actions. |
-| `--brand-soft` | `bg-brand-soft` | Tinted background behind brand icons and highlight panels. |
-| `--accent-cyan` | `text-accent-cyan` | Second hue, used only for gradients and the retrieval-flow diagram. |
-| `--success` / `--warning` / `--info` | `text-success`, `bg-warning/12`, … | Run status, score chips, stat-card tones. |
-| `--destructive` | `text-destructive` | Errors and destructive actions only. |
+| `--brand` | `bg-brand` / `text-brand` | Accent hue (violet). Active tab underline, focus ring, primary buttons, inline links. Used sparingly. |
+| `--success` / `--destructive` | `text-success`, `bg-destructive` | Run status dots and error text only. |
+| `--warning` / `--info` / `--accent-cyan` | — | Defined for future use; currently unused by any component. |
 | `--card`, `--muted`, `--border`, `--sidebar*` | standard shadcn tokens | Surfaces and chrome. |
-
-Semantic pairing rule: a coloured icon sits on its own `/12` tint (`bg-success/12 text-success`), never on a saturated fill.
 
 ### Typography
 
 - `--font-sans`: Geist Variable — all UI text.
-- `--font-heading`: same family, applied via `font-heading` on headings so a future heading face is a one-token change.
+- `--font-heading`: same family, applied via `font-heading` on headings and large numbers, so a future heading face is a one-token change.
 - `--font-mono`: Geist Mono Variable — every file path, project id, config value, CLI command and log line. If it is something the user could paste into a terminal or a config file, it is mono.
 
-### Radius & elevation
+Hierarchy comes from size and weight, not colour: page title is `text-lg font-semibold`, section headings are `text-sm font-medium`, supporting copy is `text-sm text-muted-foreground`.
 
-`--radius: 0.7rem`. Cards use `rounded-xl`, controls `rounded-lg`, badges `rounded-4xl`.
+### Surfaces & radius
 
-Elevation is expressed with `ring-1 ring-foreground/10` rather than borders, so cards read consistently in both themes. Shadows appear only on hover (`hover:shadow-md` / `hover:shadow-lg`), never at rest.
+`--radius: 0.5rem`. Cards, tables and list containers use `rounded-lg border` — a single hairline, no ring, no shadow at rest. Grouped rows use `divide-y` inside one bordered container rather than a stack of separate cards.
+
+Hover on an interactive card is a border-colour change (`hover:border-foreground/25`), not a lift or a shadow.
 
 ### Motion
 
-Keyframes are defined in `index.css` and exposed as `--animate-*` theme values, so they are used as Tailwind utilities (`animate-fade-up`, `animate-float`, `animate-pulse-glow`, `animate-dash`, `animate-blink`, `animate-shimmer`).
+Keyframes live in `index.css` and are exposed as `--animate-*` theme values, used as Tailwind utilities.
 
-Conventions:
-- **Page and section entry**: `animate-fade-up` (400ms, `cubic-bezier(0.16, 1, 0.3, 1)`).
-- **Lists**: wrap in `.stagger` and set `style={{ '--stagger-index': i }}` per child — 45ms apart, capped around index 12 so long lists do not crawl.
-- **Hover**: `transition-all duration-200/300` with a ≤4px translate and/or a `scale-110` on the icon. Never move the whole card more than `-translate-y-1`.
-- **Live/running state**: `animate-pulse-glow` on a dot, `animate-spin` on a refresh icon, `animate-blink` on the console caret.
-- **Reduced motion**: a global `@media (prefers-reduced-motion: reduce)` block flattens every animation and transition. Any new animation inherits this automatically — do not add inline `animation` styles that bypass it.
+| Utility | Where it is allowed |
+|---------|---------------------|
+| `animate-fade-up` | Once per page, on the page's root element. Never per list item. |
+| `animate-fade-in` | Content that swaps in place (tab panels, the flow-diagram detail pane). |
+| `animate-spin` | A refresh icon while its request is in flight. |
+| `animate-blink` | The console caret while a run is streaming. |
+| `animate-dash` | The flow-diagram connectors, where the direction of travel *is* the information. |
+| `animate-shimmer` | Skeleton placeholders. |
+
+A global `@media (prefers-reduced-motion: reduce)` block flattens every animation and transition. Any new animation inherits this automatically — do not add inline `animation` styles that bypass it.
 
 ## 2) Layout
 
 `AppShell` (`web/src/components/layout/app-shell.tsx`) is the only page frame:
 
-- Fixed 16rem sidebar (`lg:pl-64` on the content), off-canvas below `lg` with a backdrop.
+- Fixed 15rem sidebar (`lg:pl-60` on the content), off-canvas below `lg` with a backdrop.
 - Sticky 3.5rem topbar: menu button (mobile), breadcrumb derived from the route, theme toggle, add-project button.
 - Content is `max-w-6xl` centred with responsive padding.
 
-`Sidebar` has three sections: workspace nav → current-project nav (only when a project route is active) → all-projects list. The active item gets a `bg-sidebar-accent` fill plus a 2px brand bar via the `ActiveBar` sub-component.
+`Sidebar` has exactly two sections: the four workspace links, then a flat list of every project. **It never expands a per-project sub-menu** — inside a project, navigation is the tab bar owned by `ProjectLayout`, so there is only ever one place to look for the current level of navigation.
 
-`PageHeader` is the standard page opener: optional tinted icon tile, title, description, right-aligned actions.
+`PageHeader` is the standard page opener: title, description, right-aligned actions. No icon.
 
 ## 3) Components
 
 | Component | File | Role |
 |-----------|------|------|
-| `StatCard` | `components/stat-card.tsx` | Metric tile with a toned icon; `tone` picks the semantic colour. |
-| `ProjectCard` | `components/project-card.tsx` | Project tile with counts, hook state, inline sync. Top gradient bar scales in on hover. |
-| `EmptyState` | `components/empty-state.tsx` | Dashed panel with a floating icon; every list renders this instead of bare text. |
-| `RunList` | `components/run-list.tsx` | Timeline of sync-history runs, per-kind icon and per-trigger label. |
+| `StatRow` | `components/stat-row.tsx` | Metrics as one hairline-divided row of label/number cells. |
+| `ProjectCard` | `components/project-card.tsx` | Project tile: name, hook state, repo path, counts, sync action. |
+| `RunTable` | `components/run-table.tsx` | Sync-history table — when, project, action, trigger, result, details, duration. |
+| `EmptyState` | `components/empty-state.tsx` | Dashed panel with a muted icon; every list renders this instead of bare text. |
 | `LogStream` | `components/log-stream.tsx` | Ingest/sync console with SSE lines, auto-scroll, blinking caret. |
 | `UploadPanel` | `components/upload-panel.tsx` | Drag-and-drop uploader plus the uploaded-document list. |
-| `FlowDiagram` | `components/flow-diagram.tsx` | Reusable interactive pipeline diagram (animated SVG connectors, click a stage for detail). |
+| `FlowDiagram` | `components/flow-diagram.tsx` | Reusable interactive pipeline diagram (dashed SVG connectors, click a stage for detail). |
 | `CopyButton` / `CodeBlock` | `components/copy-button.tsx` | Copy affordance used across the MCP setup and settings pages. |
 
 Primitives added on top of the original shadcn set: `tabs`, `tooltip`, `separator`, `skeleton`, `table`, `textarea`.
 
+**Tabular data goes in a `Table`**, not in a stack of cards — sync history, indexed documents, and any future list with more than two attributes per row.
+
 ## 4) Rules
 
-- **Icons**: `lucide-react` only (already a dependency — no icon font is installed). Size `size-4` inline, `size-4.5` inside a tile, `size-3.5` in small buttons. Every icon-only button needs an `aria-label`.
+- **Icons**: `lucide-react` only (already a dependency — no icon font is installed). They appear in navigation, buttons, and empty states; not decoratively beside headings. Size `size-4` inline, `size-3.5` in small buttons. Every icon-only button needs an `aria-label`.
 - **Loading**: `Skeleton` blocks that match the shape of the real content. Never a bare "Loading…" string.
 - **Errors**: inline `text-sm text-destructive` next to the thing that failed; `toast.error` for actions the user triggered.
 - **Destructive actions**: always behind an `AlertDialog` that states exactly what is and is not deleted.

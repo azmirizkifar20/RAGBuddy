@@ -1,27 +1,9 @@
-import {
-  BotIcon,
-  DatabaseIcon,
-  FileSearchIcon,
-  FolderGitIcon,
-  GitCommitVerticalIcon,
-  MessageSquareTextIcon,
-  PlugZapIcon,
-  RefreshCwIcon,
-  ScissorsIcon,
-  ScanSearchIcon,
-  ShieldCheckIcon,
-  SparklesIcon,
-  UploadIcon,
-  WorkflowIcon,
-  ZapIcon,
-} from 'lucide-react'
 import { PageHeader } from '@/components/layout/page-header'
 import { FlowDiagram, type FlowStage } from '@/components/flow-diagram'
 
 const INDEXING: FlowStage[] = [
   {
     id: 'source',
-    icon: FolderGitIcon,
     title: 'Sources',
     caption: 'repo + uploads',
     detail:
@@ -30,7 +12,6 @@ const INDEXING: FlowStage[] = [
   },
   {
     id: 'scan',
-    icon: ScanSearchIcon,
     title: 'Scan & hash',
     caption: 'what changed?',
     detail:
@@ -39,7 +20,6 @@ const INDEXING: FlowStage[] = [
   },
   {
     id: 'chunk',
-    icon: ScissorsIcon,
     title: 'Chunk',
     caption: 'split by heading',
     detail:
@@ -48,7 +28,6 @@ const INDEXING: FlowStage[] = [
   },
   {
     id: 'embed',
-    icon: SparklesIcon,
     title: 'Embed',
     caption: 'text → vector',
     detail:
@@ -57,7 +36,6 @@ const INDEXING: FlowStage[] = [
   },
   {
     id: 'store',
-    icon: DatabaseIcon,
     title: 'Store',
     caption: 'Qdrant',
     detail:
@@ -69,7 +47,6 @@ const INDEXING: FlowStage[] = [
 const RETRIEVAL: FlowStage[] = [
   {
     id: 'ask',
-    icon: MessageSquareTextIcon,
     title: 'Agent asks',
     caption: 'in your repo',
     detail:
@@ -78,7 +55,6 @@ const RETRIEVAL: FlowStage[] = [
   },
   {
     id: 'mcp',
-    icon: PlugZapIcon,
     title: 'MCP server',
     caption: 'one per agent',
     detail:
@@ -87,7 +63,6 @@ const RETRIEVAL: FlowStage[] = [
   },
   {
     id: 'embed-query',
-    icon: SparklesIcon,
     title: 'Embed query',
     caption: 'same model',
     detail:
@@ -96,7 +71,6 @@ const RETRIEVAL: FlowStage[] = [
   },
   {
     id: 'filter',
-    icon: ShieldCheckIcon,
     title: 'Project filter',
     caption: 'hard isolation',
     detail:
@@ -105,7 +79,6 @@ const RETRIEVAL: FlowStage[] = [
   },
   {
     id: 'answer',
-    icon: BotIcon,
     title: 'Top-K chunks',
     caption: 'back to the agent',
     detail:
@@ -117,7 +90,6 @@ const RETRIEVAL: FlowStage[] = [
 const AUTOSYNC: FlowStage[] = [
   {
     id: 'commit',
-    icon: GitCommitVerticalIcon,
     title: 'git commit',
     caption: 'you write docs',
     detail:
@@ -125,7 +97,6 @@ const AUTOSYNC: FlowStage[] = [
   },
   {
     id: 'hook',
-    icon: ZapIcon,
     title: 'post-commit hook',
     caption: 'fires automatically',
     detail:
@@ -134,7 +105,6 @@ const AUTOSYNC: FlowStage[] = [
   },
   {
     id: 'diff',
-    icon: RefreshCwIcon,
     title: 'Diff by hash',
     caption: 'added/modified/deleted',
     detail:
@@ -143,7 +113,6 @@ const AUTOSYNC: FlowStage[] = [
   },
   {
     id: 'fresh',
-    icon: FileSearchIcon,
     title: 'Index is fresh',
     caption: 'agents see it now',
     detail:
@@ -153,23 +122,19 @@ const AUTOSYNC: FlowStage[] = [
 
 export function RagFlow() {
   return (
-    <div>
+    <div className="animate-fade-up">
       <PageHeader
-        icon={WorkflowIcon}
         title="How this RAG works"
         description="Three flows: how documents get indexed, how an agent retrieves them, and how it all stays fresh."
       />
 
-      <div className="mb-6 grid-bg rounded-xl bg-linear-to-br from-brand-soft/60 to-transparent p-5 ring-1 ring-brand/15">
-        <p className="max-w-3xl text-sm text-muted-foreground">
-          <strong className="gradient-text font-heading text-base font-semibold">project-rag</strong> turns each
-          registered Git repository's documentation into a private, project-scoped knowledge base that coding agents
-          query over MCP — instead of re-reading the same files into their context every session. Click any step below
-          to see what it does and where it lives in the code.
-        </p>
-      </div>
+      <p className="mb-6 max-w-3xl text-sm text-muted-foreground">
+        project-rag turns each registered Git repository's documentation into a private, project-scoped knowledge base
+        that coding agents query over MCP — instead of re-reading the same files into their context every session. Click
+        any step below to see what it does and where it lives in the code.
+      </p>
 
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-4">
         <FlowDiagram
           title="1 · Indexing pipeline"
           description="Runs on a full ingest, an incremental sync, or a document upload."
@@ -179,7 +144,6 @@ export function RagFlow() {
           title="2 · Retrieval pipeline"
           description="What happens when an agent asks a question — the read path."
           stages={RETRIEVAL}
-          tone="cyan"
         />
         <FlowDiagram
           title="3 · Auto-sync loop"
@@ -188,21 +152,15 @@ export function RagFlow() {
         />
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-          <div className="mb-2 flex size-8 items-center justify-center rounded-lg bg-success/12 text-success">
-            <ShieldCheckIcon className="size-4" />
-          </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-lg border p-4">
           <p className="text-sm font-medium">Isolation is structural, not prompted</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Every retrieval and every document read is filtered by project id and validated against path traversal at
             the storage layer. There is no prompt an agent can write to reach another project's documents.
           </p>
         </div>
-        <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-          <div className="mb-2 flex size-8 items-center justify-center rounded-lg bg-info/12 text-info">
-            <UploadIcon className="size-4" />
-          </div>
+        <div className="rounded-lg border p-4">
           <p className="text-sm font-medium">Uploads live beside the repo, not inside it</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Documents you upload are stored in project-rag's own data directory and tagged separately, so a full

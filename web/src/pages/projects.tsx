@@ -24,11 +24,10 @@ export function Projects() {
   }, [projects, query])
 
   return (
-    <div>
+    <div className="animate-fade-up">
       <PageHeader
-        icon={BoxesIcon}
         title="Projects"
-        description={`${projects.length} repository${projects.length === 1 ? '' : 'ies'} registered with project-rag.`}
+        description={`${projects.length} ${projects.length === 1 ? 'repository' : 'repositories'} registered with project-rag.`}
         actions={<AddProjectModal onRegistered={() => refresh()} />}
       />
 
@@ -49,7 +48,7 @@ export function Projects() {
       {loading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-40" />
+            <Skeleton key={i} className="h-36" />
           ))}
         </div>
       ) : visible.length === 0 ? (
@@ -64,11 +63,9 @@ export function Projects() {
           action={projects.length === 0 ? <AddProjectModal onRegistered={() => refresh()} /> : undefined}
         />
       ) : (
-        <div className="stagger grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {visible.map((project, i) => (
-            <div key={project.id} style={{ '--stagger-index': i } as React.CSSProperties}>
-              <ProjectCard project={project} onSynced={refresh} />
-            </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {visible.map((project) => (
+            <ProjectCard key={project.id} project={project} onSynced={refresh} />
           ))}
         </div>
       )}

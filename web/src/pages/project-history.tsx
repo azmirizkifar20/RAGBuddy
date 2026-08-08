@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { CheckCircle2Icon, ClockIcon, RefreshCwIcon, TimerIcon, XCircleIcon } from 'lucide-react'
+import { ClockIcon, RefreshCwIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { StatCard } from '@/components/stat-card'
+import { StatRow } from '@/components/stat-row'
 import { EmptyState } from '@/components/empty-state'
-import { RunList } from '@/components/run-list'
+import { RunTable } from '@/components/run-table'
 import { useProjectContext } from '@/pages/project-layout'
 import { getHistory, type RunRecord } from '@/lib/api-client'
 import { formatDuration } from '@/lib/format'
@@ -29,15 +29,7 @@ export function ProjectHistory() {
     load()
   }, [load])
 
-  if (runs === null) {
-    return (
-      <div className="flex flex-col gap-3">
-        {[0, 1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-20" />
-        ))}
-      </div>
-    )
-  }
+  if (runs === null) return <Skeleton className="h-64" />
 
   const succeeded = runs.filter((r) => r.status === 'success').length
   const failed = runs.length - succeeded
@@ -47,10 +39,10 @@ export function ProjectHistory() {
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          Every ingest, sync and upload for this project — whether it came from the dashboard, the CLI, or a{' '}
+          Every ingest, sync and upload for this project — from the dashboard, the CLI, or a{' '}
           <code className="font-mono">git commit</code>.
         </p>
-        <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={load}>
+        <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={load}>
           <RefreshCwIcon className="size-3.5" /> Refresh
         </Button>
       </div>
@@ -65,12 +57,15 @@ export function ProjectHistory() {
         />
       ) : (
         <>
-          <div className="stagger grid gap-3 sm:grid-cols-3">
-            <StatCard icon={CheckCircle2Icon} label="Successful" value={succeeded} tone="success" />
-            <StatCard icon={XCircleIcon} label="Failed" value={failed} tone={failed > 0 ? 'warning' : 'brand'} />
-            <StatCard icon={TimerIcon} label="Average duration" value={formatDuration(averageMs)} tone="info" />
-          </div>
-          <RunList runs={runs} />
+          <StatRow
+            stats={[
+              { label: 'Total runs', value: runs.length },
+              { label: 'Successful', value: succeeded },
+              { label: 'Failed', value: failed },
+              { label: 'Average duration', value: formatDuration(averageMs) },
+            ]}
+          />
+          <RunTable runs={runs} />
         </>
       )}
     </div>

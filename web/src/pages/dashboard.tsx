@@ -1,19 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import {
-  ActivityIcon,
-  BoxesIcon,
-  FileTextIcon,
-  GitBranchIcon,
-  LayersIcon,
-  LayoutDashboardIcon,
-  WorkflowIcon,
-} from 'lucide-react'
+import { BoxesIcon } from 'lucide-react'
 import { PageHeader } from '@/components/layout/page-header'
-import { StatCard } from '@/components/stat-card'
+import { StatRow } from '@/components/stat-row'
 import { ProjectCard } from '@/components/project-card'
 import { EmptyState } from '@/components/empty-state'
-import { RunList } from '@/components/run-list'
+import { RunTable } from '@/components/run-table'
 import { AddProjectModal } from '@/components/add-project-modal'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -25,7 +17,7 @@ export function Dashboard() {
   const [activity, setActivity] = useState<RunRecord[] | null>(null)
 
   useEffect(() => {
-    getActivity(8)
+    getActivity(25)
       .then(({ runs }) => setActivity(runs))
       .catch(() => setActivity([]))
   }, [projects])
@@ -40,81 +32,68 @@ export function Dashboard() {
   )
 
   return (
-    <div>
+    <div className="animate-fade-up">
       <PageHeader
-        icon={LayoutDashboardIcon}
         title="Dashboard"
         description="Every registered repository, what's indexed, and what ran recently."
         actions={
-          <Button variant="outline" size="sm" asChild className="gap-1.5">
-            <Link to="/flow">
-              <WorkflowIcon className="size-3.5" /> How it works
-            </Link>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/flow">How it works</Link>
           </Button>
         }
       />
 
       {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
 
-      <div className="stagger mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={BoxesIcon} label="Projects" value={projects.length} hint="Registered repositories" />
-        <StatCard icon={FileTextIcon} label="Documents" value={totals.docs} tone="info" hint="Indexed across all projects" />
-        <StatCard icon={LayersIcon} label="Chunks" value={totals.chunks} tone="success" hint="Embedded vectors in Qdrant" />
-        <StatCard
-          icon={GitBranchIcon}
-          label="Auto-sync on"
-          value={`${totals.hooks}/${projects.length}`}
-          tone="warning"
-          hint="Projects with the commit hook"
-        />
-      </div>
+      <StatRow
+        className="mb-8"
+        stats={[
+          { label: 'Projects', value: projects.length },
+          { label: 'Documents', value: totals.docs },
+          { label: 'Chunks', value: totals.chunks },
+          { label: 'Auto-sync on', value: `${totals.hooks}/${projects.length}` },
+        ]}
+      />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
-        <section>
-          <h2 className="mb-3 font-heading text-sm font-semibold tracking-wide uppercase">Projects</h2>
-          {loading ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {[0, 1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-40" />
-              ))}
-            </div>
-          ) : projects.length === 0 ? (
-            <EmptyState
-              icon={BoxesIcon}
-              title="No projects registered yet"
-              description="Point project-rag at a Git repository and it will index that repo's docs into a searchable knowledge base your coding agents can query."
-              action={<AddProjectModal onRegistered={() => refresh()} />}
-            />
-          ) : (
-            <div className="stagger grid gap-3 sm:grid-cols-2">
-              {projects.map((project, i) => (
-                <div key={project.id} style={{ '--stagger-index': i } as React.CSSProperties}>
-                  <ProjectCard project={project} onSynced={refresh} />
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+      <section className="mb-8">
+        <h2 className="mb-3 text-sm font-medium">Projects</h2>
+        {loading ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-36" />
+            ))}
+          </div>
+        ) : projects.length === 0 ? (
+          <EmptyState
+            icon={BoxesIcon}
+            title="No projects registered yet"
+            description="Point project-rag at a Git repository and it will index that repo's docs into a searchable knowledge base your coding agents can query."
+            action={<AddProjectModal onRegistered={() => refresh()} />}
+          />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {projects.map((project) => (
+              <ProjectCard key={project.id} project={project} onSynced={refresh} />
+            ))}
+          </div>
+        )}
+      </section>
 
-        <section>
-          <h2 className="mb-3 font-heading text-sm font-semibold tracking-wide uppercase">Recent activity</h2>
-          {activity === null ? (
-            <div className="flex flex-col gap-2">
-              {[0, 1, 2].map((i) => (
-                <Skeleton key={i} className="h-20" />
-              ))}
-            </div>
-          ) : activity.length === 0 ? (
-            <EmptyState
-              icon={ActivityIcon}
-              title="Nothing has run yet"
-              description="Ingests, syncs and uploads all show up here."
-            />
-          ) : (
-            <RunList runs={activity} showProject />
-          )}
-        </section>
-      </div>
+      <section>
+        <div className="mb-3 flex items-baseline justify-between gap-2">
+          <h2 className="text-sm font-medium">Recent activity</h2>
+          <span className="text-xs text-muted-foreground">Ingests, syncs and uploads across all projects</span>
+        </div>
+        {activity === null ? (
+          <Skeleton className="h-48" />
+        ) : activity.length === 0 ? (
+          <p className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+            Nothing has run yet. Ingests, syncs and uploads all show up here.
+          </p>
+        ) : (
+          <RunTable runs={activity} showProject />
+        )}
+      </section>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { FileTextIcon, FilesIcon, SearchIcon, UploadIcon } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { FilesIcon, SearchIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EmptyState } from '@/components/empty-state'
 import { UploadPanel } from '@/components/upload-panel'
@@ -31,12 +31,8 @@ export function ProjectDocuments() {
   return (
     <Tabs defaultValue="indexed">
       <TabsList>
-        <TabsTrigger value="indexed">
-          <FilesIcon /> Indexed ({documents.length})
-        </TabsTrigger>
-        <TabsTrigger value="upload">
-          <UploadIcon /> Upload ({uploads.length})
-        </TabsTrigger>
+        <TabsTrigger value="indexed">Indexed ({documents.length})</TabsTrigger>
+        <TabsTrigger value="upload">Upload ({uploads.length})</TabsTrigger>
       </TabsList>
 
       <TabsContent value="indexed" className="flex flex-col gap-4">
@@ -50,7 +46,7 @@ export function ProjectDocuments() {
               className="pl-9"
             />
           </div>
-          <div className="inline-flex items-center gap-1 rounded-xl bg-muted/60 p-1">
+          <div className="inline-flex items-center rounded-lg border p-0.5">
             {FILTERS.map((filter) => (
               <button
                 key={filter.value}
@@ -58,8 +54,8 @@ export function ProjectDocuments() {
                 onClick={() => setSource(filter.value)}
                 className={
                   source === filter.value
-                    ? 'rounded-lg bg-background px-3 py-1.5 text-sm font-medium shadow-sm transition-all'
-                    : 'rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition-all hover:text-foreground'
+                    ? 'rounded-md bg-muted px-2.5 py-1 text-sm font-medium'
+                    : 'rounded-md px-2.5 py-1 text-sm text-muted-foreground transition-colors hover:text-foreground'
                 }
               >
                 {filter.label}
@@ -79,29 +75,29 @@ export function ProjectDocuments() {
             }
           />
         ) : (
-          <div className="stagger flex flex-col gap-1.5">
-            {visible.map((doc, i) => (
-              <div
-                key={doc.file}
-                style={{ '--stagger-index': Math.min(i, 12) } as React.CSSProperties}
-                className="flex items-center justify-between gap-3 rounded-lg bg-card px-3 py-2.5 ring-1 ring-foreground/10 transition-all duration-200 hover:translate-x-0.5 hover:shadow-sm"
-              >
-                <div className="flex min-w-0 items-center gap-2.5">
-                  {doc.source === 'upload' ? (
-                    <UploadIcon className="size-4 shrink-0 text-brand" />
-                  ) : (
-                    <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
-                  )}
-                  <div className="min-w-0">
-                    <p className="truncate font-mono text-sm">{doc.file}</p>
-                    {doc.title && <p className="truncate text-xs text-muted-foreground">{doc.title}</p>}
-                  </div>
-                </div>
-                <Badge variant="secondary" className="shrink-0 font-mono tabular-nums">
-                  {doc.chunkCount} chunks
-                </Badge>
-              </div>
-            ))}
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead>File</TableHead>
+                  <TableHead className="w-56">Title</TableHead>
+                  <TableHead className="w-28">Source</TableHead>
+                  <TableHead className="w-20 text-right">Chunks</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visible.map((doc) => (
+                  <TableRow key={doc.file}>
+                    <TableCell className="font-mono text-xs">{doc.file}</TableCell>
+                    <TableCell className="truncate text-muted-foreground">{doc.title || '—'}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {doc.source === 'upload' ? 'uploaded' : 'repository'}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">{doc.chunkCount}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </TabsContent>

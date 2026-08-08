@@ -42,7 +42,7 @@ export function AppShell() {
     <div className="min-h-svh bg-background">
       <Sidebar projects={projects} open={menuOpen} onClose={() => setMenuOpen(false)} />
 
-      <div className="lg:pl-64">
+      <div className="lg:pl-60">
         <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur-md">
           <Button
             variant="ghost"

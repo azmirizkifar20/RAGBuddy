@@ -61,8 +61,6 @@
 
     --animate-fade-up: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
     --animate-fade-in: fade-in 0.3s ease-out both;
-    --animate-float: float 6s ease-in-out infinite;
-    --animate-pulse-glow: pulse-glow 2.4s ease-in-out infinite;
     --animate-dash: dash 1.6s linear infinite;
     --animate-shimmer: shimmer 2s linear infinite;
     --animate-blink: blink 1.1s step-end infinite;
@@ -101,7 +99,7 @@
     --chart-3: oklch(0.57 0.15 150);
     --chart-4: oklch(0.68 0.15 70);
     --chart-5: oklch(0.58 0.23 27);
-    --radius: 0.7rem;
+    --radius: 0.5rem;
 
     --sidebar: oklch(0.975 0.006 285);
     --sidebar-foreground: oklch(0.25 0.02 285);
@@ -167,16 +165,6 @@
     to { opacity: 1; }
 }
 
-@keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-6px); }
-}
-
-@keyframes pulse-glow {
-    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 color-mix(in oklch, var(--brand) 45%, transparent); }
-    50% { opacity: 0.85; box-shadow: 0 0 0 6px color-mix(in oklch, var(--brand) 0%, transparent); }
-}
-
 /* Drives the moving dashes along the RAG flow diagram's connectors. */
 @keyframes dash {
     to { stroke-dashoffset: -24; }
@@ -217,40 +205,6 @@
 }
 
 @layer components {
-    /* Faint dotted grid used behind the sidebar brand block and the flow page. */
-    .grid-bg {
-        background-image: radial-gradient(color-mix(in oklch, var(--foreground) 12%, transparent) 1px, transparent 1px);
-        background-size: 18px 18px;
-    }
-
-    .gradient-text {
-        background-image: linear-gradient(100deg, var(--brand), var(--accent-cyan));
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-    }
-
-    .surface-glow {
-        position: relative;
-    }
-    .surface-glow::before {
-        content: '';
-        position: absolute;
-        inset: -1px;
-        border-radius: inherit;
-        padding: 1px;
-        background: linear-gradient(140deg, color-mix(in oklch, var(--brand) 55%, transparent), transparent 55%);
-        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-        -webkit-mask-composite: xor;
-        mask-composite: exclude;
-        opacity: 0;
-        transition: opacity 0.25s ease;
-        pointer-events: none;
-    }
-    .surface-glow:hover::before {
-        opacity: 1;
-    }
-
     .skeleton-shimmer {
         background: linear-gradient(
             90deg,
@@ -262,11 +216,6 @@
         animation: var(--animate-shimmer);
     }
 
-    /* Stagger helper: children fade up one after another. */
-    .stagger > * {
-        animation: var(--animate-fade-up);
-        animation-delay: calc(var(--stagger-index, 0) * 45ms);
-    }
 }
 
 @media (prefers-reduced-motion: reduce) {

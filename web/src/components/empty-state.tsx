@@ -13,11 +13,9 @@ export function EmptyState({
   action?: ReactNode
 }) {
   return (
-    <div className="flex animate-fade-up flex-col items-center justify-center rounded-xl border border-dashed px-6 py-14 text-center">
-      <div className="mb-3 flex size-12 animate-float items-center justify-center rounded-2xl bg-brand-soft text-brand">
-        <Icon className="size-6" />
-      </div>
-      <p className="font-heading font-medium">{title}</p>
+    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed px-6 py-12 text-center">
+      <Icon className="mb-2.5 size-5 text-muted-foreground" />
+      <p className="font-medium">{title}</p>
       {description && <p className="mt-1 max-w-md text-sm text-muted-foreground">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>

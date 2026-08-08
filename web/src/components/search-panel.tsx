@@ -1,18 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { FileTextIcon, SearchIcon, SparklesIcon, UploadIcon } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { SearchIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { EmptyState } from '@/components/empty-state'
 import { searchProject, type SearchResult } from '@/lib/api-client'
-import { cn } from '@/lib/utils'
-
-/** Turns a 0..1 cosine score into the colour the score chip uses. */
-function scoreTone(score: number): string {
-  if (score >= 0.75) return 'bg-success/12 text-success'
-  if (score >= 0.5) return 'bg-warning/12 text-warning'
-  return 'bg-muted text-muted-foreground'
-}
 
 export function SearchPanel({ projectId }: { projectId: string }) {
   const [query, setQuery] = useState('')
@@ -49,8 +40,7 @@ export function SearchPanel({ projectId }: { projectId: string }) {
             className="pl-9"
           />
         </div>
-        <Button type="submit" disabled={loading} className="gap-1.5">
-          <SparklesIcon className={cn('size-4', loading && 'animate-pulse')} />
+        <Button type="submit" disabled={loading}>
           {loading ? 'Searching...' : 'Search'}
         </Button>
       </form>
@@ -65,31 +55,27 @@ export function SearchPanel({ projectId }: { projectId: string }) {
         />
       )}
 
-      <div className="stagger flex flex-col gap-3">
-        {results.map((result, i) => (
-          <div
-            key={`${result.file}-${i}`}
-            style={{ '--stagger-index': i } as React.CSSProperties}
-            className="surface-glow rounded-xl bg-card p-4 ring-1 ring-foreground/10 transition-shadow hover:shadow-md"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                {result.file.startsWith('uploads/') ? (
-                  <UploadIcon className="size-4 shrink-0 text-brand" />
-                ) : (
-                  <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
-                )}
-                <span className="truncate font-mono text-xs">{result.file}</span>
-                {result.section && <Badge variant="outline">{result.section}</Badge>}
+      {results.length > 0 && (
+        <ol className="flex flex-col divide-y rounded-lg border">
+          {results.map((result, i) => (
+            <li key={`${result.file}-${i}`} className="p-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <div className="flex min-w-0 items-baseline gap-2">
+                  <span className="text-xs text-muted-foreground tabular-nums">{i + 1}</span>
+                  <span className="truncate font-mono text-xs">{result.file}</span>
+                  {result.section && (
+                    <span className="truncate text-xs text-muted-foreground">— {result.section}</span>
+                  )}
+                </div>
+                <span className="font-mono text-xs text-muted-foreground tabular-nums">
+                  {result.score.toFixed(4)}
+                </span>
               </div>
-              <span className={cn('rounded-md px-2 py-0.5 font-mono text-xs tabular-nums', scoreTone(result.score))}>
-                {result.score.toFixed(4)}
-              </span>
-            </div>
-            <p className="mt-2 line-clamp-6 text-sm whitespace-pre-wrap text-muted-foreground">{result.content}</p>
-          </div>
-        ))}
-      </div>
+              <p className="mt-2 line-clamp-6 text-sm whitespace-pre-wrap text-muted-foreground">{result.content}</p>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   )
 }

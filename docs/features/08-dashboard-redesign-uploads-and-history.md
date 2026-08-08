@@ -6,7 +6,7 @@
 
 Four things, one release:
 
-1. **Sidebar layout + redesign** — a persistent nav shell, dark mode, icons, and motion, replacing the two unstyled pages.
+1. **Sidebar layout + redesign** — a persistent nav shell and a quiet, data-first visual language (dark mode, hairline surfaces, tables over card stacks), replacing the two unstyled pages.
 2. **Document uploads** — upload arbitrary `.md`/`.mdx`/`.txt` files into a project's knowledge base without putting them in the Git repository.
 3. **Sync history** — every ingest/sync/upload run is recorded and browsable per project, plus a cross-project activity feed.
 4. **Two new pages** — per-project MCP setup instructions, and an interactive RAG flow explainer.
@@ -17,17 +17,19 @@ Four things, one release:
 
 | Route | Page | Purpose |
 |-------|------|---------|
-| `/` | `pages/dashboard.tsx` | Totals, project grid, recent activity feed |
+| `/` | `pages/dashboard.tsx` | Totals row, project grid, then a cross-project **recent activity table** below it |
 | `/projects` | `pages/projects.tsx` | Filterable project list |
 | `/projects/:id` | `pages/project-layout.tsx` → `project-overview.tsx` | Stats, ingest/sync console, hook toggle, indexed paths |
 | `/projects/:id/documents` | `project-documents.tsx` | Indexed-file browser (filter by source) + upload tab |
 | `/projects/:id/search` | `project-search.tsx` | Same retrieval path an agent hits |
-| `/projects/:id/history` | `project-history.tsx` | Run timeline + success/failure/duration stats |
+| `/projects/:id/history` | `project-history.tsx` | Run table + success/failure/duration stats |
 | `/projects/:id/mcp` | `project-mcp.tsx` | Copy-pasteable MCP config for Claude Code / OpenCode / Codex |
 | `/flow` | `rag-flow.tsx` | Three interactive pipeline diagrams |
 | `/settings` | `settings.tsx` | Read-only runtime configuration |
 
 `ProjectLayout` loads the project, its indexed documents and its uploads once, then hands them to every child tab via `Outlet` context — the tabs never re-fetch.
+
+Navigation is deliberately single-level per surface: the sidebar lists workspace links and a flat list of projects, and **never expands a per-project sub-menu**. Once you are inside a project, its tab bar is the only project-level navigation.
 
 ### Upload flow
 
@@ -83,7 +85,7 @@ New `getIndexedFiles()` returns one row per file (`file`, `source`, `chunkCount`
 
 ## 4) UI
 
-See [../design-system/README.md](../design-system/README.md) for tokens, motion rules and component conventions. Summary: violet/cyan OKLCH token set with light+dark, `lucide-react` icons, `next-themes` (dark by default), fade-up/stagger entry animations, `Skeleton` loading states, `EmptyState` for every empty list, and a global `prefers-reduced-motion` guard.
+See [../design-system/README.md](../design-system/README.md) for tokens, motion rules and component conventions. Summary: OKLCH token set with light+dark and a single violet accent used sparingly, hairline-bordered surfaces (no rings, glows or gradients), tables for tabular data, `lucide-react` icons used functionally rather than decoratively, `next-themes` (dark by default), one fade-up per page, `Skeleton` loading states, `EmptyState` for every empty list, and a global `prefers-reduced-motion` guard.
 
 ## 5) Edge Cases & Rules
 
@@ -105,7 +107,7 @@ See [../design-system/README.md](../design-system/README.md) for tokens, motion 
 - `src/git/hook-installer.ts` — `PROJECT_RAG_TRIGGER=hook`
 - `src/config/config.ts` — `dataDir`
 - `web/src/components/layout/{app-shell,sidebar,page-header,theme-toggle}.tsx`
-- `web/src/components/{stat-card,empty-state,run-list,upload-panel,flow-diagram,copy-button}.tsx`
+- `web/src/components/{stat-row,empty-state,run-table,upload-panel,flow-diagram,copy-button}.tsx`
 - `web/src/pages/{dashboard,projects,project-layout,project-overview,project-documents,project-search,project-history,project-mcp,rag-flow,settings}.tsx`
 - `web/src/lib/{api-client,format,projects-context}.ts(x)`, `web/src/index.css`
 

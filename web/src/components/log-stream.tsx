@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { DownloadCloudIcon, RefreshCwIcon, TerminalIcon } from 'lucide-react'
+import { RefreshCwIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ingestProject, syncProject } from '@/lib/api-client'
@@ -44,21 +44,14 @@ export function LogStream({ projectId, onFinished }: { projectId: string; onFini
   }
 
   return (
-    <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b p-3">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <TerminalIcon className="size-4 text-brand" />
-          Indexing console
-          {running && (
-            <span className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
-              <span className="size-1.5 animate-pulse-glow rounded-full bg-brand" />
-              running
-            </span>
-          )}
-        </div>
+    <div className="overflow-hidden rounded-lg border">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2.5">
+        <p className="text-sm font-medium">
+          Indexing
+          {running && <span className="ml-2 text-xs font-normal text-muted-foreground">running…</span>}
+        </p>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" disabled={running !== null} onClick={() => run('ingest')} className="gap-1.5">
-            <DownloadCloudIcon className="size-3.5" />
+          <Button size="sm" variant="outline" disabled={running !== null} onClick={() => run('ingest')}>
             {running === 'ingest' ? 'Ingesting...' : 'Full ingest'}
           </Button>
           <Button size="sm" disabled={running !== null} onClick={() => run('sync')} className="gap-1.5">
@@ -80,16 +73,16 @@ export function LogStream({ projectId, onFinished }: { projectId: string; onFini
             <div
               key={i}
               className={cn(
-                'animate-fade-in py-0.5 break-all',
+                'py-0.5 break-all',
                 line.tone === 'error' && 'text-red-400',
                 line.tone === 'ok' && 'text-emerald-400',
-                line.tone === 'log' && 'text-emerald-200/80',
+                line.tone === 'log' && 'text-neutral-300',
               )}
             >
               {line.text}
             </div>
           ))}
-          {running && <span className="inline-block animate-blink text-emerald-400">▋</span>}
+          {running && <span className="inline-block animate-blink text-neutral-300">▋</span>}
           <div ref={bottomRef} />
         </ScrollArea>
       )}

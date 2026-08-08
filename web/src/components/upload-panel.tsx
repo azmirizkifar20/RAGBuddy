@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import { toast } from 'sonner'
-import { FileUpIcon, Loader2Icon, Trash2Icon, UploadCloudIcon } from 'lucide-react'
+import { Trash2Icon, UploadCloudIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -92,28 +92,20 @@ export function UploadPanel({
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
         className={cn(
-          'relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 text-center transition-all duration-300',
-          dragging ? 'scale-[1.01] border-brand bg-brand-soft/40' : 'border-border hover:border-brand/50',
-          busy && 'pointer-events-none opacity-70',
+          'flex flex-col items-center justify-center rounded-lg border border-dashed px-6 py-10 text-center transition-colors',
+          dragging ? 'border-brand bg-muted/50' : 'hover:border-foreground/25',
+          busy && 'pointer-events-none opacity-60',
         )}
       >
-        <div
-          className={cn(
-            'mb-3 flex size-12 items-center justify-center rounded-2xl bg-brand-soft text-brand transition-transform duration-300',
-            dragging ? 'scale-110' : 'animate-float',
-          )}
-        >
-          {busy ? <Loader2Icon className="size-6 animate-spin" /> : <UploadCloudIcon className="size-6" />}
-        </div>
-        <p className="font-heading font-medium">
+        <UploadCloudIcon className="mb-2.5 size-5 text-muted-foreground" />
+        <p className="font-medium">
           {busy ? `Indexing ${progress?.done ?? 0}/${progress?.total ?? 0}...` : 'Drop documents here'}
         </p>
         <p className="mt-1 max-w-sm text-sm text-muted-foreground">
           Markdown or plain text ({ACCEPTED}). Files are stored by project-rag and embedded immediately — nothing is
           written into your Git repository, and a sync never removes them.
         </p>
-        <Button variant="outline" size="sm" className="mt-4 gap-1.5" onClick={() => inputRef.current?.click()}>
-          <FileUpIcon className="size-3.5" />
+        <Button variant="outline" size="sm" className="mt-4" onClick={() => inputRef.current?.click()}>
           Choose files
         </Button>
         <input
@@ -127,28 +119,19 @@ export function UploadPanel({
       </div>
 
       {uploads.length > 0 && (
-        <div className="stagger flex flex-col gap-2">
-          {uploads.map((upload, i) => (
-            <div
-              key={upload.file}
-              style={{ '--stagger-index': i } as React.CSSProperties}
-              className="flex items-center justify-between gap-3 rounded-lg bg-card px-3 py-2.5 ring-1 ring-foreground/10"
-            >
-              <div className="flex min-w-0 items-center gap-2.5">
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
-                  <FileUpIcon className="size-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate font-mono text-sm">{upload.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatBytes(upload.sizeBytes)} · uploaded {timeAgo(upload.uploadedAt)}
-                  </p>
-                </div>
+        <ul className="flex flex-col divide-y rounded-lg border">
+          {uploads.map((upload) => (
+            <li key={upload.file} className="flex items-center justify-between gap-3 px-4 py-2.5">
+              <div className="min-w-0">
+                <p className="truncate font-mono text-sm">{upload.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatBytes(upload.sizeBytes)} · uploaded {timeAgo(upload.uploadedAt)}
+                </p>
               </div>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="ghost" size="icon" aria-label={`Remove ${upload.name}`}>
-                    <Trash2Icon className="size-4 text-destructive" />
+                    <Trash2Icon className="size-4 text-muted-foreground" />
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -165,9 +148,9 @@ export function UploadPanel({
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   )

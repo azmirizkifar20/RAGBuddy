@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate, useOutletContext, useParams } from 'react-router'
-import { ClockIcon, DatabaseZapIcon, FilesIcon, PlugZapIcon, SearchIcon, TriangleAlertIcon } from 'lucide-react'
 import { PageHeader } from '@/components/layout/page-header'
 import { DeleteConfirmModal } from '@/components/delete-confirm-modal'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -29,11 +28,11 @@ export function useProjectContext(): ProjectContext {
 }
 
 const TABS = [
-  { segment: '', label: 'Overview', icon: DatabaseZapIcon, end: true },
-  { segment: '/documents', label: 'Documents', icon: FilesIcon, end: false },
-  { segment: '/search', label: 'Search', icon: SearchIcon, end: false },
-  { segment: '/history', label: 'History', icon: ClockIcon, end: false },
-  { segment: '/mcp', label: 'MCP setup', icon: PlugZapIcon, end: false },
+  { segment: '', label: 'Overview', end: true },
+  { segment: '/documents', label: 'Documents', end: false },
+  { segment: '/search', label: 'Search', end: false },
+  { segment: '/history', label: 'History', end: false },
+  { segment: '/mcp', label: 'MCP setup', end: false },
 ]
 
 export function ProjectLayout() {
@@ -77,13 +76,9 @@ export function ProjectLayout() {
   if (loading) {
     return (
       <div className="flex flex-col gap-4">
-        <Skeleton className="h-12 w-72" />
-        <Skeleton className="h-10 w-full max-w-md" />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-20" />
-          ))}
-        </div>
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-8 w-full max-w-md" />
+        <Skeleton className="h-20" />
         <Skeleton className="h-64" />
       </div>
     )
@@ -91,10 +86,9 @@ export function ProjectLayout() {
 
   if (error || !project) {
     return (
-      <div className="flex animate-fade-up flex-col items-center rounded-xl border border-dashed px-6 py-14 text-center">
-        <TriangleAlertIcon className="mb-3 size-8 text-destructive" />
-        <p className="font-heading font-medium">Could not load this project</p>
-        <p className="mt-1 max-w-md text-sm text-muted-foreground">{error ?? 'Unknown error'}</p>
+      <div className="rounded-lg border border-dashed px-6 py-12 text-center">
+        <p className="font-medium">Could not load this project</p>
+        <p className="mt-1 text-sm text-destructive">{error ?? 'Unknown error'}</p>
       </div>
     )
   }
@@ -112,9 +106,8 @@ export function ProjectLayout() {
   }
 
   return (
-    <div>
+    <div className="animate-fade-up">
       <PageHeader
-        icon={DatabaseZapIcon}
         title={project.name}
         description={<span className="font-mono text-xs break-all">{project.repository}</span>}
         actions={
@@ -129,8 +122,8 @@ export function ProjectLayout() {
         }
       />
 
-      <div className="mb-6 -mx-1 overflow-x-auto px-1 pb-1">
-        <div className="inline-flex w-fit items-center gap-1 rounded-xl bg-muted/60 p-1">
+      <div className="mb-6 -mx-1 overflow-x-auto border-b px-1">
+        <div className="flex w-max gap-1">
           {TABS.map((tab) => (
             <NavLink
               key={tab.segment}
@@ -138,14 +131,13 @@ export function ProjectLayout() {
               end={tab.end}
               className={({ isActive }) =>
                 cn(
-                  'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-all duration-200',
+                  '-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap transition-colors',
                   isActive
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
+                    ? 'border-brand font-medium text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
                 )
               }
             >
-              <tab.icon className="size-4" />
               {tab.label}
             </NavLink>
           ))}
