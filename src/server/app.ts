@@ -5,6 +5,8 @@ import type { ProjectRegistry } from '../projects/project-registry';
 import type { EmbeddingProvider } from '../embedding/embedding-provider';
 import { registerProjectsRoutes } from './routes/projects';
 import { registerKnowledgeRoutes } from './routes/knowledge';
+import { registerSearchRoutes } from './routes/search';
+import { registerHookRoutes } from './routes/hook';
 
 export interface AppDeps {
   registry: ProjectRegistry;
@@ -23,6 +25,8 @@ export function createApp(deps: AppDeps): Express {
   const apiRouter = express.Router();
   registerProjectsRoutes(apiRouter, deps);
   registerKnowledgeRoutes(apiRouter, deps);
+  registerSearchRoutes(apiRouter, deps);
+  registerHookRoutes(apiRouter, deps);
   app.use('/api/projects', apiRouter);
 
   app.use(express.static(deps.staticDir));
