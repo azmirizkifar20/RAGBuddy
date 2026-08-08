@@ -56,6 +56,12 @@ export function uninstallHook(repositoryPath: string): void {
   }
 }
 
+export function isHookInstalled(repositoryPath: string): boolean {
+  const hookPath = path.join(repositoryPath, '.git', 'hooks', 'post-commit');
+  if (!existsSync(hookPath)) return false;
+  return readFileSync(hookPath, 'utf8').includes(MARKER_START);
+}
+
 function buildHookBlock(projectId: string, nodePath: string, cliEntrypoint: string): string {
   return [
     MARKER_START,

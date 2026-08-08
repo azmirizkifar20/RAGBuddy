@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { installHook, uninstallHook } from '../../src/git/hook-installer';
+import { installHook, uninstallHook, isHookInstalled } from '../../src/git/hook-installer';
 
 describe('installHook', () => {
   let dir: string;
@@ -98,5 +98,40 @@ describe('uninstallHook', () => {
   it('does nothing when no hook is installed', () => {
     expect(() => uninstallHook(repo)).not.toThrow();
     expect(existsSync(hookPath)).toBe(false);
+  });
+});
+
+describe('isHookInstalled', () => {
+  let dir: string;
+  let repo: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-hook-status-'));
+    repo = path.join(dir, 'repo');
+    mkdirSync(path.join(repo, '.git', 'hooks'), { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('returns false when no hook file exists', () => {
+    expect(isHookInstalled(repo)).toBe(false);
+  });
+
+  it('returns false when a hook file exists but is not ours', () => {
+    writeFileSync(path.join(repo, '.git', 'hooks', 'post-commit'), '#!/bin/sh\necho "custom user hook"\n');
+    expect(isHookInstalled(repo)).toBe(false);
+  });
+
+  it('returns true after installHook has run', () => {
+    installHook(repo, 'sample', { nodePath: 'node', cliEntrypoint: '/x/index.js' });
+    expect(isHookInstalled(repo)).toBe(true);
+  });
+
+  it('returns false after uninstallHook has run', () => {
+    installHook(repo, 'sample', { nodePath: 'node', cliEntrypoint: '/x/index.js' });
+    uninstallHook(repo);
+    expect(isHookInstalled(repo)).toBe(false);
   });
 });
