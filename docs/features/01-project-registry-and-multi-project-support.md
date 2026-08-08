@@ -1,13 +1,13 @@
 # Project Registry & Multi-Project Support
 
-**Status: Planned** (Phase 1 — Foundation). Not yet implemented; traced from [`../../init.md`](../../init.md) §5, §18, §26.
+**Status: Implemented** (Phase 1 — Foundation).
 
 ## 1) What This Feature Is
 
 A registry of Git repositories `project-rag` is allowed to index, keyed by a project id. This is the foundation every other feature depends on: ingestion, sync, retrieval, and MCP tools all resolve "which project" through this registry before touching any files or vectors.
 
 - Spec: [`../../init.md`](../../init.md) §5 (Multi-Project Support), §18 (CLI)
-- Planned files: `src/projects/project-registry.ts`, `src/projects/project-types.ts`
+- Implementation: `src/projects/project-registry.ts`, `src/projects/project-types.ts`, `tests/projects/project-registry.test.ts`
 
 ## 2) Flow / Behavior
 
@@ -35,6 +35,8 @@ Not applicable — CLI only, no UI layer.
 ## Related Files
 
 - Spec source: [`../../init.md`](../../init.md) §5, §15, §18
+- Implementation: `src/projects/project-registry.ts`, `src/projects/project-types.ts`
+- Tests: `tests/projects/project-registry.test.ts`
 
 ## Cross-References
 

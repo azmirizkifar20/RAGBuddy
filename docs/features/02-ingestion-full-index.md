@@ -6,8 +6,11 @@
 
 The full-rebuild pipeline: scan a project's configured doc paths, chunk the Markdown structure-aware, hash content, embed, and upsert everything into Qdrant. This is what makes the Qdrant index fully rebuildable from Git at any time.
 
+**Phase 1 scope:** Phase 1 delivered the scanner, hasher, parser, and chunker building blocks (`src/ingestion/{scanner,hasher,parser,chunker}.ts`); the full `project-rag ingest` orchestration (`src/ingestion/indexer.ts`) is still Phase 2.
+
 - Spec: [`../../init.md`](../../init.md) §8 (Markdown Parsing), §9 (Content Hashing), §11 (Initial Full Index)
-- Planned files: `src/ingestion/{scanner,parser,chunker,hasher,indexer}.ts`
+- Implemented (Phase 1): `src/ingestion/{scanner,hasher,parser,chunker}.ts`
+- Planned (Phase 2): `src/ingestion/indexer.ts`
 
 ## 2) Flow / Behavior
 

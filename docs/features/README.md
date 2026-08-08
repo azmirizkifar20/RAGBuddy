@@ -3,7 +3,7 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-08
-**Recent**: Initial documentation scaffold created from the `init.md` build spec — no code implemented yet, so every feature below is marked **Planned**.
+**Recent**: Phase 1 (Foundation) implemented: config, project registry, content hashing, markdown scanner/parser/chunker, embedding provider abstraction, Qdrant client wrapper — see `docs/superpowers/plans/2026-08-08-phase1-foundation.md`.
 
 ## Index
 
