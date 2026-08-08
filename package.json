@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "web": "node dist/cli/index.js web"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
