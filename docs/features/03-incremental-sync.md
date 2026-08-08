@@ -1,13 +1,12 @@
 # Incremental Sync
 
-**Status: Planned** (Phase 3 — Incremental Sync). Not yet implemented; traced from [`../../init.md`](../../init.md) §9–§10, §12–§13, §26.
+**Status: Implemented** (Phase 3 — Incremental Sync). Traced from [`../../init.md`](../../init.md) §9–§10, §12–§13, §26.
 
 ## 1) What This Feature Is
 
 Detects added/modified/deleted/unchanged documentation files since the last index and only re-embeds what changed. This is what the Git post-commit hook calls after every commit.
 
 - Spec: [`../../init.md`](../../init.md) §10 (Incremental Sync), §12 (Git Commit Auto Sync), §13 (Git Hook Installation)
-- Planned files: `src/ingestion/{scanner,hasher,indexer}.ts`, `src/git/{git-status,git-diff}.ts`
 
 ## 2) Flow / Behavior
 
@@ -41,6 +40,10 @@ Not applicable — CLI + Git hook only.
 
 ## Related Files
 
+- `src/ingestion/sync.ts` — incremental sync orchestrator
+- `src/ingestion/payload-builder.ts` — shared chunk/payload helpers (extracted from Phase 2's indexer)
+- `src/qdrant/qdrant-repository.ts` — extended with `getIndexedFileHashes`/`deleteFileVectors`
+- `src/cli/{args,sync-command,index}.ts` — dual ingest/sync CLI dispatch
 - Spec source: [`../../init.md`](../../init.md) §10, §12, §13
 
 ## Cross-References

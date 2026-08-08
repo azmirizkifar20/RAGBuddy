@@ -3,13 +3,13 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-08
-**Recent**: Phase 2 (Full Ingestion) implemented: git commit metadata, Qdrant repository layer, ingestion indexer, and the first real CLI command (`project-rag ingest <project>`) — see `docs/superpowers/plans/2026-08-08-phase2-full-ingestion.md`.
+**Recent**: Phase 3 (Incremental Sync) implemented: hash-based add/modify/delete detection reading Qdrant's own stored `content_hash`/`file` payload fields (no separate state store), per-file vector deletion, and `project-rag sync <project>` — see `docs/superpowers/plans/2026-08-08-phase3-incremental-sync.md`.
 
 ## Index
 
 1. [Project Registry & Multi-Project Support](./01-project-registry-and-multi-project-support.md) — Implemented
 2. [Full Ingestion](./02-ingestion-full-index.md) — Implemented
-3. [Incremental Sync](./03-incremental-sync.md) — Planned
+3. [Incremental Sync](./03-incremental-sync.md) — Implemented
 4. [Retrieval / Search](./04-retrieval-search.md) — Planned
 5. [MCP Server](./05-mcp-server.md) — Planned
 6. [Git Hook Auto Sync](./06-git-hook-auto-sync.md) — Planned
