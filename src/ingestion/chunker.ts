@@ -20,6 +20,11 @@ const DEFAULT_OVERLAP = 400;
 export function chunkMarkdown(content: string, options: ChunkOptions = {}): Chunk[] {
   const chunkSize = options.chunkSize ?? DEFAULT_CHUNK_SIZE;
   const overlap = options.overlap ?? DEFAULT_OVERLAP;
+
+  if (overlap >= chunkSize) {
+    throw new Error('overlap must be smaller than chunkSize');
+  }
+
   const sections = parseMarkdown(content);
   const chunks: Chunk[] = [];
   let chunkIndex = 0;

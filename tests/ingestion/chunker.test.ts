@@ -28,4 +28,14 @@ describe('chunkMarkdown', () => {
 
     expect(chunks[1].content.slice(0, 20)).toBe(chunks[0].content.slice(-20));
   });
+
+  it('throws error when overlap >= chunkSize', () => {
+    const md = '## Test\n\nSome content';
+    expect(() => chunkMarkdown(md, { chunkSize: 100, overlap: 100 })).toThrow(
+      'overlap must be smaller than chunkSize'
+    );
+    expect(() => chunkMarkdown(md, { chunkSize: 100, overlap: 150 })).toThrow(
+      'overlap must be smaller than chunkSize'
+    );
+  });
 });
