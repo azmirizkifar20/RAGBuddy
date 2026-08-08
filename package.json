@@ -4,6 +4,9 @@
   "private": true,
   "description": "Multi-project RAG + MCP server for coding agents",
   "main": "dist/cli/index.js",
+  "bin": {
+    "project-rag": "dist/cli/index.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
