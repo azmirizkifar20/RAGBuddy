@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
+import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { QdrantClient } from '@qdrant/js-client-rest';
 import type { ProjectConfig } from '../projects/project-types';
@@ -35,6 +36,9 @@ export async function syncProject(
   project: ProjectConfig,
   deps: SyncProjectDeps,
 ): Promise<SyncResult> {
+  if (!existsSync(project.repository) || !existsSync(path.join(project.repository, '.git'))) {
+    throw new Error(`Repository is not accessible or not a Git repository: ${project.repository}`);
+  }
   const log = deps.onLog ?? (() => {});
   const files = scanDocuments(project.repository, project.paths);
   const currentPaths = new Set(files.map((f) => f.relativePath));
@@ -45,8 +49,15 @@ export async function syncProject(
   const modified: string[] = [];
   const unchanged: string[] = [];
   const deleted = [...existingHashes.keys()].filter((file) => !currentPaths.has(file));
-  const points: DocumentPoint[] = [];
+  let collectionEnsured = false;
 
+  // ponytail: upsert each file's new points immediately after that file's
+  // own delete, rather than batching every changed file into one upsert at
+  // the end — a later file's failure can then only leave THIS one file's
+  // vectors deleted-but-not-replaced, not every file already processed in
+  // this run. Narrower window, not a full atomic guarantee (still two
+  // separate network calls); a true guarantee needs a run/version tag, same
+  // as noted in indexer.ts's ponytail comment for the full-rebuild case.
   for (const file of files) {
     const content = readFileSync(file.absolutePath, 'utf8');
     const contentHash = hashContent(content);
@@ -72,41 +83,39 @@ export async function syncProject(
     log(`Embedding ${file.relativePath} (${chunks.length} chunk(s))`);
     const vectors = await deps.embeddingProvider.embedDocuments(texts);
 
-    for (let i = 0; i < chunks.length; i++) {
-      points.push({
-        id: randomUUID(),
-        vector: vectors[i],
-        payload: {
-          project: project.id,
-          file: file.relativePath,
-          absolute_path: file.absolutePath,
-          document_type: 'markdown',
-          category: deriveCategory(file.relativePath, project.paths),
-          content_hash: contentHash,
-          git_commit: gitCommit,
-          chunk_index: chunks[i].chunkIndex,
-          title: chunks[i].title,
-          section: chunks[i].section,
-          content: chunks[i].content,
-        },
+    const filePoints: DocumentPoint[] = chunks.map((chunk, i) => ({
+      id: randomUUID(),
+      vector: vectors[i],
+      payload: {
+        project: project.id,
+        file: file.relativePath,
+        absolute_path: file.absolutePath,
+        document_type: 'markdown',
+        category: deriveCategory(file.relativePath, project.paths),
+        content_hash: contentHash,
+        git_commit: gitCommit,
+        chunk_index: chunk.chunkIndex,
+        title: chunk.title,
+        section: chunk.section,
+        content: chunk.content,
+      },
+    }));
+
+    if (!collectionEnsured) {
+      await ensureCollection(deps.qdrantClient, {
+        url: deps.qdrantUrl,
+        collectionName: deps.qdrantCollection,
+        vectorSize: filePoints[0].vector.length,
       });
+      collectionEnsured = true;
     }
+    await upsertChunks(deps.qdrantClient, deps.qdrantCollection, filePoints);
+    log(`Upserted ${filePoints.length} chunk(s) for ${file.relativePath}`);
   }
 
   for (const file of deleted) {
     log(`Removing vectors for deleted file ${file}`);
     await deleteFileVectors(deps.qdrantClient, deps.qdrantCollection, project.id, file);
-  }
-
-  if (points.length > 0) {
-    const vectorSize = points[0].vector.length;
-    await ensureCollection(deps.qdrantClient, {
-      url: deps.qdrantUrl,
-      collectionName: deps.qdrantCollection,
-      vectorSize,
-    });
-    await upsertChunks(deps.qdrantClient, deps.qdrantCollection, points);
-    log(`Upserted ${points.length} chunk(s) to Qdrant`);
   }
 
   return { added, modified, deleted, unchanged };

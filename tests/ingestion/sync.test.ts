@@ -69,8 +69,36 @@ describe('syncProject', () => {
     const deleteCalls = qdrantClient.delete.mock.calls.map((call: any[]) => call[1].filter.must[1].match.value);
     expect(deleteCalls.sort()).toEqual(['docs/deleted.md', 'docs/modified.md']);
 
-    expect(qdrantClient.upsert).toHaveBeenCalledTimes(1);
-    const upsertedFiles = qdrantClient.upsert.mock.calls[0][1].points.map((p: any) => p.payload.file);
-    expect(upsertedFiles.sort()).toEqual(['docs/added.md', 'docs/modified.md']);
+    expect(qdrantClient.upsert).toHaveBeenCalledTimes(2);
+    const upsertedFiles = qdrantClient.upsert.mock.calls.map((call: any[]) => call[1].points[0].payload.file).sort();
+    expect(upsertedFiles).toEqual(['docs/added.md', 'docs/modified.md']);
+  });
+
+  it('throws without touching Qdrant when the repository path is not accessible', async () => {
+    const project = {
+      id: 'sample',
+      name: 'sample',
+      repository: path.join(dir, 'does-not-exist'),
+      paths: ['docs'],
+    };
+    const embeddingProvider = { embedDocuments: vi.fn(), embedQuery: vi.fn() };
+    const qdrantClient = {
+      scroll: vi.fn().mockResolvedValue({ points: [], next_page_offset: null }),
+      getCollections: vi.fn().mockResolvedValue({ collections: [] }),
+      createCollection: vi.fn().mockResolvedValue(true),
+      delete: vi.fn().mockResolvedValue(true),
+      upsert: vi.fn().mockResolvedValue(true),
+    } as any;
+
+    await expect(
+      syncProject(project, {
+        qdrantClient,
+        qdrantUrl: 'http://localhost:6333',
+        qdrantCollection: 'project_rag_documents',
+        embeddingProvider: embeddingProvider as any,
+      }),
+    ).rejects.toThrow();
+
+    expect(qdrantClient.scroll).not.toHaveBeenCalled();
   });
 });
