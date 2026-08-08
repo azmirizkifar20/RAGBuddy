@@ -3,14 +3,14 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-08
-**Recent**: Phase 3 (Incremental Sync) implemented: hash-based add/modify/delete detection reading Qdrant's own stored `content_hash`/`file` payload fields (no separate state store), per-file vector deletion, and `project-rag sync <project>` — see `docs/superpowers/plans/2026-08-08-phase3-incremental-sync.md`.
+**Recent**: Phase 4 (Retrieval) implemented: project-filtered vector similarity search (`searchPoints`/`searchProject`) and `project-rag search <project> "<query>"` — see `docs/superpowers/plans/2026-08-08-phase4-retrieval.md`.
 
 ## Index
 
 1. [Project Registry & Multi-Project Support](./01-project-registry-and-multi-project-support.md) — Implemented
 2. [Full Ingestion](./02-ingestion-full-index.md) — Implemented
 3. [Incremental Sync](./03-incremental-sync.md) — Implemented
-4. [Retrieval / Search](./04-retrieval-search.md) — Planned
+4. [Retrieval / Search](./04-retrieval-search.md) — Implemented
 5. [MCP Server](./05-mcp-server.md) — Planned
 6. [Git Hook Auto Sync](./06-git-hook-auto-sync.md) — Planned
 
