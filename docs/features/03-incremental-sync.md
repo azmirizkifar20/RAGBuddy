@@ -4,7 +4,7 @@
 
 ## 1) What This Feature Is
 
-Detects added/modified/deleted/unchanged documentation files since the last index and only re-embeds what changed. This is what the Git post-commit hook calls after every commit.
+Detects added/modified/deleted/unchanged documentation files since the last index and only re-embeds what changed. Once Phase 6 wires up the Git post-commit hook, this is what it will call after every commit — for now, `project-rag sync <project>` must be run manually.
 
 - Spec: [`../../init.md`](../../init.md) §10 (Incremental Sync), §12 (Git Commit Auto Sync), §13 (Git Hook Installation)
 
@@ -18,7 +18,9 @@ Detects added/modified/deleted/unchanged documentation files since the last inde
 5. Store current Git commit metadata
 6. Print a summary (counts per category)
 
-`project-rag hook install <project>` / `hook uninstall <project>`:
+**Note:** `hook install`/`hook uninstall` are Phase 6 (Git Hook) — not yet implemented. The bullets below describe the planned behavior; today, `sync` must be invoked manually.
+
+`project-rag hook install <project>` / `hook uninstall <project>` (planned):
 - Installs/removes a `.git/hooks/post-commit` hook that calls `project-rag sync <project>`
 - Preserves any existing `post-commit` hook rather than overwriting it (chain, don't destroy)
 - Never triggers a recursive commit
@@ -26,7 +28,7 @@ Detects added/modified/deleted/unchanged documentation files since the last inde
 ## 3) Domain & Data
 
 - Same chunk/metadata shape as [full ingestion](./02-ingestion-full-index.md); sync only touches the delta
-- Hook execution must never block `git commit` — Qdrant/embedding-provider/project-rag failures are caught and printed as warnings, exit success (`init.md` §12)
+- Hook execution must never block `git commit` — Qdrant/embedding-provider/project-rag failures are caught and printed as warnings, exit success (`init.md` §12). This rule applies once the Phase 6 hook exists; not yet implemented.
 
 ## 4) UI
 
@@ -36,7 +38,7 @@ Not applicable — CLI + Git hook only.
 
 - Unchanged files must not be re-embedded (`init.md` §10)
 - Deleted files must have their vectors removed, not just skipped
-- Hook install must detect and safely chain an existing user `post-commit` hook, never destroy it (`init.md` §13)
+- Hook install must detect and safely chain an existing user `post-commit` hook, never destroy it (`init.md` §13). This is a Phase 6 requirement; hook install itself is not yet implemented.
 
 ## Related Files
 
