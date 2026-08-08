@@ -27,4 +27,33 @@ describe('parseMarkdown', () => {
   it('returns no sections for empty content', () => {
     expect(parseMarkdown('')).toHaveLength(0);
   });
+
+  it('does not treat # comments inside fenced code blocks as headings', () => {
+    const md = [
+      '# Title',
+      '',
+      '## Section A',
+      '',
+      '```bash',
+      '# this is a shell comment, not a heading',
+      '## so is this',
+      'echo hello',
+      '```',
+      '',
+      '## Section B',
+      '',
+      'Content B.',
+      '',
+    ].join('\n');
+    const sections = parseMarkdown(md);
+
+    expect(sections).toHaveLength(3);
+    expect(sections[0]).toMatchObject({ heading: 'Title', level: 1 });
+    expect(sections[1]).toMatchObject({ heading: 'Section A', level: 2 });
+    expect(sections[1].content).toContain('# this is a shell comment, not a heading');
+    expect(sections[1].content).toContain('## so is this');
+    expect(sections[1].content).toContain('echo hello');
+    expect(sections[2]).toMatchObject({ heading: 'Section B', level: 2 });
+    expect(sections[2].content).toContain('Content B.');
+  });
 });

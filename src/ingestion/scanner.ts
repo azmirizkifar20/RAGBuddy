@@ -21,8 +21,13 @@ const EXCLUDED_FILE_NAMES = new Set(['.env', 'CLAUDE.md', 'AGENTS.md']);
 
 export function scanDocuments(repositoryRoot: string, paths: string[]): ScannedFile[] {
   const results: ScannedFile[] = [];
+  const resolvedRoot = path.resolve(repositoryRoot);
   for (const configuredPath of paths) {
-    walk(repositoryRoot, path.join(repositoryRoot, configuredPath), results);
+    const resolvedTarget = path.resolve(repositoryRoot, configuredPath);
+    if (resolvedTarget !== resolvedRoot && !resolvedTarget.startsWith(resolvedRoot + path.sep)) {
+      throw new Error(`Configured path escapes repository root: ${configuredPath}`);
+    }
+    walk(repositoryRoot, resolvedTarget, results);
   }
   return results.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
 }

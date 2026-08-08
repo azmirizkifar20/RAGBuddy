@@ -42,4 +42,13 @@ describe('scanDocuments', () => {
     const files = scanDocuments(dir, ['docs']).map((f) => f.relativePath);
     expect(files.some((f) => f.endsWith('.png'))).toBe(false);
   });
+
+  it('rejects configured paths that escape the repository root', () => {
+    expect(() => scanDocuments(dir, ['../outside'])).toThrow();
+  });
+
+  it('rejects absolute configured paths outside the repository root', () => {
+    const outside = path.join(tmpdir(), 'project-rag-scanner-outside-target');
+    expect(() => scanDocuments(dir, [outside])).toThrow();
+  });
 });

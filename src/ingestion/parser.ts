@@ -6,6 +6,7 @@ export interface MarkdownSection {
 }
 
 const HEADING_PATTERN = /^(#{1,6})\s+(.+?)\s*$/;
+const FENCE_PATTERN = /^\s*(```|~~~)/;
 
 export function parseMarkdown(content: string): MarkdownSection[] {
   const lines = content.split('\n');
@@ -16,6 +17,7 @@ export function parseMarkdown(content: string): MarkdownSection[] {
   let currentLevel = 0;
   let documentTitle = '';
   let started = false;
+  let inFence = false;
 
   const flush = () => {
     if (!started && currentLines.every((line) => line.trim() === '')) return;
@@ -28,6 +30,15 @@ export function parseMarkdown(content: string): MarkdownSection[] {
   };
 
   for (const line of lines) {
+    if (FENCE_PATTERN.test(line)) {
+      inFence = !inFence;
+      currentLines.push(line);
+      continue;
+    }
+    if (inFence) {
+      currentLines.push(line);
+      continue;
+    }
     const match = HEADING_PATTERN.exec(line);
     if (match) {
       flush();
