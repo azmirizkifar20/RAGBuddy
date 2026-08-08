@@ -3,6 +3,8 @@ import { loadConfig } from '../config/config';
 import { ProjectRegistry } from '../projects/project-registry';
 import { createQdrantClient } from '../qdrant/qdrant-client';
 import { createEmbeddingProvider } from '../embedding/embedding-provider';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { createMcpServer } from '../mcp/server';
 import { indexProject } from '../ingestion/indexer';
 import { syncProject } from '../ingestion/sync';
 import { searchProject } from '../retrieval/search';
@@ -14,7 +16,9 @@ import { runSearchCommand } from './search-command';
 async function main(): Promise<void> {
   const parsed = parseArgs(process.argv.slice(2));
   if (parsed.command === 'unknown') {
-    console.error('Usage: project-rag <ingest|sync> <project>  |  project-rag search <project> "<query>"');
+    console.error(
+      'Usage: project-rag <ingest|sync> <project>  |  project-rag search <project> "<query>"  |  project-rag mcp',
+    );
     process.exitCode = 1;
     return;
   }
@@ -29,6 +33,24 @@ async function main(): Promise<void> {
     apiKey: config.embeddingApiKey,
   });
   const onLog = (message: string) => console.log(`[INFO] ${message}`);
+
+  if (parsed.command === 'mcp') {
+    const server = createMcpServer({
+      registry,
+      qdrantClient,
+      qdrantCollection: config.qdrantCollection,
+      search: (project, query) =>
+        searchProject(project.id, query, {
+          qdrantClient,
+          qdrantCollection: config.qdrantCollection,
+          embeddingProvider,
+          topK: config.ragTopK,
+        }),
+    });
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    return;
+  }
 
   if (parsed.command === 'ingest') {
     const start = Date.now();

@@ -49,4 +49,8 @@ describe('parseArgs', () => {
   it('returns unknown when search is missing a project id', () => {
     expect(parseArgs(['search'])).toEqual({ command: 'unknown' });
   });
+
+  it('parses the mcp command with no project id needed', () => {
+    expect(parseArgs(['mcp'])).toEqual({ command: 'mcp' });
+  });
 });
