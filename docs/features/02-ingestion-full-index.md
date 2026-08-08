@@ -37,6 +37,8 @@ Not applicable — CLI only.
 
 - Unsupported/binary files are skipped, not errored
 - `absolute_path` must not leak through MCP responses unnecessarily (`init.md` §5, §21.9)
+- **Known limitation — non-atomic swap:** `indexProject` deletes a project's existing vectors before upserting the freshly embedded set. If embedding or upsert fails partway through a run, the project's index can be left empty rather than rolled back to its previous (stale-but-present) state; a full re-run recovers it. A truly atomic swap would need each run's points tagged with a version/run id so the delete could target "this project, but not this run" — deferred; see the `ponytail:` comment in `src/ingestion/indexer.ts` above the upsert block, and the document-versioning future feature in `init.md` §17.
+- **Known limitation — no embedding-dimension guard:** changing `EMBEDDING_MODEL`/provider between ingest runs against an existing Qdrant collection isn't guarded. A vector-size mismatch between the new embeddings and the collection's configured dimension surfaces as a raw Qdrant error, not a clear "you changed embedding model, recreate the collection" message.
 
 ## Related Files
 
