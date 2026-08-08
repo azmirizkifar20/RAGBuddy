@@ -17,4 +17,12 @@ describe('parseArgs', () => {
   it('returns unknown for empty argv', () => {
     expect(parseArgs([])).toEqual({ command: 'unknown' });
   });
+
+  it('parses a sync command with a project id', () => {
+    expect(parseArgs(['sync', 'bidubadu'])).toEqual({ command: 'sync', projectId: 'bidubadu' });
+  });
+
+  it('returns unknown when sync is missing a project id', () => {
+    expect(parseArgs(['sync'])).toEqual({ command: 'unknown' });
+  });
 });
