@@ -1,0 +1,76 @@
+# Web Frontend & CLI Project Subcommands
+
+**Status: Implemented**. Traced from `docs/superpowers/specs/2026-08-08-web-frontend-design.md` (a post-`init.md` feature — the CLI `project` subcommands were specified in `init.md` §18 but never built until now; the web dashboard is entirely new scope beyond `init.md`).
+
+## 1) What This Feature Is
+
+A visual layer over the exact same backend functions the CLI already uses (`ProjectRegistry`, `indexProject`, `syncProject`, `searchProject`, `installHook`/`uninstallHook`) — a small Express REST API plus a Vite/React SPA — served by a single new CLI command, `project-rag web`. Also fills the one gap left over from `init.md`: the `project register/list/remove` CLI subcommands.
+
+- Spec: `docs/superpowers/specs/2026-08-08-web-frontend-design.md`; `init.md` §18 (CLI `project` subcommands)
+- Implementation plans: `docs/superpowers/plans/2026-08-08-web-backend-api.md` (CLI subcommands + REST API), `docs/superpowers/plans/2026-08-08-web-frontend.md` (the `web/` SPA)
+
+## 2) Flow / Behavior
+
+```
+project-rag project register/list/remove   → ProjectRegistry (same registry the rest of the CLI uses)
+project-rag web [--port 4300]              → Express app: /api/* routes + serves web/dist statically
+Dashboard (/)                              → GET /api/projects → project cards, +Add Project modal
+Project Detail (/projects/:id)             → GET /api/projects/:id, /knowledge → file list, search, ingest/sync log stream, hook toggle, remove
+```
+
+CLI subcommands (`src/cli/project-command.ts`, wired in `src/cli/index.ts`):
+- `project-rag project register <id> <repository> [--name <name>] [--paths <p1,p2>]`
+- `project-rag project list`
+- `project-rag project remove <id>`
+
+REST API (`src/server/app.ts`, mounted at `/api/projects`):
+
+| Method | Path | Wraps |
+|--------|------|-------|
+| `GET` | `/api/projects` | `ProjectRegistry.list()` + `getIndexedFileHashes` + `isHookInstalled` per project |
+| `GET` | `/api/projects/:id` | Same per-project shape, single project |
+| `POST` | `/api/projects` | `project-command.ts`'s register logic |
+| `DELETE` | `/api/projects/:id` | `project-command.ts`'s remove logic |
+| `GET` | `/api/projects/:id/knowledge` | `getIndexedFileHashes` — sorted indexed file list |
+| `POST` | `/api/projects/:id/ingest` | `indexProject(..., { onLog })` — **SSE stream** |
+| `POST` | `/api/projects/:id/sync` | `syncProject(..., { onLog })` — **SSE stream** |
+| `POST` | `/api/projects/:id/search` | `searchProject` |
+| `POST`/`DELETE` | `/api/projects/:id/hook` | `installHook`/`uninstallHook` |
+
+All routes translate thrown `Error`s into `{ error: message }` + status code (404 not-found, 400 bad-input, 500 other) — no new error taxonomy.
+
+## 3) Domain & Data
+
+No new persisted data — the API is a thin read/write layer over the existing `ProjectRegistry` JSON file and Qdrant collection. `isHookInstalled(repositoryPath): boolean` (new export on `src/git/hook-installer.ts`) reads the real `.git/hooks/post-commit` file on every call rather than tracking cached state.
+
+## 4) UI
+
+- **Dashboard (`/`)** — `web/src/pages/dashboard.tsx`: grid of `ProjectCard`s (name, repo path, indexed-file count, auto-sync badge, one-click Sync), `+ Add Project` button opening `AddProjectModal`.
+- **Project Detail (`/projects/:id`)** — `web/src/pages/project-detail.tsx`: indexed-file list, `SearchPanel`, `LogStream` (live Ingest/Sync log streaming), `HookToggle`, `DeleteConfirmModal` (clarifies it only unregisters — no Qdrant/Git deletion).
+- Built with Vite + React 19 + TypeScript, Tailwind CSS v4, shadcn/ui (Radix base, Nova preset), `sonner` toasts, `react-router` v8 for the two routes.
+- `web/src/lib/api-client.ts` is the single fetch/SSE layer every component uses — no component calls `fetch` directly.
+
+## 5) Edge Cases & Rules
+
+- The ingest/sync SSE endpoints are triggered by `POST`, so the browser's native `EventSource` (GET-only, no body) can't consume them — `api-client.ts`'s `streamRun` parses the `event:`/`data:` wire format directly off a streamed `fetch` response body instead.
+- Solo-user, localhost only — no authentication, matching the CLI's own trust model (`init.md` §27).
+- Nothing in `src/ingestion/`, `src/qdrant/`, `src/embedding/`, `src/retrieval/`, `src/mcp/`, or any existing CLI command (`ingest`/`sync`/`hook install`/`hook uninstall`/`search`/`mcp`) was modified by this feature — it only adds new callers on top of those, unchanged.
+- No automated frontend test suite in v1 (explicit YAGNI) — verified via `npm run build` (TypeScript + Vite build) at every step, `oxlint`, and a live manual check of the full stack (`project-rag web` serving both the built SPA and the API together — confirmed `GET /`, a hashed JS asset, the SPA client-route fallback, and `GET /api/projects` all respond correctly). A real interactive browser click-through (register → sync → search → toggle hook → remove) was not performed — no browser automation tool was available in the implementing session; do a quick manual pass via `npm run dev` before considering this fully done.
+
+## Related Files
+
+- `src/git/hook-installer.ts` — `isHookInstalled` (new)
+- `src/cli/project-command.ts` — `runProjectRegister`/`runProjectList`/`runProjectRemove`, shared by the CLI and the API
+- `src/cli/args.ts`, `src/cli/index.ts` — `project` and `web` commands
+- `src/server/app.ts`, `src/server/sse.ts`, `src/server/routes/{projects,knowledge,search,hook,ingest,sync}.ts`
+- `web/src/lib/api-client.ts` — REST + SSE client
+- `web/src/components/{project-card,hook-toggle,delete-confirm-modal,add-project-modal,search-panel,log-stream}.tsx`
+- `web/src/pages/{dashboard,project-detail}.tsx`, `web/src/App.tsx`
+- Spec source: `docs/superpowers/specs/2026-08-08-web-frontend-design.md`
+
+## Cross-References
+
+- System flow: [../steering/system-flow.md](../steering/system-flow.md)
+- Architecture: [../steering/architecture.md](../steering/architecture.md)
+- API conventions: [../steering/api-conventions.md](../steering/api-conventions.md)
+- Depends on: [01-project-registry-and-multi-project-support.md](./01-project-registry-and-multi-project-support.md), [02-ingestion-full-index.md](./02-ingestion-full-index.md), [03-incremental-sync.md](./03-incremental-sync.md), [04-retrieval-search.md](./04-retrieval-search.md), [06-git-hook-auto-sync.md](./06-git-hook-auto-sync.md)
