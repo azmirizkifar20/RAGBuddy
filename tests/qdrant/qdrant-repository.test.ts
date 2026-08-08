@@ -3,6 +3,7 @@ import {
   upsertChunks,
   deleteProjectVectors,
   getIndexedFileHashes,
+  getIndexedFiles,
   deleteFileVectors,
   searchPoints,
 } from '../../src/qdrant/qdrant-repository';
@@ -109,6 +110,85 @@ describe('getIndexedFileHashes', () => {
     const result = await getIndexedFileHashes(client, 'docs', 'sample');
 
     expect(result.size).toBe(0);
+    expect(client.scroll).not.toHaveBeenCalled();
+  });
+});
+
+describe('source scoping', () => {
+  function scrollClient(points: unknown[]) {
+    return {
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'docs' }] }),
+      scroll: vi.fn().mockResolvedValue({ points, next_page_offset: null }),
+    } as any;
+  }
+
+  it('excludes uploads from the repository scope via must_not, so legacy points still match', async () => {
+    const client = scrollClient([]);
+
+    await getIndexedFileHashes(client, 'docs', 'sample', 'repository');
+
+    expect(client.scroll.mock.calls[0][1].filter).toEqual({
+      must: [{ key: 'project', match: { value: 'sample' } }],
+      must_not: [{ key: 'source', match: { value: 'upload' } }],
+    });
+  });
+
+  it('matches only uploads in the upload scope', async () => {
+    const client = scrollClient([]);
+
+    await getIndexedFileHashes(client, 'docs', 'sample', 'upload');
+
+    expect(client.scroll.mock.calls[0][1].filter).toEqual({
+      must: [
+        { key: 'project', match: { value: 'sample' } },
+        { key: 'source', match: { value: 'upload' } },
+      ],
+    });
+  });
+
+  it('scopes deleteProjectVectors the same way, so a re-index never wipes uploads', async () => {
+    const client = { delete: vi.fn().mockResolvedValue(true) } as any;
+
+    await deleteProjectVectors(client, 'docs', 'sample', 'repository');
+
+    expect(client.delete).toHaveBeenCalledWith('docs', {
+      filter: {
+        must: [{ key: 'project', match: { value: 'sample' } }],
+        must_not: [{ key: 'source', match: { value: 'upload' } }],
+      },
+    });
+  });
+});
+
+describe('getIndexedFiles', () => {
+  it('groups chunks per file, sorts by path, and defaults a missing source to repository', async () => {
+    const client = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'docs' }] }),
+      scroll: vi.fn().mockResolvedValue({
+        points: [
+          { id: '1', payload: { file: 'docs/b.md', title: 'B' } },
+          { id: '2', payload: { file: 'docs/a.md', title: 'A' } },
+          { id: '3', payload: { file: 'docs/a.md', title: 'A' } },
+          { id: '4', payload: { file: 'uploads/n.md', title: 'N', source: 'upload' } },
+        ],
+        next_page_offset: null,
+      }),
+    } as any;
+
+    expect(await getIndexedFiles(client, 'docs', 'sample')).toEqual([
+      { file: 'docs/a.md', source: 'repository', chunkCount: 2, title: 'A' },
+      { file: 'docs/b.md', source: 'repository', chunkCount: 1, title: 'B' },
+      { file: 'uploads/n.md', source: 'upload', chunkCount: 1, title: 'N' },
+    ]);
+  });
+
+  it('returns an empty list without scrolling when the collection does not exist yet', async () => {
+    const client = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [] }),
+      scroll: vi.fn(),
+    } as any;
+
+    expect(await getIndexedFiles(client, 'docs', 'sample')).toEqual([]);
     expect(client.scroll).not.toHaveBeenCalled();
   });
 });

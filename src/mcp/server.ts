@@ -13,6 +13,8 @@ export interface CreateMcpServerDeps {
   qdrantCollection: string;
   search: (project: ProjectConfig, query: string) => Promise<SearchResult[]>;
   cwd?: () => string;
+  /** Enables reading dashboard-uploaded documents via get_project_document. */
+  dataDir?: string;
 }
 
 export function createMcpServer(deps: CreateMcpServerDeps): McpServer {
@@ -20,7 +22,7 @@ export function createMcpServer(deps: CreateMcpServerDeps): McpServer {
   const server = new McpServer({ name: 'project-rag', version: '0.1.0' });
 
   registerSearchProjectDocsTool(server, { registry: deps.registry, search: deps.search, cwd });
-  registerGetProjectDocumentTool(server, { registry: deps.registry, cwd });
+  registerGetProjectDocumentTool(server, { registry: deps.registry, cwd, dataDir: deps.dataDir });
   registerListProjectKnowledgeTool(server, {
     registry: deps.registry,
     qdrantClient: deps.qdrantClient,

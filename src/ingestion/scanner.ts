@@ -6,7 +6,7 @@ export interface ScannedFile {
   absolutePath: string;
 }
 
-const SUPPORTED_EXTENSIONS = new Set(['.md', '.mdx', '.txt']);
+export const SUPPORTED_EXTENSIONS = new Set(['.md', '.mdx', '.txt']);
 const EXCLUDED_DIR_NAMES = new Set([
   '.git',
   'node_modules',

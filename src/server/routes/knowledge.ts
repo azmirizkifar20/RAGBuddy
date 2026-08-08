@@ -1,6 +1,6 @@
 import type { Router } from 'express';
 import type { AppDeps } from '../app';
-import { getIndexedFileHashes } from '../../qdrant/qdrant-repository';
+import { getIndexedFiles } from '../../qdrant/qdrant-repository';
 
 export function registerKnowledgeRoutes(router: Router, deps: AppDeps): void {
   router.get('/:id/knowledge', async (req, res) => {
@@ -10,8 +10,12 @@ export function registerKnowledgeRoutes(router: Router, deps: AppDeps): void {
       return;
     }
     try {
-      const hashes = await getIndexedFileHashes(deps.qdrantClient, deps.qdrantCollection, project.id);
-      res.json({ files: [...hashes.keys()].sort() });
+      const documents = await getIndexedFiles(deps.qdrantClient, deps.qdrantCollection, project.id);
+      res.json({
+        files: documents.map((d) => d.file),
+        documents,
+        chunkCount: documents.reduce((total, d) => total + d.chunkCount, 0),
+      });
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
     }

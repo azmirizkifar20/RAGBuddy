@@ -8,6 +8,7 @@ import { config as loadDotenv } from 'dotenv';
 loadDotenv({ path: path.resolve(__dirname, '../../.env') });
 import { loadConfig } from '../config/config';
 import { ProjectRegistry } from '../projects/project-registry';
+import { SyncHistoryStore, recordRun, type RunTrigger } from '../history/sync-history';
 import { createQdrantClient } from '../qdrant/qdrant-client';
 import { createEmbeddingProvider } from '../embedding/embedding-provider';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -36,6 +37,10 @@ async function main(): Promise<void> {
 
   const config = loadConfig();
   const registry = new ProjectRegistry(config.projectRegistryPath);
+  const history = new SyncHistoryStore(path.join(config.dataDir, 'sync-history.json'));
+  // The post-commit hook shells out to this same CLI; it sets this env var so
+  // the history page can tell an automatic sync from one you typed yourself.
+  const trigger: RunTrigger = process.env.PROJECT_RAG_TRIGGER === 'hook' ? 'hook' : 'cli';
   const qdrantClient = createQdrantClient(config.qdrantUrl);
   const embeddingProvider = createEmbeddingProvider({
     provider: config.embeddingProvider,
@@ -50,6 +55,7 @@ async function main(): Promise<void> {
       registry,
       qdrantClient,
       qdrantCollection: config.qdrantCollection,
+      dataDir: config.dataDir,
       search: (project, query) =>
         searchProject(project.id, query, {
           qdrantClient,
@@ -111,6 +117,19 @@ async function main(): Promise<void> {
       embeddingProvider,
       ragTopK: config.ragTopK,
       staticDir: path.resolve(__dirname, '../../web/dist'),
+      dataDir: config.dataDir,
+      history,
+      runtime: {
+        nodePath: process.execPath,
+        // Same entrypoint the git hook installer writes into post-commit, so
+        // the MCP setup page shows the exact path that already works here.
+        cliEntrypoint: path.resolve(__dirname, './index.js'),
+        embeddingProvider: config.embeddingProvider,
+        embeddingModel: config.embeddingModel,
+        embeddingBaseUrl: config.embeddingBaseUrl,
+        embeddingApiKeyConfigured: Boolean(config.embeddingApiKey),
+        projectRegistryPath: config.projectRegistryPath,
+      },
     });
     const port = parsed.port ?? 4300;
     const server = app.listen(port, () => {
@@ -134,13 +153,19 @@ async function main(): Promise<void> {
     const result = await runIngestCommand(parsed.projectId, {
       registry,
       index: (project) =>
-        indexProject(project, {
-          qdrantClient,
-          qdrantUrl: config.qdrantUrl,
-          qdrantCollection: config.qdrantCollection,
-          embeddingProvider,
-          onLog,
-        }),
+        recordRun(
+          history,
+          { project: project.id, kind: 'ingest', trigger },
+          () =>
+            indexProject(project, {
+              qdrantClient,
+              qdrantUrl: config.qdrantUrl,
+              qdrantCollection: config.qdrantCollection,
+              embeddingProvider,
+              onLog,
+            }),
+          (r) => ({ filesIndexed: r.filesIndexed, chunksIndexed: r.chunksIndexed }),
+        ),
     });
     const durationSeconds = ((Date.now() - start) / 1000).toFixed(1);
 
@@ -157,13 +182,24 @@ async function main(): Promise<void> {
     const result = await runSyncCommand(parsed.projectId, {
       registry,
       sync: (project) =>
-        syncProject(project, {
-          qdrantClient,
-          qdrantUrl: config.qdrantUrl,
-          qdrantCollection: config.qdrantCollection,
-          embeddingProvider,
-          onLog,
-        }),
+        recordRun(
+          history,
+          { project: project.id, kind: 'sync', trigger },
+          () =>
+            syncProject(project, {
+              qdrantClient,
+              qdrantUrl: config.qdrantUrl,
+              qdrantCollection: config.qdrantCollection,
+              embeddingProvider,
+              onLog,
+            }),
+          (r) => ({
+            added: r.added.length,
+            modified: r.modified.length,
+            deleted: r.deleted.length,
+            unchanged: r.unchanged.length,
+          }),
+        ),
     });
     const durationSeconds = ((Date.now() - start) / 1000).toFixed(1);
 

@@ -9,6 +9,8 @@ export interface AppConfig {
   embeddingApiKey?: string;
   ragTopK: number;
   projectRegistryPath: string;
+  /** Writable state that is not configuration: sync history + uploaded documents. */
+  dataDir: string;
 }
 
 const DEFAULT_EMBEDDING_BASE_URL: Record<string, string> = {
@@ -37,6 +39,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     // different repo entirely, so a cwd-relative default would silently
     // point at the wrong (or a nonexistent) registry file there.
     projectRegistryPath: path.resolve(__dirname, '../../', env.PROJECT_REGISTRY_PATH ?? './config/projects.json'),
+    // Same cwd-independence rule as the registry path above.
+    dataDir: path.resolve(__dirname, '../../', env.PROJECT_RAG_DATA_DIR ?? './data'),
   };
 }
 

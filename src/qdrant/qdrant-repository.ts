@@ -12,8 +12,14 @@ export interface ChunkPayload {
   title: string;
   section: string;
   content: string;
+  /** Absent on points written before uploads existed — treated as 'repository'. */
+  source?: DocumentSource;
   [key: string]: unknown;
 }
+
+export type DocumentSource = 'repository' | 'upload';
+/** 'repository' also matches legacy points that predate the `source` payload field. */
+export type SourceScope = 'all' | DocumentSource;
 
 export interface DocumentPoint {
   id: string;
@@ -32,44 +38,102 @@ export async function upsertChunks(
   });
 }
 
+/**
+ * Legacy points carry no `source` field, so "repository" is expressed as
+ * "not an upload" rather than "source == repository" — otherwise every point
+ * written before uploads existed would fall outside both scopes and be
+ * orphaned by sync (never diffed, never deleted).
+ */
+function scopedFilter(project: string, scope: SourceScope): Record<string, unknown> {
+  const filter: Record<string, unknown> = { must: [{ key: 'project', match: { value: project } }] };
+  if (scope === 'upload') {
+    filter.must = [...(filter.must as unknown[]), { key: 'source', match: { value: 'upload' } }];
+  } else if (scope === 'repository') {
+    filter.must_not = [{ key: 'source', match: { value: 'upload' } }];
+  }
+  return filter;
+}
+
 export async function deleteProjectVectors(
   client: QdrantClient,
   collectionName: string,
   project: string,
+  scope: SourceScope = 'all',
 ): Promise<void> {
-  await client.delete(collectionName, {
-    filter: { must: [{ key: 'project', match: { value: project } }] },
-  });
+  await client.delete(collectionName, { filter: scopedFilter(project, scope) });
 }
 
-export async function getIndexedFileHashes(
+async function scrollPayloads(
   client: QdrantClient,
   collectionName: string,
   project: string,
-): Promise<Map<string, string>> {
-  const hashes = new Map<string, string>();
+  scope: SourceScope,
+): Promise<Partial<ChunkPayload>[]> {
   const collections = await client.getCollections();
-  const collectionExists = collections.collections.some((c) => c.name === collectionName);
-  if (!collectionExists) return hashes;
+  if (!collections.collections.some((c) => c.name === collectionName)) return [];
 
+  const payloads: Partial<ChunkPayload>[] = [];
   let offset: string | number | Record<string, unknown> | null | undefined;
   do {
     const result = await client.scroll(collectionName, {
-      filter: { must: [{ key: 'project', match: { value: project } }] },
+      filter: scopedFilter(project, scope),
       with_payload: true,
       with_vector: false,
       limit: 200,
       offset,
     });
     for (const point of result.points) {
-      const payload = point.payload as { file?: string; content_hash?: string } | null | undefined;
-      if (payload?.file && payload?.content_hash) {
-        hashes.set(payload.file, payload.content_hash);
-      }
+      if (point.payload) payloads.push(point.payload as Partial<ChunkPayload>);
     }
     offset = result.next_page_offset ?? undefined;
   } while (offset !== undefined && offset !== null);
+  return payloads;
+}
+
+export async function getIndexedFileHashes(
+  client: QdrantClient,
+  collectionName: string,
+  project: string,
+  scope: SourceScope = 'all',
+): Promise<Map<string, string>> {
+  const hashes = new Map<string, string>();
+  for (const payload of await scrollPayloads(client, collectionName, project, scope)) {
+    if (payload.file && payload.content_hash) hashes.set(payload.file, payload.content_hash);
+  }
   return hashes;
+}
+
+export interface IndexedFile {
+  file: string;
+  source: DocumentSource;
+  chunkCount: number;
+  title: string;
+}
+
+/** One row per indexed file — what the dashboard's document list renders. */
+export async function getIndexedFiles(
+  client: QdrantClient,
+  collectionName: string,
+  project: string,
+  scope: SourceScope = 'all',
+): Promise<IndexedFile[]> {
+  const byFile = new Map<string, IndexedFile>();
+  for (const payload of await scrollPayloads(client, collectionName, project, scope)) {
+    if (!payload.file) continue;
+    const existing = byFile.get(payload.file);
+    if (existing) {
+      existing.chunkCount += 1;
+      if (!existing.title && payload.title) existing.title = payload.title;
+      continue;
+    }
+    byFile.set(payload.file, {
+      file: payload.file,
+      source: payload.source === 'upload' ? 'upload' : 'repository',
+      chunkCount: 1,
+      title: payload.title ?? '',
+    });
+  }
+  return [...byFile.values()].sort((a, b) => a.file.localeCompare(b.file));
 }
 
 export async function deleteFileVectors(

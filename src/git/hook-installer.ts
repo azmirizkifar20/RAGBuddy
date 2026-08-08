@@ -68,7 +68,9 @@ function buildHookBlock(projectId: string, nodePath: string, cliEntrypoint: stri
     '# Auto-sync installed by `project-rag hook install` — safe to remove via `project-rag hook uninstall`.',
     '# This never blocks the commit: any sync failure only prints a warning below.',
     'echo "[project-rag] Sync started..."',
-    `"${nodePath}" "${cliEntrypoint}" sync ${projectId} || echo "[project-rag] Warning: RAG sync failed. Git commit remains successful."`,
+    // PROJECT_RAG_TRIGGER lets the sync history distinguish this automatic run
+    // from a `project-rag sync` you typed yourself.
+    `PROJECT_RAG_TRIGGER=hook "${nodePath}" "${cliEntrypoint}" sync ${projectId} || echo "[project-rag] Warning: RAG sync failed. Git commit remains successful."`,
     MARKER_END,
   ].join('\n');
 }

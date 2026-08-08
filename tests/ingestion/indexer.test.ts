@@ -50,7 +50,10 @@ describe('indexProject', () => {
       vectors: { size: 2, distance: 'Cosine' },
     });
     expect(qdrantClient.delete).toHaveBeenCalledWith('project_rag_documents', {
-      filter: { must: [{ key: 'project', match: { value: 'sample' } }] },
+      filter: {
+        must: [{ key: 'project', match: { value: 'sample' } }],
+        must_not: [{ key: 'source', match: { value: 'upload' } }],
+      },
     });
     const upsertCall = qdrantClient.upsert.mock.calls[0];
     expect(upsertCall[0]).toBe('project_rag_documents');
@@ -62,6 +65,7 @@ describe('indexProject', () => {
       category: 'features',
       chunk_index: 0,
       title: 'Auth',
+      source: 'repository',
     });
     expect(upsertCall[1].points[0].payload.git_commit).toMatch(/^[0-9a-f]{40}$/);
     expect(onLog).toHaveBeenCalledWith(expect.stringContaining('Scanned 1 file'));
@@ -125,7 +129,10 @@ describe('indexProject', () => {
     expect(qdrantClient.createCollection).not.toHaveBeenCalled();
     expect(qdrantClient.upsert).not.toHaveBeenCalled();
     expect(qdrantClient.delete).toHaveBeenCalledWith('project_rag_documents', {
-      filter: { must: [{ key: 'project', match: { value: 'sample' } }] },
+      filter: {
+        must: [{ key: 'project', match: { value: 'sample' } }],
+        must_not: [{ key: 'source', match: { value: 'upload' } }],
+      },
     });
   });
 

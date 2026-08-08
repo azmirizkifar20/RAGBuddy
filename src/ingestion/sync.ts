@@ -42,7 +42,14 @@ export async function syncProject(
   const log = deps.onLog ?? (() => {});
   const files = scanDocuments(project.repository, project.paths);
   const currentPaths = new Set(files.map((f) => f.relativePath));
-  const existingHashes = await getIndexedFileHashes(deps.qdrantClient, deps.qdrantCollection, project.id);
+  // 'repository' scope only — uploaded documents have no counterpart in the
+  // scan, so an unscoped diff would list every one of them as deleted.
+  const existingHashes = await getIndexedFileHashes(
+    deps.qdrantClient,
+    deps.qdrantCollection,
+    project.id,
+    'repository',
+  );
   const gitCommit = getCurrentCommit(project.repository);
 
   const added: string[] = [];
@@ -98,6 +105,7 @@ export async function syncProject(
         title: chunk.title,
         section: chunk.section,
         content: chunk.content,
+        source: 'repository',
       },
     }));
 

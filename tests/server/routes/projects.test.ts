@@ -1,19 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../../src/server/app';
-
-function baseDeps(overrides: any = {}) {
-  return {
-    registry: { list: vi.fn().mockReturnValue([]), find: vi.fn(), register: vi.fn(), remove: vi.fn() },
-    qdrantClient: {},
-    qdrantUrl: 'http://localhost:6333',
-    qdrantCollection: 'project_rag_documents',
-    embeddingProvider: { embedQuery: vi.fn(), embedDocuments: vi.fn() },
-    ragTopK: 5,
-    staticDir: '/tmp/does-not-matter',
-    ...overrides,
-  };
-}
+import { baseDeps } from '../test-deps';
 
 describe('GET /api/projects', () => {
   it('returns each project with indexed file count and hook status', async () => {
@@ -38,7 +26,10 @@ describe('GET /api/projects', () => {
         repository: '/r',
         paths: ['docs'],
         indexedFileCount: expect.any(Number),
+        chunkCount: 0,
+        uploadCount: 0,
         hookInstalled: false,
+        lastRunAt: null,
       },
     ]);
   });

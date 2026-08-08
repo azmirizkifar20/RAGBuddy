@@ -4,19 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import request from 'supertest';
 import { createApp } from '../../../src/server/app';
-
-function baseDeps(overrides: any = {}) {
-  return {
-    registry: { list: vi.fn(), find: vi.fn() },
-    qdrantClient: {},
-    qdrantUrl: 'http://localhost:6333',
-    qdrantCollection: 'project_rag_documents',
-    embeddingProvider: { embedQuery: vi.fn(), embedDocuments: vi.fn() },
-    ragTopK: 5,
-    staticDir: '/tmp/does-not-matter',
-    ...overrides,
-  };
-}
+import { baseDeps } from '../test-deps';
 
 describe('hook routes', () => {
   let dir: string;

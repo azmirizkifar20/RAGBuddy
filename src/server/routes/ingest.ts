@@ -1,6 +1,7 @@
 import type { Router } from 'express';
 import type { AppDeps } from '../app';
 import { indexProject } from '../../ingestion/indexer';
+import { recordRun } from '../../history/sync-history';
 import { startSse, sendSseEvent } from '../sse';
 
 export function registerIngestRoutes(router: Router, deps: AppDeps): void {
@@ -12,13 +13,19 @@ export function registerIngestRoutes(router: Router, deps: AppDeps): void {
     }
     startSse(res);
     try {
-      const result = await indexProject(project, {
-        qdrantClient: deps.qdrantClient,
-        qdrantUrl: deps.qdrantUrl,
-        qdrantCollection: deps.qdrantCollection,
-        embeddingProvider: deps.embeddingProvider,
-        onLog: (message) => sendSseEvent(res, 'log', message),
-      });
+      const result = await recordRun(
+        deps.history,
+        { project: project.id, kind: 'ingest', trigger: 'web' },
+        () =>
+          indexProject(project, {
+            qdrantClient: deps.qdrantClient,
+            qdrantUrl: deps.qdrantUrl,
+            qdrantCollection: deps.qdrantCollection,
+            embeddingProvider: deps.embeddingProvider,
+            onLog: (message) => sendSseEvent(res, 'log', message),
+          }),
+        (r) => ({ filesIndexed: r.filesIndexed, chunksIndexed: r.chunksIndexed }),
+      );
       sendSseEvent(res, 'done', result);
     } catch (error) {
       sendSseEvent(res, 'error', { message: error instanceof Error ? error.message : String(error) });

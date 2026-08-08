@@ -1,6 +1,7 @@
 import type { Router } from 'express';
 import type { AppDeps } from '../app';
-import { getIndexedFileHashes } from '../../qdrant/qdrant-repository';
+import { getIndexedFiles } from '../../qdrant/qdrant-repository';
+import { listUploads } from '../../ingestion/uploads';
 import { isHookInstalled } from '../../git/hook-installer';
 import { runProjectRegister, runProjectList, runProjectRemove } from '../../cli/project-command';
 
@@ -9,14 +10,20 @@ export function registerProjectsRoutes(router: Router, deps: AppDeps): void {
     try {
       const projects = runProjectList(deps.registry);
       const result = await Promise.all(
-        projects.map(async (p) => ({
-          id: p.id,
-          name: p.name,
-          repository: p.repository,
-          paths: p.paths,
-          indexedFileCount: (await getIndexedFileHashes(deps.qdrantClient, deps.qdrantCollection, p.id)).size,
-          hookInstalled: isHookInstalled(p.repository),
-        })),
+        projects.map(async (p) => {
+          const documents = await getIndexedFiles(deps.qdrantClient, deps.qdrantCollection, p.id);
+          return {
+            id: p.id,
+            name: p.name,
+            repository: p.repository,
+            paths: p.paths,
+            indexedFileCount: documents.length,
+            chunkCount: documents.reduce((total, d) => total + d.chunkCount, 0),
+            uploadCount: documents.filter((d) => d.source === 'upload').length,
+            hookInstalled: isHookInstalled(p.repository),
+            lastRunAt: deps.history.list({ project: p.id, limit: 1 })[0]?.startedAt ?? null,
+          };
+        }),
       );
       res.json(result);
     } catch (error) {
@@ -31,14 +38,17 @@ export function registerProjectsRoutes(router: Router, deps: AppDeps): void {
       return;
     }
     try {
-      const hashes = await getIndexedFileHashes(deps.qdrantClient, deps.qdrantCollection, project.id);
+      const documents = await getIndexedFiles(deps.qdrantClient, deps.qdrantCollection, project.id);
       res.json({
         id: project.id,
         name: project.name,
         repository: project.repository,
         paths: project.paths,
-        indexedFileCount: hashes.size,
+        indexedFileCount: documents.length,
+        chunkCount: documents.reduce((total, d) => total + d.chunkCount, 0),
+        uploadCount: listUploads(deps.dataDir, project.id).length,
         hookInstalled: isHookInstalled(project.repository),
+        lastRunAt: deps.history.list({ project: project.id, limit: 1 })[0]?.startedAt ?? null,
       });
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : String(error) });

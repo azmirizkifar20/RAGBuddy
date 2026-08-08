@@ -64,6 +64,7 @@ export async function indexProject(
           title: chunks[i].title,
           section: chunks[i].section,
           content: chunks[i].content,
+          source: 'repository',
         },
       });
     }
@@ -82,7 +83,10 @@ export async function indexProject(
       collectionName: deps.qdrantCollection,
       vectorSize,
     });
-    await deleteProjectVectors(deps.qdrantClient, deps.qdrantCollection, project.id);
+    // 'repository' scope only — a full re-index must not wipe documents the
+    // user uploaded through the dashboard, which have no file on disk to
+    // re-scan and would be unrecoverable.
+    await deleteProjectVectors(deps.qdrantClient, deps.qdrantCollection, project.id, 'repository');
     await upsertChunks(deps.qdrantClient, deps.qdrantCollection, points);
     log(`Upserted ${points.length} chunk(s) to Qdrant`);
   } else {
@@ -90,7 +94,10 @@ export async function indexProject(
     const collections = await deps.qdrantClient.getCollections();
     const exists = collections.collections.some((c) => c.name === deps.qdrantCollection);
     if (exists) {
-      await deleteProjectVectors(deps.qdrantClient, deps.qdrantCollection, project.id);
+      // 'repository' scope only — a full re-index must not wipe documents the
+    // user uploaded through the dashboard, which have no file on disk to
+    // re-scan and would be unrecoverable.
+    await deleteProjectVectors(deps.qdrantClient, deps.qdrantCollection, project.id, 'repository');
       log('Cleared existing project vectors');
     }
   }

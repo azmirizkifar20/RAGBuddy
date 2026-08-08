@@ -8,6 +8,7 @@ import { toolText, toolError } from '../tool-result';
 export interface GetProjectDocumentDeps {
   registry: ProjectRegistry;
   cwd: () => string;
+  dataDir?: string;
 }
 
 export function registerGetProjectDocumentTool(server: McpServer, deps: GetProjectDocumentDeps): void {
@@ -18,7 +19,9 @@ export function registerGetProjectDocumentTool(server: McpServer, deps: GetProje
       inputSchema: {
         file: z
           .string()
-          .describe('Path to the document, relative to the repository root (e.g. docs/steering/architecture.md)'),
+          .describe(
+            'Path to the document, relative to the repository root (e.g. docs/steering/architecture.md), or an uploaded document (uploads/notes.md)',
+          ),
         project: z
           .string()
           .optional()
@@ -28,7 +31,7 @@ export function registerGetProjectDocumentTool(server: McpServer, deps: GetProje
     async ({ file, project: projectId }) => {
       try {
         const project = resolveProject(deps.registry, deps.cwd(), projectId);
-        const content = getProjectDocument(project, file);
+        const content = getProjectDocument(project, file, { dataDir: deps.dataDir });
         return toolText(content);
       } catch (error) {
         return toolError(error);

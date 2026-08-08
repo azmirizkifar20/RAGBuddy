@@ -1,8 +1,21 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { ProjectConfig } from '../projects/project-types';
+import { UPLOAD_PREFIX, uploadsDirFor, assertSafeUploadName } from '../ingestion/uploads';
 
-export function getProjectDocument(project: ProjectConfig, file: string): string {
+export interface GetProjectDocumentOptions {
+  /** Required to read documents uploaded through the dashboard (`uploads/…`). */
+  dataDir?: string;
+}
+
+export function getProjectDocument(
+  project: ProjectConfig,
+  file: string,
+  options: GetProjectDocumentOptions = {},
+): string {
+  if (file.startsWith(UPLOAD_PREFIX)) {
+    return readUpload(project, file.slice(UPLOAD_PREFIX.length), options.dataDir);
+  }
   const resolvedRoot = path.resolve(project.repository);
   const resolvedTarget = path.resolve(project.repository, file);
   if (resolvedTarget !== resolvedRoot && !resolvedTarget.startsWith(resolvedRoot + path.sep)) {
@@ -23,4 +36,21 @@ export function getProjectDocument(project: ProjectConfig, file: string): string
   }
 
   return readFileSync(resolvedTarget, 'utf8');
+}
+
+/**
+ * Uploaded documents live in project-rag's own data dir, not the repository,
+ * so they get their own read path. `assertSafeUploadName` rejects anything
+ * with a directory component, which is what keeps `uploads/../../secret` out.
+ */
+function readUpload(project: ProjectConfig, name: string, dataDir: string | undefined): string {
+  if (!dataDir) {
+    throw new Error(`Uploaded documents are unavailable: no data directory configured (${name})`);
+  }
+  const safeName = assertSafeUploadName(name);
+  const target = path.join(uploadsDirFor(dataDir, project.id), safeName);
+  if (!existsSync(target)) {
+    throw new Error(`File not found: ${UPLOAD_PREFIX}${name}`);
+  }
+  return readFileSync(target, 'utf8');
 }
