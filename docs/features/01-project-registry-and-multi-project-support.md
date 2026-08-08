@@ -7,7 +7,7 @@
 A registry of Git repositories `project-rag` is allowed to index, keyed by a project id. This is the foundation every other feature depends on: ingestion, sync, retrieval, and MCP tools all resolve "which project" through this registry before touching any files or vectors.
 
 - Spec: [`../../init.md`](../../init.md) §5 (Multi-Project Support), §18 (CLI)
-- Implementation: `src/projects/project-registry.ts`, `src/projects/project-types.ts`, `tests/projects/project-registry.test.ts`
+- Implementation: (see Related Files below)
 
 ## 2) Flow / Behavior
 

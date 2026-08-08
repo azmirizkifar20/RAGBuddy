@@ -7,7 +7,7 @@ This folder contains documentation for implemented features and current state.
 
 ## Index
 
-1. [Project Registry & Multi-Project Support](./01-project-registry-and-multi-project-support.md) — Planned
+1. [Project Registry & Multi-Project Support](./01-project-registry-and-multi-project-support.md) — Implemented
 2. [Full Ingestion](./02-ingestion-full-index.md) — Planned
 3. [Incremental Sync](./03-incremental-sync.md) — Planned
 4. [Retrieval / Search](./04-retrieval-search.md) — Planned
