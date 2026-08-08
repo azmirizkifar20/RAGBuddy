@@ -1,10 +1,14 @@
 # project-rag
 
-A multi-project RAG (Retrieval-Augmented Generation) service that gives coding agents — **Claude Code**, **OpenCode**, **Codex**, or any other MCP-compatible agent — semantic search over your projects' documentation.
+A multi-project RAG (Retrieval-Augmented Generation) service that gives coding agents — **Claude Code**, **OpenCode**, **Codex**, or any other MCP-compatible agent — semantic search over your projects' documentation. Comes with a **CLI**, a **web dashboard**, and an **MCP server**, all sharing the exact same underlying code.
 
 ## What it is
 
-`project-rag` indexes the `docs/` folder (configurable) of one or more registered Git repositories into [Qdrant](https://qdrant.tech), a vector database, and exposes that index through both a CLI and an MCP server. A coding agent working in your repo can call `search_project_docs` to find the architecture doc, feature spec, or issue writeup relevant to what it's doing right now — instead of relying on whatever happened to fit in its context window.
+`project-rag` indexes the `docs/` folder (configurable) of one or more registered Git repositories into [Qdrant](https://qdrant.tech), a vector database, and exposes that index three ways:
+
+- **CLI** — `project-rag ingest/sync/search/hook/project/mcp/web`
+- **Web dashboard** — register projects, browse indexed files, search, run ingest/sync with a live log, toggle auto-sync, all from a browser
+- **MCP server** — a coding agent working in your repo can call `search_project_docs` to find the architecture doc, feature spec, or issue writeup relevant to what it's doing right now, instead of relying on whatever happened to fit in its context window
 
 ## Why it exists
 
@@ -12,20 +16,29 @@ Coding agents work best when they can find the *right* project documentation wit
 
 ## Architecture
 
-```
-Git Repository (project-a, project-b, ...)
-        ↓ scan configured doc paths
-   Ingestion (scanner → hasher → chunker)
-        ↓
-   Embedding Provider (Ollama / OpenAI-compatible)
-        ↓
-   Qdrant (project_rag_documents, payload-filtered by `project`)
-        ↓
-   Retrieval (project-filtered similarity search)
-        ↓
-   MCP Server  ←→  Claude Code / OpenCode / Codex
-        ↑
-       CLI (ingest / sync / search / hook / mcp)
+```mermaid
+flowchart TD
+    subgraph CORE["Shared core (never duplicated per entry point)"]
+        REG["Project Registry<br/>config/projects.json"]
+        ING["Ingestion<br/>scanner to hasher to chunker"]
+        EMB["Embedding Provider<br/>Ollama or OpenAI-compatible"]
+        RET["Retrieval<br/>project-filtered similarity search"]
+        REG --> ING --> EMB
+    end
+
+    QD[("Qdrant<br/>project_rag_documents<br/>filtered by project id")]
+    EMB --> QD --> RET
+
+    CLI["CLI<br/>ingest / sync / search / hook / project / mcp / web"] --> CORE
+    WEB["Web Dashboard<br/>React SPA, served by project-rag web"] -->|"REST API + SSE"| API["Express API<br/>src/server"]
+    API --> CORE
+    MCPS["MCP Server<br/>search_project_docs, get_project_document, list_project_knowledge"] --> CORE
+
+    GIT["git commit<br/>post-commit hook"] -.->|"auto-sync"| CLI
+
+    CC["Claude Code"] --> MCPS
+    OC["OpenCode"] --> MCPS
+    CX["Codex"] --> MCPS
 ```
 
 Every project registered with `project-rag` is isolated by a `project` field in Qdrant's payload metadata — a search against one project can never return another project's documents, enforced at the retrieval layer itself, not left to the LLM.
@@ -45,6 +58,15 @@ cp .env.example .env
 ```
 
 Edit `.env` to taste (defaults work for a local Ollama + Docker Compose Qdrant setup — see below).
+
+If you want the **web dashboard**, also build the frontend (separate toolchain, own `package.json`):
+
+```bash
+cd web
+npm install
+npm run build
+cd ..
+```
 
 ## Qdrant setup
 
@@ -70,7 +92,7 @@ EMBEDDING_MODEL=bge-m3
 
 Pull the model first: `ollama pull bge-m3`.
 
-**OpenAI-compatible API:**
+**OpenAI-compatible API** (OpenAI itself, or any self-hosted/proxy service — LiteLLM, vLLM, LM Studio, etc. — that implements a `POST {baseUrl}/embeddings` endpoint matching OpenAI's request/response shape):
 
 ```env
 EMBEDDING_PROVIDER=openai
@@ -79,23 +101,43 @@ EMBEDDING_MODEL=text-embedding-3-small
 EMBEDDING_API_KEY=sk-...
 ```
 
-`EMBEDDING_BASE_URL` also works with any OpenAI-compatible endpoint (self-hosted vLLM, LM Studio, etc.) — omit `EMBEDDING_API_KEY` if the endpoint doesn't require one.
+`EMBEDDING_BASE_URL` works with any such endpoint — omit `EMBEDDING_API_KEY` if it doesn't require one. Not every "OpenAI-compatible" API actually implements `/embeddings` (some chat-completion proxies only implement `/chat/completions`) — verify the endpoint responds to a plain `curl` before wiring it in here.
 
 `project-rag` never assumes you want documentation sent to a cloud provider — Ollama is the default in `.env.example`.
 
-## Project registration
+`.env` is loaded automatically (via `dotenv`, resolved against `project-rag`'s own install directory, not whatever directory happens to invoke the CLI — this matters because the git hook below invokes the CLI with its `cwd` set to the *target* repository, not this one).
 
-`project-rag` supports multiple projects from one installation. Each project is a registered Git repository plus the doc paths inside it to index (default `["docs"]`). Registration is currently done by editing the JSON file at `PROJECT_REGISTRY_PATH` (default `./config/projects.json`; see `config/projects.example.json`):
+## Two ways to manage projects: Web or CLI
 
-```json
-{
-  "projects": [
-    { "id": "bidubadu", "name": "Bidubadu", "repository": "/home/you/projects/bidubadu", "paths": ["docs"] }
-  ]
-}
+Both call the exact same underlying registry — pick whichever fits the moment.
+
+### Web dashboard
+
+```bash
+npm run web              # or: node dist/cli/index.js web [--port 4300]
 ```
 
-`repository` must be an absolute path to a Git repository (a `.git` directory must exist inside it). Details: [`docs/features/01-project-registry-and-multi-project-support.md`](docs/features/01-project-registry-and-multi-project-support.md).
+Open `http://localhost:4300`. From the dashboard you can:
+
+- **Register a project** (`+ Add Project`) — project ID, repository path (absolute path to a local Git repo), optional display name, optional comma-separated doc paths (defaults to `docs`)
+- See each project's indexed file count and auto-sync status at a glance
+- Open a project to browse its indexed files, run **Search**, trigger **Ingest**/**Sync** with a live streaming log, toggle the **auto-sync Git hook**, or **remove** the project (unregisters only — never touches Qdrant vectors or the Git repository itself)
+
+For frontend development with hot reload: `cd web && npm run dev` (proxies `/api` to `localhost:4300`, so `project-rag web` must also be running).
+
+### CLI
+
+```bash
+project-rag project register <id> <repository> [--name <name>] [--paths <p1,p2>]
+project-rag project list
+project-rag project remove <id>
+```
+
+`repository` must be an absolute path to a Git repository (a `.git` directory must exist inside it). `paths` defaults to `["docs"]` if omitted. Details: [`docs/features/01-project-registry-and-multi-project-support.md`](docs/features/01-project-registry-and-multi-project-support.md).
+
+(The registry is a plain JSON file at `PROJECT_REGISTRY_PATH`, default `./config/projects.json`, shape shown in `config/projects.example.json` — editing it directly still works too, if you'd rather script it.)
+
+Full details on both: [`docs/features/07-web-frontend-and-project-cli.md`](docs/features/07-web-frontend-and-project-cli.md).
 
 ## Initial ingestion
 
@@ -104,6 +146,8 @@ Full rebuild of a project's index — always safe to re-run, always rebuilds fro
 ```bash
 project-rag ingest bidubadu
 ```
+
+(Or click **Ingest** on the project's detail page in the web dashboard — same code path, live-streamed log.)
 
 This scans the project's configured paths, chunks every markdown file (heading-aware, so a chunk keeps its title/section context), embeds every chunk, and replaces the project's entire vector set in Qdrant. Details: [`docs/features/02-ingestion-full-index.md`](docs/features/02-ingestion-full-index.md).
 
@@ -114,6 +158,8 @@ After the first `ingest`, use `sync` day-to-day — it only re-embeds what actua
 ```bash
 project-rag sync bidubadu
 ```
+
+(Or click **Sync** in the web dashboard.)
 
 ```
 Project: bidubadu
@@ -139,7 +185,7 @@ Summary:
 
 Details: [`docs/features/03-incremental-sync.md`](docs/features/03-incremental-sync.md).
 
-## Git hook setup
+## Git hook setup (auto-sync)
 
 Wire `sync` to run automatically after every commit, so the index never drifts from what's actually on disk:
 
@@ -147,11 +193,30 @@ Wire `sync` to run automatically after every commit, so the index never drifts f
 project-rag hook install bidubadu
 ```
 
-This installs (or safely chains onto an existing) `.git/hooks/post-commit` in the project's repository. **A sync failure never blocks your commit** — if Qdrant or the embedding provider is down, the hook prints a warning and your commit still succeeds:
+(Or flip the **auto-sync** toggle on the project's detail page in the web dashboard.)
+
+This installs (or safely chains onto an existing) `.git/hooks/post-commit` in the project's repository — it will not disturb an unrelated pre-existing hook (e.g. a linter or another tool's hook already installed there; each tool's block is marker-delimited and only that block is ever touched). **A sync failure never blocks your commit** — if Qdrant or the embedding provider is down, the hook prints a warning and your commit still succeeds:
 
 ```
 [project-rag] Sync started...
 [project-rag] Warning: RAG sync failed (fetch failed). Git commit remains successful.
+```
+
+```mermaid
+sequenceDiagram
+    participant Dev as You
+    participant Git as git commit
+    participant Hook as post-commit hook
+    participant Sync as project-rag sync
+    participant Q as Qdrant
+
+    Dev->>Git: edit docs, commit
+    Git->>Hook: run post-commit
+    Hook->>Sync: node .../index.js sync project-id
+    Sync->>Sync: hash-diff files vs Qdrant
+    Sync->>Q: upsert changed / delete removed
+    Sync-->>Hook: exit 0, or warning on failure
+    Hook-->>Git: always exits 0 — commit is never blocked
 ```
 
 Remove it with `project-rag hook uninstall bidubadu`. Details: [`docs/features/06-git-hook-auto-sync.md`](docs/features/06-git-hook-auto-sync.md).
@@ -191,11 +256,13 @@ Same server, same three tools — `project-rag` intentionally has one MCP implem
 
 ## Troubleshooting
 
-- **`[project-rag] Error: Project "<id>" is not registered`** — the project id doesn't exist in the registry at `PROJECT_REGISTRY_PATH`. Check the file and the id you're passing.
+- **`[project-rag] Error: Project "<id>" is not registered`** — the project id doesn't exist in the registry at `PROJECT_REGISTRY_PATH`. Check via `project-rag project list` or the web dashboard.
 - **`Repository is not accessible or not a Git repository`** — the registered `repository` path moved, was deleted, or its `.git` folder is missing. `ingest`/`sync` refuse to run rather than silently treating "no files found" as "everything was deleted."
 - **`Failed to obtain server version. Unable to check client-server compatibility.`** — Qdrant isn't reachable at `QDRANT_URL`. Check `docker compose ps` / `docker compose up -d`. This warning is otherwise harmless.
-- **Embedding request errors (`fetch failed`, timeouts)** — check `EMBEDDING_PROVIDER`/`EMBEDDING_BASE_URL`/`EMBEDDING_MODEL` and that the provider (Ollama or your OpenAI-compatible endpoint) is actually running and has the model available.
-- **A registered project's `paths` isn't `docs`** — `ingest`/`sync`/`get_project_document` all scope correctly to whatever `paths` you registered, not just `docs/`; double-check `config/projects.json` if search results look empty.
+- **Embedding request errors (`fetch failed`, `404`, `401`)** — check `EMBEDDING_PROVIDER`/`EMBEDDING_BASE_URL`/`EMBEDDING_MODEL`/`EMBEDDING_API_KEY` and that the provider is actually running, has the model available, and its `/embeddings` endpoint is reachable from this machine (some providers restrict access by IP/network). Test directly with `curl` before assuming it's a `project-rag` bug.
+- **`project-rag web` seems to exit immediately** — check for a clear `Port <n> is already in use` message; something else (often a previous, un-closed `project-rag web`) is already bound to that port. Stop it or pass `--port <other-port>`.
+- **A registered project's `paths` isn't `docs`** — `ingest`/`sync`/`get_project_document` all scope correctly to whatever `paths` you registered, not just `docs/`; double-check `config/projects.json` (or the project's detail page) if search results look empty.
+- **Auto-sync doesn't seem to run after a commit** — confirm the hook is installed (`hookInstalled: true` on the project's detail page, or `cat .git/hooks/post-commit` in that repo) and that `.env` has real, working values — the hook runs with the *target* repo as its working directory, and both `.env` and the project registry are resolved relative to `project-rag`'s own install directory regardless, so this should work out of the box, but a broken `.env` will fail the same way.
 - More: [`docs/steering/setup.md`](docs/steering/setup.md).
 
 ## Rebuilding Qdrant from Git
@@ -211,7 +278,7 @@ project-rag ingest <project-id>   # repeat for every registered project
 ## Documentation map
 
 - [`docs/steering/`](docs/steering/README.md) — architecture, tech stack, routing, system flow, API/tool conventions, setup
-- [`docs/features/`](docs/features/README.md) — one doc per feature, traced to real files, one file per `init.md` phase
+- [`docs/features/`](docs/features/README.md) — one doc per feature, traced to real files
 - [`docs/issue/`](docs/issue/README.md) — bug reports and root cause analysis
 - [`init.md`](init.md) — the original build specification this project was implemented against
 
@@ -221,6 +288,16 @@ project-rag ingest <project-id>   # repeat for every registered project
 npm run typecheck   # tsc --noEmit
 npm test            # vitest run
 npm run build       # compiles src/ to dist/
+npm run web         # node dist/cli/index.js web (requires npm run build first)
+```
+
+Frontend (`web/`, separate toolchain):
+
+```bash
+cd web
+npm run dev         # Vite dev server with hot reload, proxies /api to localhost:4300
+npm run build       # compiles to web/dist, served by `project-rag web`
+npx oxlint src      # lint
 ```
 
 See [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) for the coding-agent workflow used to build and extend this project.
