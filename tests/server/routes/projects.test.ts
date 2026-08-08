@@ -39,6 +39,20 @@ describe('GET /api/projects', () => {
       },
     ]);
   });
+
+  it('returns 500 with a clean error body when Qdrant is unreachable', async () => {
+    const registry = {
+      list: vi.fn().mockReturnValue([{ id: 'sample', name: 'Sample', repository: '/r', paths: ['docs'] }]),
+      find: vi.fn(),
+    };
+    const qdrantClient = { scroll: vi.fn().mockRejectedValue(new Error('fetch failed')) };
+    const app = createApp(baseDeps({ registry, qdrantClient }));
+
+    const res = await request(app).get('/api/projects');
+
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'fetch failed' });
+  });
 });
 
 describe('GET /api/projects/:id', () => {
@@ -49,6 +63,20 @@ describe('GET /api/projects/:id', () => {
 
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: 'Project "missing" is not registered' });
+  });
+
+  it('returns 500 with a clean error body when Qdrant is unreachable', async () => {
+    const registry = {
+      list: vi.fn(),
+      find: vi.fn().mockReturnValue({ id: 'sample', name: 'Sample', repository: '/r', paths: ['docs'] }),
+    };
+    const qdrantClient = { scroll: vi.fn().mockRejectedValue(new Error('fetch failed')) };
+    const app = createApp(baseDeps({ registry, qdrantClient }));
+
+    const res = await request(app).get('/api/projects/sample');
+
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'fetch failed' });
   });
 });
 

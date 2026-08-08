@@ -45,4 +45,18 @@ describe('GET /api/projects/:id/knowledge', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ files: ['docs/a.md', 'docs/b.md'] });
   });
+
+  it('returns 500 with a clean error body when Qdrant is unreachable', async () => {
+    const registry = {
+      list: vi.fn(),
+      find: vi.fn().mockReturnValue({ id: 'sample', name: 'Sample', repository: '/r', paths: ['docs'] }),
+    };
+    const qdrantClient = { scroll: vi.fn().mockRejectedValue(new Error('fetch failed')) };
+    const app = createApp(baseDeps({ registry, qdrantClient }));
+
+    const res = await request(app).get('/api/projects/sample/knowledge');
+
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'fetch failed' });
+  });
 });

@@ -6,18 +6,22 @@ import { runProjectRegister, runProjectList, runProjectRemove } from '../../cli/
 
 export function registerProjectsRoutes(router: Router, deps: AppDeps): void {
   router.get('/', async (_req, res) => {
-    const projects = runProjectList(deps.registry);
-    const result = await Promise.all(
-      projects.map(async (p) => ({
-        id: p.id,
-        name: p.name,
-        repository: p.repository,
-        paths: p.paths,
-        indexedFileCount: (await getIndexedFileHashes(deps.qdrantClient, deps.qdrantCollection, p.id)).size,
-        hookInstalled: isHookInstalled(p.repository),
-      })),
-    );
-    res.json(result);
+    try {
+      const projects = runProjectList(deps.registry);
+      const result = await Promise.all(
+        projects.map(async (p) => ({
+          id: p.id,
+          name: p.name,
+          repository: p.repository,
+          paths: p.paths,
+          indexedFileCount: (await getIndexedFileHashes(deps.qdrantClient, deps.qdrantCollection, p.id)).size,
+          hookInstalled: isHookInstalled(p.repository),
+        })),
+      );
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+    }
   });
 
   router.get('/:id', async (req, res) => {
@@ -26,15 +30,19 @@ export function registerProjectsRoutes(router: Router, deps: AppDeps): void {
       res.status(404).json({ error: `Project "${req.params.id}" is not registered` });
       return;
     }
-    const hashes = await getIndexedFileHashes(deps.qdrantClient, deps.qdrantCollection, project.id);
-    res.json({
-      id: project.id,
-      name: project.name,
-      repository: project.repository,
-      paths: project.paths,
-      indexedFileCount: hashes.size,
-      hookInstalled: isHookInstalled(project.repository),
-    });
+    try {
+      const hashes = await getIndexedFileHashes(deps.qdrantClient, deps.qdrantCollection, project.id);
+      res.json({
+        id: project.id,
+        name: project.name,
+        repository: project.repository,
+        paths: project.paths,
+        indexedFileCount: hashes.size,
+        hookInstalled: isHookInstalled(project.repository),
+      });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+    }
   });
 
   router.post('/', (req, res) => {
