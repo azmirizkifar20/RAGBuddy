@@ -3,7 +3,7 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-08
-**Recent**: Phase 5 (MCP Server) implemented: `search_project_docs`, `get_project_document`, `list_project_knowledge`, cwd-or-explicit project resolution, and `project-rag mcp` — see `docs/superpowers/plans/2026-08-08-phase5-mcp-server.md`.
+**Recent**: Phase 6 (Git Hook Auto Sync) implemented: `project-rag hook install/uninstall <project>`, safe chaining with existing hooks, commit-never-blocked-by-sync-failure — see `docs/superpowers/plans/2026-08-08-phase6-git-hook.md`. All six phases from `init.md` §26 are now implemented.
 
 ## Index
 
@@ -12,7 +12,7 @@ This folder contains documentation for implemented features and current state.
 3. [Incremental Sync](./03-incremental-sync.md) — Implemented
 4. [Retrieval / Search](./04-retrieval-search.md) — Implemented
 5. [MCP Server](./05-mcp-server.md) — Implemented
-6. [Git Hook Auto Sync](./06-git-hook-auto-sync.md) — Planned
+6. [Git Hook Auto Sync](./06-git-hook-auto-sync.md) — Implemented
 
 ---
 

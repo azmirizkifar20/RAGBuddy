@@ -1,13 +1,13 @@
 # Git Hook Auto Sync
 
-**Status: Planned** (Phase 6 — Git Hook). Not yet implemented; traced from [`../../init.md`](../../init.md) §12–§13, §26.
+**Status: Implemented** (Phase 6 — Git Hook). Traced from [`../../init.md`](../../init.md) §12–§13, §26. This was the last of the six phases in `init.md` §26 — all phases are now implemented (see `docs/features/README.md`'s index).
 
 ## 1) What This Feature Is
 
 Wires `git commit` in a registered project's repo to automatically trigger `project-rag sync <project>` via a `post-commit` hook, without ever breaking the developer's commit workflow.
 
 - Spec: [`../../init.md`](../../init.md) §12 (Git Commit Auto Sync), §13 (Git Hook Installation)
-- Planned files: `src/git/{git-status,git-diff}.ts`, hook installer under `src/cli/`
+- Implementation: `src/git/hook-installer.ts`, `src/cli/hook-command.ts`, `src/cli/{args,index}.ts` (extended for the `hook` command)
 
 ## 2) Flow / Behavior
 
@@ -39,6 +39,10 @@ Not applicable — Git hook + CLI only.
 
 ## Related Files
 
+- `src/git/hook-installer.ts` — `installHook`/`uninstallHook`: marker-delimited `.git/hooks/post-commit` block, bakes in an absolute path to this installation's `dist/cli/index.js` (no reliance on `project-rag` being on `PATH`, since this is a local dev tool, not a globally published package)
+- `src/cli/hook-command.ts` — `runHookCommand`: registry lookup + delegate, mirrors `ingest-command.ts`/`sync-command.ts`/`search-command.ts`
+- `src/cli/args.ts`, `src/cli/index.ts` — extended for `hook install|uninstall <project>`
+- Manually verified end-to-end (not just unit-tested): installed the hook in a scratch repo, made a real commit with `QDRANT_URL`/`EMBEDDING_PROVIDER` pointing at unreachable services — the hook printed `[project-rag] Sync started...`, then a warning on failure, and the commit still succeeded (`git commit` exit code 0)
 - Spec source: [`../../init.md`](../../init.md) §12, §13
 
 ## Cross-References
