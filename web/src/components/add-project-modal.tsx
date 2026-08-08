@@ -28,10 +28,11 @@ export function AddProjectModal({ onRegistered }: { onRegistered: (project: Proj
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const formElement = event.currentTarget
     setErrors({})
     setSubmitting(true)
 
-    const form = new FormData(event.currentTarget)
+    const form = new FormData(formElement)
     const id = String(form.get('id') ?? '').trim()
     const repository = String(form.get('repository') ?? '').trim()
     const name = String(form.get('name') ?? '').trim()
@@ -47,7 +48,7 @@ export function AddProjectModal({ onRegistered }: { onRegistered: (project: Proj
       toast.success(`Registered "${project.name}".`)
       onRegistered(project)
       setOpen(false)
-      event.currentTarget.reset()
+      formElement.reset()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       setErrors({ [fieldForError(message)]: message })
