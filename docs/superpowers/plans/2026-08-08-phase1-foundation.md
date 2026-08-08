@@ -93,9 +93,12 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 4: Create `.gitignore`**
+- [ ] **Step 4: Update `.gitignore`**
+
+A `.gitignore` already exists (created by the controller session to ignore the `.superpowers/` SDD scratch workspace before setup). Add these lines to it rather than overwriting the existing `.superpowers/` entry:
 
 ```
+.superpowers/
 node_modules/
 dist/
 .env
