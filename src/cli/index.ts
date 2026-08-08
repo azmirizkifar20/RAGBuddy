@@ -5,6 +5,8 @@ import { createQdrantClient } from '../qdrant/qdrant-client';
 import { createEmbeddingProvider } from '../embedding/embedding-provider';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createMcpServer } from '../mcp/server';
+import { installHook, uninstallHook } from '../git/hook-installer';
+import { runHookCommand } from './hook-command';
 import { indexProject } from '../ingestion/indexer';
 import { syncProject } from '../ingestion/sync';
 import { searchProject } from '../retrieval/search';
@@ -17,7 +19,7 @@ async function main(): Promise<void> {
   const parsed = parseArgs(process.argv.slice(2));
   if (parsed.command === 'unknown') {
     console.error(
-      'Usage: project-rag <ingest|sync> <project>  |  project-rag search <project> "<query>"  |  project-rag mcp',
+      'Usage: project-rag <ingest|sync> <project>  |  project-rag search <project> "<query>"  |  project-rag mcp  |  project-rag hook <install|uninstall> <project>',
     );
     process.exitCode = 1;
     return;
@@ -49,6 +51,18 @@ async function main(): Promise<void> {
     });
     const transport = new StdioServerTransport();
     await server.connect(transport);
+    return;
+  }
+
+  if (parsed.command === 'hook') {
+    const result = runHookCommand(parsed.action, parsed.projectId, {
+      registry,
+      install: installHook,
+      uninstall: uninstallHook,
+    });
+    console.log(
+      `[project-rag] ${result.action === 'install' ? 'Installed' : 'Uninstalled'} the post-commit hook for "${result.projectName}".`,
+    );
     return;
   }
 

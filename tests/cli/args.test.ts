@@ -53,4 +53,28 @@ describe('parseArgs', () => {
   it('parses the mcp command with no project id needed', () => {
     expect(parseArgs(['mcp'])).toEqual({ command: 'mcp' });
   });
+
+  it('parses a hook install command with a project id', () => {
+    expect(parseArgs(['hook', 'install', 'bidubadu'])).toEqual({
+      command: 'hook',
+      action: 'install',
+      projectId: 'bidubadu',
+    });
+  });
+
+  it('parses a hook uninstall command with a project id', () => {
+    expect(parseArgs(['hook', 'uninstall', 'bidubadu'])).toEqual({
+      command: 'hook',
+      action: 'uninstall',
+      projectId: 'bidubadu',
+    });
+  });
+
+  it('returns unknown for an unrecognized hook action', () => {
+    expect(parseArgs(['hook', 'bogus', 'bidubadu'])).toEqual({ command: 'unknown' });
+  });
+
+  it('returns unknown when hook install is missing a project id', () => {
+    expect(parseArgs(['hook', 'install'])).toEqual({ command: 'unknown' });
+  });
 });
