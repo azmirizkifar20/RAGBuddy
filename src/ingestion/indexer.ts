@@ -9,6 +9,7 @@ import { chunkMarkdown } from './chunker';
 import { getCurrentCommit } from '../git/git-status';
 import { ensureCollection } from '../qdrant/qdrant-client';
 import { upsertChunks, deleteProjectVectors, type DocumentPoint } from '../qdrant/qdrant-repository';
+import { deriveCategory, composeEmbedText } from './payload-builder';
 
 export interface IndexProjectDeps {
   qdrantClient: QdrantClient;
@@ -39,7 +40,7 @@ export async function indexProject(
     const chunks = chunkMarkdown(content);
     if (chunks.length === 0) continue;
 
-    const texts = chunks.map((chunk) => `${chunk.title}\n${chunk.section}\n${chunk.content}`);
+    const texts = chunks.map(composeEmbedText);
     log(`Embedding ${file.relativePath} (${chunks.length} chunk(s))`);
     const vectors = await deps.embeddingProvider.embedDocuments(texts);
 
@@ -91,16 +92,4 @@ export async function indexProject(
   }
 
   return { filesIndexed: files.length, chunksIndexed: points.length };
-}
-
-function deriveCategory(relativePath: string, paths: string[]): string {
-  for (const configuredPath of paths) {
-    const prefix = configuredPath.endsWith('/') ? configuredPath : `${configuredPath}/`;
-    if (relativePath.startsWith(prefix)) {
-      const rest = relativePath.slice(prefix.length);
-      const segment = rest.split('/')[0];
-      return segment || 'root';
-    }
-  }
-  return 'other';
 }
