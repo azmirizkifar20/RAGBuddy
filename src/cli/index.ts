@@ -108,8 +108,18 @@ async function main(): Promise<void> {
       staticDir: path.resolve(__dirname, '../../web/dist'),
     });
     const port = parsed.port ?? 4300;
-    app.listen(port, () => {
+    const server = app.listen(port, () => {
       console.log(`[project-rag] Web UI running at http://localhost:${port}`);
+    });
+    server.on('error', (error: NodeJS.ErrnoException) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(
+          `[project-rag] Port ${port} is already in use. Stop whatever is using it, or run with --port <other-port>.`,
+        );
+      } else {
+        console.error(`[project-rag] Failed to start the web server: ${error.message}`);
+      }
+      process.exitCode = 1;
     });
     return;
   }
