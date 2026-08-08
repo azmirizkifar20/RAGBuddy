@@ -12,6 +12,7 @@ export interface ChunkPayload {
   title: string;
   section: string;
   content: string;
+  [key: string]: unknown;
 }
 
 export interface DocumentPoint {
