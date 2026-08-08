@@ -83,3 +83,27 @@ export async function deleteFileVectors(
     },
   });
 }
+
+export interface SearchHit {
+  score: number;
+  payload: ChunkPayload;
+}
+
+export async function searchPoints(
+  client: QdrantClient,
+  collectionName: string,
+  project: string,
+  vector: number[],
+  limit: number,
+): Promise<SearchHit[]> {
+  const response = await client.query(collectionName, {
+    query: vector,
+    limit,
+    filter: { must: [{ key: 'project', match: { value: project } }] },
+    with_payload: true,
+  });
+  return response.points.map((r) => ({
+    score: r.score ?? 0,
+    payload: r.payload as ChunkPayload,
+  }));
+}

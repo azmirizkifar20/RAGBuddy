@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { upsertChunks, deleteProjectVectors, getIndexedFileHashes, deleteFileVectors } from '../../src/qdrant/qdrant-repository';
+import {
+  upsertChunks,
+  deleteProjectVectors,
+  getIndexedFileHashes,
+  deleteFileVectors,
+  searchPoints,
+} from '../../src/qdrant/qdrant-repository';
 import type { DocumentPoint } from '../../src/qdrant/qdrant-repository';
 
 describe('upsertChunks', () => {
@@ -103,5 +109,32 @@ describe('deleteFileVectors', () => {
         ],
       },
     });
+  });
+});
+
+describe('searchPoints', () => {
+  it('searches with a project filter and maps score/payload', async () => {
+    const client = {
+      query: vi.fn().mockResolvedValue({
+        points: [{ id: '1', score: 0.9, payload: { file: 'docs/a.md', section: 'Intro', content: 'hi' } }],
+      }),
+    } as any;
+
+    const hits = await searchPoints(client, 'docs', 'sample', [0.1, 0.2], 5);
+
+    expect(client.query).toHaveBeenCalledWith('docs', {
+      query: [0.1, 0.2],
+      limit: 5,
+      filter: { must: [{ key: 'project', match: { value: 'sample' } }] },
+      with_payload: true,
+    });
+    expect(hits).toEqual([{ score: 0.9, payload: { file: 'docs/a.md', section: 'Intro', content: 'hi' } }]);
+  });
+
+  it('never omits the project filter, even with an empty project string edge case', async () => {
+    const client = { query: vi.fn().mockResolvedValue({ points: [] }) } as any;
+    await searchPoints(client, 'docs', 'bidubadu', [0.1], 3);
+    const callArgs = client.query.mock.calls[0][1];
+    expect(callArgs.filter).toEqual({ must: [{ key: 'project', match: { value: 'bidubadu' } }] });
   });
 });
