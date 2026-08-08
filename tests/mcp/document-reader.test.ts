@@ -39,6 +39,32 @@ describe('getProjectDocument', () => {
     await expect(getProjectDocument(project(), 'docs/steering/does-not-exist.md')).rejects.toThrow('File not found');
   });
 
+  describe('repository root README', () => {
+    it('reads the root README.md even though it is outside the configured paths', async () => {
+      writeFileSync(path.join(dir, 'README.md'), '# Project\n\nOverview.\n');
+      const content = await getProjectDocument(project(), 'README.md');
+      expect(content).toContain('Overview.');
+    });
+
+    it('matches the root README case-insensitively', async () => {
+      writeFileSync(path.join(dir, 'Readme.MD'), '# Project\n');
+      const content = await getProjectDocument(project(), 'Readme.MD');
+      expect(content).toContain('# Project');
+    });
+
+    it('still rejects a README in a nested directory that is outside configured paths', async () => {
+      mkdirSync(path.join(dir, 'packages', 'sub'), { recursive: true });
+      writeFileSync(path.join(dir, 'packages', 'sub', 'README.md'), '# Sub-package');
+      await expect(getProjectDocument(project(), 'packages/sub/README.md')).rejects.toThrow(
+        "outside the project's configured documentation paths",
+      );
+    });
+
+    it('reports a missing root README as not found, not as outside configured paths', async () => {
+      await expect(getProjectDocument(project(), 'README.md')).rejects.toThrow('File not found');
+    });
+  });
+
   describe('uploaded documents', () => {
     let dataDir: string;
 

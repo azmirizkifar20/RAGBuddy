@@ -29,7 +29,7 @@ Not applicable — MCP protocol only, consumed by coding agents' own UIs.
 
 ## 5) Edge Cases & Rules
 
-- `get_project_document` rejects `../../etc/passwd`-style traversal AND any file outside the project's configured documentation `paths` — stricter than just "inside the repo": a direct filesystem read bypasses the ingestion scanner's own exclusion rules (`.env`, non-`docs/` files), so `document-reader.ts` re-applies an equivalent boundary itself (`init.md` §14, §21.3, §21.6)
+- `get_project_document` rejects `../../etc/passwd`-style traversal AND any file outside the project's configured documentation `paths` — stricter than just "inside the repo": a direct filesystem read bypasses the ingestion scanner's own exclusion rules (`.env`, non-`docs/` files), so `document-reader.ts` re-applies an equivalent boundary itself (`init.md` §14, §21.3, §21.6). One deliberate exception mirrors the scanner's own: the repository root's `README.md` (case-insensitive) is readable even when `paths` doesn't include it — see [02-ingestion-full-index.md §3](./02-ingestion-full-index.md#3-domain--data). A README in a nested directory gets no such exception and still needs to fall inside a configured path.
 - Cross-project access must be impossible even via crafted parameters — enforced by `resolveProject` requiring either an explicit registered `project` id or an unambiguous cwd match (`init.md` §21.7)
 - Do not expose API keys in logs or unnecessary absolute paths in responses (`init.md` §21.8–21.9) — none of the three tools' responses include `absolute_path`
 - Ambiguous or unmatched cwd → explicit error naming the conflicting project ids (or "no registered project"), never a silent guess (`init.md` §15)

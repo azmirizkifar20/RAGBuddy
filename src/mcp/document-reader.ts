@@ -3,6 +3,17 @@ import path from 'node:path';
 import type { ProjectConfig } from '../projects/project-types';
 import { UPLOAD_PREFIX, uploadsDirFor, assertSafeUploadName } from '../ingestion/uploads';
 import { extractDocument } from '../ingestion/document-extractor';
+import { SUPPORTED_EXTENSIONS } from '../ingestion/scanner';
+
+/** Mirrors scanDocuments' always-index-the-root-readme rule (src/ingestion/scanner.ts). */
+function isRootReadme(relativePath: string): boolean {
+  if (relativePath !== path.basename(relativePath)) return false; // no directory component
+  // path.basename(str, ext) strips the suffix case-sensitively, so it silently
+  // no-ops on "Readme.MD" — slice by length instead of relying on it.
+  const ext = path.extname(relativePath);
+  const base = relativePath.slice(0, relativePath.length - ext.length);
+  return base.toLowerCase() === 'readme' && SUPPORTED_EXTENSIONS.has(ext.toLowerCase());
+}
 
 export interface GetProjectDocumentOptions {
   /** Required to read documents uploaded through the dashboard (`uploads/…`). */
@@ -29,10 +40,12 @@ export async function getProjectDocument(
   }
 
   const relativePath = path.relative(resolvedRoot, resolvedTarget).split(path.sep).join('/');
-  const withinConfiguredPath = project.paths.some((configuredPath) => {
-    const prefix = configuredPath.endsWith('/') ? configuredPath : `${configuredPath}/`;
-    return relativePath === configuredPath || relativePath.startsWith(prefix);
-  });
+  const withinConfiguredPath =
+    isRootReadme(relativePath) ||
+    project.paths.some((configuredPath) => {
+      const prefix = configuredPath.endsWith('/') ? configuredPath : `${configuredPath}/`;
+      return relativePath === configuredPath || relativePath.startsWith(prefix);
+    });
   if (!withinConfiguredPath) {
     throw new Error(`File is outside the project's configured documentation paths: ${file}`);
   }

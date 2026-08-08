@@ -36,6 +36,7 @@ Not applicable — CLI + Git hook only.
 
 ## 5) Edge Cases & Rules
 
+- The repository root README is included in the scan regardless of configured `paths` (see [02-ingestion-full-index.md §3](./02-ingestion-full-index.md#3-domain--data)) — the diff treats it like any other scanned file, so it shows up as `added` the first time a project syncs after this rule was introduced, then `unchanged` on every sync after that.
 - Unchanged files must not be re-embedded (`init.md` §10)
 - Deleted files must have their vectors removed, not just skipped
 - Hook install must detect and safely chain an existing user `post-commit` hook, never destroy it (`init.md` §13). This is a Phase 6 requirement; hook install itself is not yet implemented.

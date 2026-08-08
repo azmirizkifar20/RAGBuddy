@@ -173,6 +173,8 @@ project-rag ingest bidubadu
 
 This scans the project's configured paths, chunks every markdown file (heading-aware, so a chunk keeps its title/section context), embeds every chunk, and replaces the project's entire vector set in Qdrant. Details: [`docs/features/02-ingestion-full-index.md`](docs/features/02-ingestion-full-index.md).
 
+**The repository root's `README.md` is always indexed too**, even for a project registered with `paths: ["docs"]` — it's usually the single most useful thing an agent can read about a project, and it's matched case-insensitively (`Readme.MD`, `README.txt` also work). A README nested in a subdirectory still needs to be inside a configured path.
+
 ## Incremental sync
 
 After the first `ingest`, use `sync` day-to-day — it only re-embeds what actually changed, by comparing content hashes already stored in Qdrant against the files on disk:

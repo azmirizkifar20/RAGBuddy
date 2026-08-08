@@ -3,7 +3,7 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-09
-**Recent**: Dashboard redesigned around a sidebar shell, plus document uploads, sync history, an MCP setup page and a RAG flow explainer — see [08-dashboard-redesign-uploads-and-history.md](./08-dashboard-redesign-uploads-and-history.md).
+**Recent**: The repository root README is now always indexed and readable, even outside a project's configured `paths` — see [02-ingestion-full-index.md §3](./02-ingestion-full-index.md#3-domain--data) and [05-mcp-server.md §5](./05-mcp-server.md#5-edge-cases--rules).
 
 ## Index
 

@@ -23,6 +23,7 @@ The full-rebuild pipeline: scan a project's configured doc paths, chunk the Mark
 
 ## 3) Domain & Data
 
+- **The repository root's README is always indexed**, even when it falls outside every configured path — a project registered with `paths: ["docs"]` still gets its top-level `README.md` (or `Readme.MD`/`README.txt`, matched case-insensitively; `.md` preferred if more than one exists). This is a fixed rule, not per-project configuration: requiring `paths` to include `.` just to reach the README would also pull in every stray Markdown file scattered at the repo root. A README nested in a subdirectory (`packages/sub/README.md`) is not covered by this rule — it still needs to be inside a configured path. Implemented once in `scanDocuments` (`src/ingestion/scanner.ts`) so `ingest`, `sync`, and `get_project_document` all agree on it automatically.
 - Scanner respects the exclude list: `.git/`, `node_modules/`, `vendor/`, `dist/`, `build/`, `coverage/`, `.env`, secrets, binaries, large generated files, and (unless explicitly configured) `CLAUDE.md`/`AGENTS.md`/`.claude/`/`.agents/` (`init.md` §2)
 - Supported file types: `.md`, `.mdx`, `.txt` (`init.md` §8)
 - Chunking preserves heading context (title/section) — not naive N-character splitting; default chunk size 800–1200 tokens, overlap 100–200 tokens, configurable (`init.md` §8)

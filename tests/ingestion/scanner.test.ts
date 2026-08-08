@@ -52,3 +52,59 @@ describe('scanDocuments', () => {
     expect(() => scanDocuments(dir, [outside])).toThrow();
   });
 });
+
+describe('scanDocuments — repository root README', () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-scanner-readme-'));
+    mkdirSync(path.join(dir, 'docs'), { recursive: true });
+    writeFileSync(path.join(dir, 'docs', 'architecture.md'), '# Architecture');
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('always includes the root README.md even though it is outside every configured path', () => {
+    const files = scanDocuments(dir, ['docs']).map((f) => f.relativePath);
+    expect(files).not.toContain('README.md'); // not written yet
+
+    writeFileSync(path.join(dir, 'README.md'), '# Project');
+    const withReadme = scanDocuments(dir, ['docs']).map((f) => f.relativePath);
+    expect(withReadme).toContain('README.md');
+    expect(withReadme).toContain('docs/architecture.md');
+  });
+
+  it('matches the root README case-insensitively', () => {
+    writeFileSync(path.join(dir, 'Readme.MD'), '# Project');
+    const files = scanDocuments(dir, ['docs']).map((f) => f.relativePath);
+    expect(files).toContain('Readme.MD');
+  });
+
+  it('does not add a root README from a nested directory', () => {
+    mkdirSync(path.join(dir, 'packages', 'sub'), { recursive: true });
+    writeFileSync(path.join(dir, 'packages', 'sub', 'README.md'), '# Sub-package');
+    const files = scanDocuments(dir, ['docs']).map((f) => f.relativePath);
+    expect(files).not.toContain('packages/sub/README.md');
+  });
+
+  it('does nothing when there is no root README', () => {
+    const files = scanDocuments(dir, ['docs']).map((f) => f.relativePath);
+    expect(files.some((f) => /readme/i.test(f))).toBe(false);
+  });
+
+  it('is not duplicated when a configured path already covers the repository root', () => {
+    writeFileSync(path.join(dir, 'README.md'), '# Project');
+    const files = scanDocuments(dir, ['docs', '.']).map((f) => f.relativePath);
+    expect(files.filter((f) => f === 'README.md')).toHaveLength(1);
+  });
+
+  it('prefers README.md over README.txt when both exist', () => {
+    writeFileSync(path.join(dir, 'README.md'), '# Project');
+    writeFileSync(path.join(dir, 'README.txt'), 'Project');
+    const files = scanDocuments(dir, ['docs']).map((f) => f.relativePath);
+    expect(files).toContain('README.md');
+    expect(files).not.toContain('README.txt');
+  });
+});
