@@ -19,14 +19,14 @@ export class ProjectRegistry {
     opts: { name?: string; paths?: string[] } = {},
   ): ProjectConfig {
     const data = this.load();
-    if (data.projects.some((p) => p.id === id)) {
-      throw new Error(`Project "${id}" is already registered`);
-    }
     if (!existsSync(repository)) {
       throw new Error(`Repository path does not exist: ${repository}`);
     }
     if (!existsSync(path.join(repository, '.git'))) {
       throw new Error(`Not a Git repository: ${repository}`);
+    }
+    if (data.projects.some((p) => p.id === id)) {
+      throw new Error(`Project "${id}" is already registered`);
     }
     const project: ProjectConfig = {
       id,
