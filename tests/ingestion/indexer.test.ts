@@ -35,12 +35,14 @@ describe('indexProject', () => {
       delete: vi.fn().mockResolvedValue(true),
       upsert: vi.fn().mockResolvedValue(true),
     } as any;
+    const onLog = vi.fn();
 
     const result = await indexProject(project, {
       qdrantClient,
       qdrantUrl: 'http://localhost:6333',
       qdrantCollection: 'project_rag_documents',
       embeddingProvider: embeddingProvider as any,
+      onLog,
     });
 
     expect(result).toEqual({ filesIndexed: 1, chunksIndexed: 1 });
@@ -62,6 +64,43 @@ describe('indexProject', () => {
       title: 'Auth',
     });
     expect(upsertCall[1].points[0].payload.git_commit).toMatch(/^[0-9a-f]{40}$/);
+    expect(onLog).toHaveBeenCalledWith(expect.stringContaining('Scanned 1 file'));
+    expect(onLog).toHaveBeenCalledWith(expect.stringContaining('Upserted 1 chunk'));
+  });
+
+  it('derives category from a non-default configured path', async () => {
+    mkdirSync(path.join(dir, 'knowledge-base', 'faq'), { recursive: true });
+    writeFileSync(
+      path.join(dir, 'knowledge-base', 'faq', '01.md'),
+      '# FAQ\n\nFAQ content.\n',
+    );
+    execFileSync('git', ['add', '.'], { cwd: dir });
+    execFileSync('git', ['commit', '-m', 'add faq'], { cwd: dir });
+
+    const project = { id: 'sample', name: 'sample', repository: dir, paths: ['knowledge-base'] };
+    const embeddingProvider = {
+      embedDocuments: vi.fn().mockResolvedValue([[0.1, 0.2]]),
+      embedQuery: vi.fn(),
+    };
+    const qdrantClient = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [] }),
+      createCollection: vi.fn().mockResolvedValue(true),
+      delete: vi.fn().mockResolvedValue(true),
+      upsert: vi.fn().mockResolvedValue(true),
+    } as any;
+
+    await indexProject(project, {
+      qdrantClient,
+      qdrantUrl: 'http://localhost:6333',
+      qdrantCollection: 'project_rag_documents',
+      embeddingProvider: embeddingProvider as any,
+    });
+
+    const upsertCall = qdrantClient.upsert.mock.calls[0];
+    expect(upsertCall[1].points[0].payload).toMatchObject({
+      file: 'knowledge-base/faq/01.md',
+      category: 'faq',
+    });
   });
 
   it('clears existing vectors when there are no documents to index, without creating a collection', async () => {

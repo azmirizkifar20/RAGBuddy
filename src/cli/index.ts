@@ -34,6 +34,7 @@ async function main(): Promise<void> {
         qdrantUrl: config.qdrantUrl,
         qdrantCollection: config.qdrantCollection,
         embeddingProvider,
+        onLog: (message) => console.log(`[INFO] ${message}`),
       }),
   });
   const durationSeconds = ((Date.now() - start) / 1000).toFixed(1);
