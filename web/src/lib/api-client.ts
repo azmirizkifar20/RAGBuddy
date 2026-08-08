@@ -22,6 +22,7 @@ export type DocumentSource = 'repository' | 'upload'
 export interface IndexedDocument {
   file: string
   source: DocumentSource
+  documentType: string
   chunkCount: number
   title: string
 }
@@ -32,11 +33,14 @@ export interface KnowledgeResponse {
   chunkCount: number
 }
 
+export type UploadDocumentType = 'markdown' | 'text' | 'csv' | 'pdf' | 'docx' | 'xlsx'
+
 export interface UploadedDocument {
   file: string
   name: string
   sizeBytes: number
   uploadedAt: string
+  documentType: UploadDocumentType
 }
 
 export type RunKind = 'ingest' | 'sync' | 'upload' | 'upload-remove'
@@ -136,13 +140,19 @@ export interface UploadResult {
   name: string
   chunksIndexed: number
   replaced: boolean
+  documentType: UploadDocumentType
+  truncated: boolean
 }
 
-export function uploadDocument(id: string, filename: string, content: string): Promise<UploadResult> {
+/**
+ * Everything is sent base64-encoded so PDF/Word/Excel travel byte-for-byte
+ * over the same JSON endpoint plain text uses — no multipart handling needed.
+ */
+export function uploadDocument(id: string, filename: string, data: string): Promise<UploadResult> {
   return fetch(`/api/projects/${id}/uploads`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ filename, content }),
+    body: JSON.stringify({ filename, data }),
   }).then(parseJsonResponse<UploadResult>)
 }
 

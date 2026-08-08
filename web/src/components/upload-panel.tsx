@@ -17,9 +17,29 @@ import { removeUpload, uploadDocument, type UploadedDocument } from '@/lib/api-c
 import { formatBytes, timeAgo } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-const ACCEPTED = '.md,.mdx,.txt'
-/** Mirrors the server's express.json limit, minus JSON-encoding headroom. */
-const MAX_BYTES = 8 * 1024 * 1024
+const ACCEPTED = '.pdf,.docx,.xlsx,.xlsm,.md,.mdx,.markdown,.txt,.text,.log,.rst,.adoc,.csv,.tsv,.json,.yaml,.yml'
+/**
+ * The server's express.json limit is 32MB and base64 inflates a file by ~33%,
+ * so 20MB of real bytes is the most that can fit through.
+ */
+const MAX_BYTES = 20 * 1024 * 1024
+
+/**
+ * FileReader is used rather than btoa(String.fromCharCode(...bytes)) because
+ * spreading a multi-megabyte byte array blows the call stack.
+ */
+function readAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}`))
+    reader.onload = () => {
+      const result = String(reader.result)
+      const comma = result.indexOf(',')
+      resolve(comma === -1 ? '' : result.slice(comma + 1))
+    }
+    reader.readAsDataURL(file)
+  })
+}
 
 export function UploadPanel({
   projectId,
@@ -45,13 +65,13 @@ export function UploadPanel({
     for (const [index, file] of list.entries()) {
       try {
         if (file.size > MAX_BYTES) throw new Error(`${file.name} is larger than ${formatBytes(MAX_BYTES)}`)
-        // Only text documents are supported, so reading as text keeps the
-        // wire format plain JSON — no multipart handling needed server-side.
-        const content = await file.text()
-        const result = await uploadDocument(projectId, file.name, content)
+        const result = await uploadDocument(projectId, file.name, await readAsBase64(file))
         succeeded += 1
         toast.success(
           `${result.replaced ? 'Replaced' : 'Indexed'} ${result.name} — ${result.chunksIndexed} chunk(s).`,
+          result.truncated
+            ? { description: 'The document was very long and was truncated before indexing.' }
+            : undefined,
         )
       } catch (error) {
         toast.error(error instanceof Error ? error.message : String(error))
@@ -91,8 +111,9 @@ export function UploadPanel({
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
+        onClick={() => inputRef.current?.click()}
         className={cn(
-          'flex flex-col items-center justify-center rounded-lg border border-dashed px-6 py-10 text-center transition-colors',
+          'flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-6 py-10 text-center transition-colors',
           dragging ? 'border-brand bg-muted/50' : 'hover:border-foreground/25',
           busy && 'pointer-events-none opacity-60',
         )}
@@ -101,11 +122,22 @@ export function UploadPanel({
         <p className="font-medium">
           {busy ? `Indexing ${progress?.done ?? 0}/${progress?.total ?? 0}...` : 'Drop documents here'}
         </p>
-        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-          Markdown or plain text ({ACCEPTED}). Files are stored by project-rag and embedded immediately — nothing is
-          written into your Git repository, and a sync never removes them.
+        <p className="mt-1 max-w-md text-sm text-muted-foreground">
+          PDF, Word (.docx), Excel (.xlsx), Markdown, CSV and plain text. Text is extracted server-side and embedded
+          immediately — the original file is kept, nothing is written into your Git repository, and a sync never
+          removes them.
         </p>
-        <Button variant="outline" size="sm" className="mt-4" onClick={() => inputRef.current?.click()}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-4"
+          // The whole drop zone opens the picker, so the click must not also
+          // bubble up to it and open a second dialog.
+          onClick={(event) => {
+            event.stopPropagation()
+            inputRef.current?.click()
+          }}
+        >
           Choose files
         </Button>
         <input
@@ -125,7 +157,7 @@ export function UploadPanel({
               <div className="min-w-0">
                 <p className="truncate font-mono text-sm">{upload.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {formatBytes(upload.sizeBytes)} · uploaded {timeAgo(upload.uploadedAt)}
+                  {upload.documentType} · {formatBytes(upload.sizeBytes)} · uploaded {timeAgo(upload.uploadedAt)}
                 </p>
               </div>
               <AlertDialog>

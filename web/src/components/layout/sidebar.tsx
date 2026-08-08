@@ -34,7 +34,7 @@ export function Sidebar({
       <div
         onClick={onClose}
         className={cn(
-          'fixed inset-0 z-30 bg-background/70 transition-opacity lg:hidden',
+          'fixed inset-0 z-30 cursor-pointer bg-background/70 transition-opacity lg:hidden',
           open ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
       />

@@ -63,7 +63,9 @@ describe('uploadDocument', () => {
       qdrantUrl: 'http://localhost:6333',
       qdrantCollection: 'project_rag_documents',
       embeddingProvider: {
-        embedDocuments: vi.fn().mockResolvedValue([[0.1, 0.2]]),
+        // One vector per chunk, like a real provider — a fixed-length mock
+        // would hand undefined vectors to every chunk past the first.
+        embedDocuments: vi.fn((texts: string[]) => Promise.resolve(texts.map(() => [0.1, 0.2]))),
         embedQuery: vi.fn(),
       } as any,
       dataDir,
@@ -125,10 +127,61 @@ describe('uploadDocument', () => {
     expect(existsSync(uploadsDirFor(dataDir, 'sample'))).toBe(false);
   });
 
-  it('rejects an empty document', async () => {
+  it('rejects a document with no extractable text', async () => {
     await expect(
       uploadDocument(project, { filename: 'blank.md', content: '   \n' }, deps(qdrantStub())),
-    ).rejects.toThrow('empty');
+    ).rejects.toThrow('No text could be extracted');
+  });
+
+  it('rejects a zero-byte upload', async () => {
+    await expect(
+      uploadDocument(project, { filename: 'blank.md', data: Buffer.alloc(0) }, deps(qdrantStub())),
+    ).rejects.toThrow('Uploaded document is empty');
+  });
+
+  it('stores a binary upload byte-for-byte while indexing its extracted text', async () => {
+    const ExcelJS = await import('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Q1');
+    sheet.addRow(['Region', 'Amount']);
+    sheet.addRow(['Medan', 7300]);
+    const xlsx = Buffer.from(await workbook.xlsx.writeBuffer());
+
+    const qdrantClient = qdrantStub();
+    const result = await uploadDocument(
+      project,
+      { filename: 'quarterly.xlsx', data: xlsx },
+      deps(qdrantClient),
+    );
+
+    expect(result).toMatchObject({ file: 'uploads/quarterly.xlsx', documentType: 'xlsx', truncated: false });
+
+    // The original workbook is on disk unchanged — not the extracted text.
+    const stored = readFileSync(path.join(uploadsDirFor(dataDir, 'sample'), 'quarterly.xlsx'));
+    expect(stored.equals(xlsx)).toBe(true);
+
+    // What got indexed is readable text, not zip bytes, and every chunk got a
+    // real vector rather than the first one only.
+    const points = qdrantClient.upsert.mock.calls[0][1].points;
+    expect(points.every((p: any) => Array.isArray(p.vector))).toBe(true);
+    expect(points[0].payload.document_type).toBe('xlsx');
+    const allContent = points.map((p: any) => p.payload.content).join('\n');
+    expect(allContent).toContain('## Q1');
+    expect(allContent).toContain('| Medan | 7300 |');
+    expect(allContent).not.toContain('PK');
+  });
+
+  it('refuses a PDF with no text layer instead of indexing an empty document', async () => {
+    // Valid PDF structure, but no content stream to extract text from.
+    const emptyPdf = Buffer.from(
+      '%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [] /Count 0 >>\nendobj\ntrailer\n<< /Size 3 /Root 1 0 R >>\n%%EOF\n',
+      'latin1',
+    );
+
+    await expect(
+      uploadDocument(project, { filename: 'scan.pdf', data: emptyPdf }, deps(qdrantStub())),
+    ).rejects.toThrow();
+    expect(existsSync(path.join(uploadsDirFor(dataDir, 'sample'), 'scan.pdf'))).toBe(false);
   });
 
   it('writes nothing to disk when embedding fails', async () => {

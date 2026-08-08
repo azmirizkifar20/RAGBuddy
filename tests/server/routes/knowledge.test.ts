@@ -24,7 +24,7 @@ describe('GET /api/projects/:id/knowledge', () => {
           { id: '1', payload: { file: 'docs/b.md', content_hash: 'h2', title: 'B' } },
           { id: '2', payload: { file: 'docs/a.md', content_hash: 'h1', title: 'A' } },
           { id: '3', payload: { file: 'docs/a.md', content_hash: 'h1', title: 'A' } },
-          { id: '4', payload: { file: 'uploads/notes.md', content_hash: 'h3', title: 'Notes', source: 'upload' } },
+          { id: '4', payload: { file: 'uploads/notes.md', content_hash: 'h3', title: 'Notes', source: 'upload', document_type: 'pdf' } },
         ],
         next_page_offset: null,
       }),
@@ -38,9 +38,9 @@ describe('GET /api/projects/:id/knowledge', () => {
       files: ['docs/a.md', 'docs/b.md', 'uploads/notes.md'],
       chunkCount: 4,
       documents: [
-        { file: 'docs/a.md', source: 'repository', chunkCount: 2, title: 'A' },
-        { file: 'docs/b.md', source: 'repository', chunkCount: 1, title: 'B' },
-        { file: 'uploads/notes.md', source: 'upload', chunkCount: 1, title: 'Notes' },
+        { file: 'docs/a.md', source: 'repository', documentType: 'markdown', chunkCount: 2, title: 'A' },
+        { file: 'docs/b.md', source: 'repository', documentType: 'markdown', chunkCount: 1, title: 'B' },
+        { file: 'uploads/notes.md', source: 'upload', documentType: 'pdf', chunkCount: 1, title: 'Notes' },
       ],
     });
   });

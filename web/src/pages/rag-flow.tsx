@@ -7,8 +7,16 @@ const INDEXING: FlowStage[] = [
     title: 'Sources',
     caption: 'repo + uploads',
     detail:
-      'Two inputs feed the same pipeline: the Markdown files inside a registered repository’s configured paths, and documents you upload through the dashboard. Uploads are stored by project-rag, never written into your repository.',
+      'Two inputs feed the same pipeline: the Markdown files inside a registered repository’s configured paths, and documents you upload through the dashboard — PDF, Word, Excel, Markdown, CSV or plain text. Uploads are stored by project-rag, never written into your repository.',
     source: 'src/ingestion/scanner.ts · src/ingestion/uploads.ts',
+  },
+  {
+    id: 'extract',
+    title: 'Extract',
+    caption: 'binary → text',
+    detail:
+      'Uploaded PDFs, Word files and spreadsheets are converted to Markdown-shaped text: a PDF gets one heading per page, a Word file keeps its own headings, a workbook gets one heading per sheet. Embedded images are dropped — two photos in a real Word file expanded into 8.5MB of base64 that means nothing to an embedding model. Repository Markdown skips this step entirely.',
+    source: 'src/ingestion/document-extractor.ts',
   },
   {
     id: 'scan',
@@ -164,7 +172,8 @@ export function RagFlow() {
           <p className="text-sm font-medium">Uploads live beside the repo, not inside it</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Documents you upload are stored in project-rag's own data directory and tagged separately, so a full
-            re-ingest or a sync diff never deletes them — and your repository stays exactly as you left it.
+            re-ingest or a sync diff never deletes them — and your repository stays exactly as you left it. The
+            original file is kept rather than just its text, so an agent always reads the current extraction.
           </p>
         </div>
       </div>

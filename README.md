@@ -124,7 +124,7 @@ Open `http://localhost:4300`. The dashboard has a sidebar with these pages:
 | **Dashboard** | Totals across every project, project cards, and a live feed of recent ingest/sync/upload runs |
 | **Projects** | Filterable list of every registered repository. `+ Add project` registers a new one — project ID, absolute repo path, optional display name, optional comma-separated doc paths (defaults to `docs`) |
 | **Project → Overview** | Stats, the ingest/sync console with a live streaming log, the auto-sync toggle, and the indexed paths |
-| **Project → Documents** | Browse every indexed file (filter by repository vs uploaded), and **upload your own** `.md`/`.mdx`/`.txt` documents by drag-and-drop |
+| **Project → Documents** | Browse every indexed file (filter by repository vs uploaded), and **upload your own** PDF / Word / Excel / Markdown / CSV / text documents by drag-and-drop |
 | **Project → Search** | The same retrieval path an agent hits over MCP — use it to sanity-check what your agent will actually see |
 | **Project → History** | Every ingest, sync and upload for this project, whether it came from the dashboard, the CLI, or a `git commit` |
 | **Project → MCP setup** | Copy-pasteable MCP config for Claude Code, OpenCode and Codex, with your machine's real resolved paths already filled in |
@@ -137,10 +137,13 @@ For frontend development with hot reload: `cd web && npm run dev` (proxies `/api
 
 ### Uploading documents
 
-Some knowledge doesn't belong in the repository — a meeting note, a vendor's API PDF exported to Markdown, a scratch spec. Drop those on **Project → Documents → Upload**:
+Some knowledge doesn't belong in the repository — a meeting note, a vendor's API PDF, a spreadsheet of config values, a scratch spec. Drop those on **Project → Documents → Upload**:
 
+- **PDF, Word (.docx), Excel (.xlsx/.xlsm), Markdown, CSV, and plain text** (.txt, .log, .json, .yaml, .rst, .adoc, .tsv) are supported, up to ~20MB per file
+- Text is extracted server-side and shaped into Markdown, so a PDF is split by page, a Word file by its own headings, and a spreadsheet by sheet — search results cite `Page 3` or the sheet name rather than just the filename
+- Legacy `.doc`/`.xls` and PowerPoint are rejected with a hint (save as `.docx`/`.xlsx`, or export slides to PDF); a scanned PDF with no text layer is rejected with a request to OCR it first
 - Files are stored in project-rag's own data directory (`PROJECT_RAG_DATA_DIR`, default `./data`) — **nothing is written into your Git repository**
-- They're embedded immediately and become searchable through the same MCP tools, addressed as `uploads/<filename>`
+- The original file is kept, not just the extracted text, and they become searchable through the same MCP tools, addressed as `uploads/<filename>`
 - A `sync` never reports them as deleted, and a full `ingest` never wipes them — repository documents and uploads are tracked separately in Qdrant
 - Re-uploading the same filename replaces it; deleting removes both the file and its vectors
 

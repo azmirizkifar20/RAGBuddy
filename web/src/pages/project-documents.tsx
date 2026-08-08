@@ -80,7 +80,8 @@ export function ProjectDocuments() {
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
                   <TableHead>File</TableHead>
-                  <TableHead className="w-56">Title</TableHead>
+                  <TableHead className="w-48">Title</TableHead>
+                  <TableHead className="w-20">Type</TableHead>
                   <TableHead className="w-28">Source</TableHead>
                   <TableHead className="w-20 text-right">Chunks</TableHead>
                 </TableRow>
@@ -90,6 +91,7 @@ export function ProjectDocuments() {
                   <TableRow key={doc.file}>
                     <TableCell className="font-mono text-xs">{doc.file}</TableCell>
                     <TableCell className="truncate text-muted-foreground">{doc.title || '—'}</TableCell>
+                    <TableCell className="text-muted-foreground">{doc.documentType}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {doc.source === 'upload' ? 'uploaded' : 'repository'}
                     </TableCell>

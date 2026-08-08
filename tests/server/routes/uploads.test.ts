@@ -54,7 +54,7 @@ describe('project upload routes', () => {
       .post('/api/projects/sample/uploads')
       .send({ filename: 'notes.md', content: '# Notes\n\nBody.\n' });
     expect(created.status).toBe(201);
-    expect(created.body).toMatchObject({ file: 'uploads/notes.md', chunksIndexed: 1, replaced: false });
+    expect(created.body).toMatchObject({ file: 'uploads/notes.md', chunksIndexed: 1, replaced: false, documentType: 'markdown', truncated: false });
 
     const listed = await request(app).get('/api/projects/sample/uploads');
     expect(listed.status).toBe(200);
@@ -68,7 +68,7 @@ describe('project upload routes', () => {
   it('rejects a missing body with 400', async () => {
     const res = await request(appWithProject()).post('/api/projects/sample/uploads').send({});
     expect(res.status).toBe(400);
-    expect(res.body.error).toContain('filename and content are required');
+    expect(res.body.error).toContain('filename and content (or data) are required');
   });
 
   it('rejects an unsupported file type with 400', async () => {

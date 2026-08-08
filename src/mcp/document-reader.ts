@@ -2,17 +2,23 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { ProjectConfig } from '../projects/project-types';
 import { UPLOAD_PREFIX, uploadsDirFor, assertSafeUploadName } from '../ingestion/uploads';
+import { extractDocument } from '../ingestion/document-extractor';
 
 export interface GetProjectDocumentOptions {
   /** Required to read documents uploaded through the dashboard (`uploads/…`). */
   dataDir?: string;
 }
 
-export function getProjectDocument(
+/**
+ * Async because uploaded PDFs, Word and Excel files are stored as the original
+ * binary and converted to text on read — the file is the source of truth, the
+ * text is derived, so a parser improvement applies to already-uploaded files.
+ */
+export async function getProjectDocument(
   project: ProjectConfig,
   file: string,
   options: GetProjectDocumentOptions = {},
-): string {
+): Promise<string> {
   if (file.startsWith(UPLOAD_PREFIX)) {
     return readUpload(project, file.slice(UPLOAD_PREFIX.length), options.dataDir);
   }
@@ -43,7 +49,11 @@ export function getProjectDocument(
  * so they get their own read path. `assertSafeUploadName` rejects anything
  * with a directory component, which is what keeps `uploads/../../secret` out.
  */
-function readUpload(project: ProjectConfig, name: string, dataDir: string | undefined): string {
+async function readUpload(
+  project: ProjectConfig,
+  name: string,
+  dataDir: string | undefined,
+): Promise<string> {
   if (!dataDir) {
     throw new Error(`Uploaded documents are unavailable: no data directory configured (${name})`);
   }
@@ -52,5 +62,6 @@ function readUpload(project: ProjectConfig, name: string, dataDir: string | unde
   if (!existsSync(target)) {
     throw new Error(`File not found: ${UPLOAD_PREFIX}${name}`);
   }
-  return readFileSync(target, 'utf8');
+  const { text } = await extractDocument(safeName, readFileSync(target));
+  return text;
 }

@@ -19,9 +19,12 @@ export function registerUploadRoutes(router: Router, deps: AppDeps): void {
       res.status(404).json({ error: `Project "${req.params.id}" is not registered` });
       return;
     }
-    const { filename, content } = req.body ?? {};
-    if (typeof filename !== 'string' || typeof content !== 'string') {
-      res.status(400).json({ error: 'filename and content are required' });
+    // Binary formats (PDF/Word/Excel) arrive base64-encoded in `data`; plain
+    // text may use `content` directly. Base64-in-JSON keeps one code path and
+    // avoids a multipart dependency for what is a localhost-only upload.
+    const { filename, content, data } = req.body ?? {};
+    if (typeof filename !== 'string' || (typeof content !== 'string' && typeof data !== 'string')) {
+      res.status(400).json({ error: 'filename and content (or data) are required' });
       return;
     }
     try {
@@ -31,7 +34,7 @@ export function registerUploadRoutes(router: Router, deps: AppDeps): void {
         () =>
           uploadDocument(
             project,
-            { filename, content },
+            typeof data === 'string' ? { filename, data: Buffer.from(data, 'base64') } : { filename, content },
             {
               qdrantClient: deps.qdrantClient,
               qdrantUrl: deps.qdrantUrl,
@@ -40,7 +43,13 @@ export function registerUploadRoutes(router: Router, deps: AppDeps): void {
               dataDir: deps.dataDir,
             },
           ),
-        (r) => ({ file: r.file, chunksIndexed: r.chunksIndexed, replaced: r.replaced }),
+        (r) => ({
+          file: r.file,
+          type: r.documentType,
+          chunksIndexed: r.chunksIndexed,
+          replaced: r.replaced,
+          truncated: r.truncated,
+        }),
       );
       res.status(201).json(result);
     } catch (error) {

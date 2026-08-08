@@ -31,7 +31,7 @@ export function registerGetProjectDocumentTool(server: McpServer, deps: GetProje
     async ({ file, project: projectId }) => {
       try {
         const project = resolveProject(deps.registry, deps.cwd(), projectId);
-        const content = getProjectDocument(project, file, { dataDir: deps.dataDir });
+        const content = await getProjectDocument(project, file, { dataDir: deps.dataDir });
         return toolText(content);
       } catch (error) {
         return toolError(error);

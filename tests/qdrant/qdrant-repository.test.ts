@@ -176,9 +176,9 @@ describe('getIndexedFiles', () => {
     } as any;
 
     expect(await getIndexedFiles(client, 'docs', 'sample')).toEqual([
-      { file: 'docs/a.md', source: 'repository', chunkCount: 2, title: 'A' },
-      { file: 'docs/b.md', source: 'repository', chunkCount: 1, title: 'B' },
-      { file: 'uploads/n.md', source: 'upload', chunkCount: 1, title: 'N' },
+      { file: 'docs/a.md', source: 'repository', documentType: 'markdown', chunkCount: 2, title: 'A' },
+      { file: 'docs/b.md', source: 'repository', documentType: 'markdown', chunkCount: 1, title: 'B' },
+      { file: 'uploads/n.md', source: 'upload', documentType: 'markdown', chunkCount: 1, title: 'N' },
     ]);
   });
 

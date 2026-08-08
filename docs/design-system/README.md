@@ -88,6 +88,7 @@ Primitives added on top of the original shadcn set: `tabs`, `tooltip`, `separato
 
 ## 4) Rules
 
+- **Cursors**: Tailwind v4's preflight sets `cursor: default` on buttons, so `index.css` restores `cursor: pointer` once in the base layer for `button`, `a[href]`, `[role="button"|"tab"|"switch"|"menuitem"|"option"]`, `summary` and `select` — plus `cursor: not-allowed` for the disabled variants. Never add `cursor-pointer` per component; the only exceptions are non-semantic clickable `div`s (the mobile sidebar backdrop, the upload drop zone), which set it inline.
 - **Icons**: `lucide-react` only (already a dependency — no icon font is installed). They appear in navigation, buttons, and empty states; not decoratively beside headings. Size `size-4` inline, `size-3.5` in small buttons. Every icon-only button needs an `aria-label`.
 - **Loading**: `Skeleton` blocks that match the shape of the real content. Never a bare "Loading…" string.
 - **Errors**: inline `text-sm text-destructive` next to the thing that failed; `toast.error` for actions the user triggered.

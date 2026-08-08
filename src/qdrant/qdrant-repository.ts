@@ -106,6 +106,8 @@ export async function getIndexedFileHashes(
 export interface IndexedFile {
   file: string;
   source: DocumentSource;
+  /** 'markdown' for repository docs; uploads carry their real format (pdf/docx/xlsx/…). */
+  documentType: string;
   chunkCount: number;
   title: string;
 }
@@ -129,6 +131,7 @@ export async function getIndexedFiles(
     byFile.set(payload.file, {
       file: payload.file,
       source: payload.source === 'upload' ? 'upload' : 'repository',
+      documentType: payload.document_type ?? 'markdown',
       chunkCount: 1,
       title: payload.title ?? '',
     });

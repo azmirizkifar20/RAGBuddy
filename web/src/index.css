@@ -190,6 +190,30 @@
         @apply font-sans antialiased;
         scroll-behavior: smooth;
     }
+
+    /*
+     * Tailwind v4's preflight sets `cursor: default` on buttons, which leaves
+     * every button, tab, switch and dialog trigger in the app without a
+     * pointer. Restoring it once here beats adding `cursor-pointer` to each
+     * call site and forgetting it on the next component.
+     */
+    button:not(:disabled),
+    [role="button"]:not([aria-disabled="true"]),
+    [role="tab"]:not([aria-disabled="true"]),
+    [role="switch"]:not(:disabled),
+    [role="menuitem"],
+    [role="option"],
+    a[href],
+    summary,
+    select:not(:disabled) {
+        cursor: pointer;
+    }
+
+    button:disabled,
+    [aria-disabled="true"],
+    select:disabled {
+        cursor: not-allowed;
+    }
     ::-webkit-scrollbar { width: 10px; height: 10px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb {

@@ -39,9 +39,10 @@ export interface AppDeps {
 
 export function createApp(deps: AppDeps): Express {
   const app = express();
-  // Uploaded documents are posted as JSON text, so the 100kb default is the
-  // real ceiling on document size — raised to something a long spec fits in.
-  app.use(express.json({ limit: '10mb' }));
+  // Uploaded documents are posted as JSON (binary formats base64-encoded, so
+  // ~1.33x their real size), which makes this limit the real ceiling on
+  // document size rather than the 100kb default.
+  app.use(express.json({ limit: '32mb' }));
 
   const apiRouter = express.Router();
   registerProjectsRoutes(apiRouter, deps);
