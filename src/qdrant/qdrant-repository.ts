@@ -27,6 +27,16 @@ export interface DocumentPoint {
   payload: ChunkPayload;
 }
 
+/**
+ * Every write passes `wait: true`. Qdrant defaults to `wait=false`, which
+ * acknowledges the request before the points are actually searchable — so an
+ * upload would report "indexed" while a search issued a moment later still
+ * missed it, and a delete would report success while the document was still
+ * being returned. Callers here treat a resolved promise as "it is done", so
+ * the write has to actually be done.
+ */
+const WAIT = { wait: true } as const;
+
 export async function upsertChunks(
   client: QdrantClient,
   collectionName: string,
@@ -34,6 +44,7 @@ export async function upsertChunks(
 ): Promise<void> {
   if (points.length === 0) return;
   await client.upsert(collectionName, {
+    ...WAIT,
     points: points.map((p) => ({ id: p.id, vector: p.vector, payload: p.payload })),
   });
 }
@@ -60,7 +71,7 @@ export async function deleteProjectVectors(
   project: string,
   scope: SourceScope = 'all',
 ): Promise<void> {
-  await client.delete(collectionName, { filter: scopedFilter(project, scope) });
+  await client.delete(collectionName, { ...WAIT, filter: scopedFilter(project, scope) });
 }
 
 async function scrollPayloads(
@@ -146,6 +157,7 @@ export async function deleteFileVectors(
   file: string,
 ): Promise<void> {
   await client.delete(collectionName, {
+    ...WAIT,
     filter: {
       must: [
         { key: 'project', match: { value: project } },

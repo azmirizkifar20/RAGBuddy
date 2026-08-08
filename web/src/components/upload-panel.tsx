@@ -127,28 +127,26 @@ export function UploadPanel({
           immediately — the original file is kept, nothing is written into your Git repository, and a sync never
           removes them.
         </p>
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-4"
-          // The whole drop zone opens the picker, so the click must not also
-          // bubble up to it and open a second dialog.
-          onClick={(event) => {
-            event.stopPropagation()
-            inputRef.current?.click()
-          }}
-        >
+        {/* No handler of its own — the click bubbles to the drop zone, which is
+            the single place that opens the picker. */}
+        <Button variant="outline" size="sm" type="button" className="mt-4">
           Choose files
         </Button>
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          accept={ACCEPTED}
-          className="hidden"
-          onChange={(event: ChangeEvent<HTMLInputElement>) => handleFiles(event.target.files)}
-        />
       </div>
+
+      {/*
+        Deliberately a sibling of the drop zone, not a child: inputRef.click()
+        dispatches a real click event, and from inside the zone that event
+        would bubble straight back into the zone's own onClick.
+      */}
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept={ACCEPTED}
+        className="hidden"
+        onChange={(event: ChangeEvent<HTMLInputElement>) => handleFiles(event.target.files)}
+      />
 
       {uploads.length > 0 && (
         <ul className="flex flex-col divide-y rounded-lg border">

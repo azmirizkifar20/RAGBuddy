@@ -35,8 +35,17 @@ describe('upsertChunks', () => {
     await upsertChunks(client, 'docs', points);
 
     expect(client.upsert).toHaveBeenCalledWith('docs', {
+      wait: true,
       points: [{ id: 'a', vector: [1, 2], payload: points[0].payload }],
     });
+  });
+
+  it('waits for the write to be applied, so an immediate search can see it', async () => {
+    const client = { upsert: vi.fn().mockResolvedValue(true) } as any;
+    await upsertChunks(client, 'docs', [
+      { id: 'a', vector: [1], payload: { project: 'p' } as any },
+    ]);
+    expect(client.upsert.mock.calls[0][1].wait).toBe(true);
   });
 
   it('does nothing for an empty points array', async () => {
@@ -51,6 +60,7 @@ describe('deleteProjectVectors', () => {
     const client = { delete: vi.fn().mockResolvedValue(true) } as any;
     await deleteProjectVectors(client, 'docs', 'bidubadu');
     expect(client.delete).toHaveBeenCalledWith('docs', {
+      wait: true,
       filter: { must: [{ key: 'project', match: { value: 'bidubadu' } }] },
     });
   });
@@ -152,6 +162,7 @@ describe('source scoping', () => {
     await deleteProjectVectors(client, 'docs', 'sample', 'repository');
 
     expect(client.delete).toHaveBeenCalledWith('docs', {
+      wait: true,
       filter: {
         must: [{ key: 'project', match: { value: 'sample' } }],
         must_not: [{ key: 'source', match: { value: 'upload' } }],
@@ -198,6 +209,7 @@ describe('deleteFileVectors', () => {
     const client = { delete: vi.fn().mockResolvedValue(true) } as any;
     await deleteFileVectors(client, 'docs', 'sample', 'docs/a.md');
     expect(client.delete).toHaveBeenCalledWith('docs', {
+      wait: true,
       filter: {
         must: [
           { key: 'project', match: { value: 'sample' } },

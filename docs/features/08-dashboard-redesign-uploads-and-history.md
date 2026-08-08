@@ -113,6 +113,9 @@ See [../design-system/README.md](../design-system/README.md) for tokens, motion 
 - **A scanned PDF is rejected, not silently indexed.** A PDF with no text layer produces no body, and the error says to run OCR first. The synthetic `# <filename>` title is added *after* the empty check precisely so a title-only document can't masquerade as content — a test caught this.
 - **Word images are stripped before chunking.** mammoth inlines embedded images as base64 data URIs; two photos in a real 7KB article expanded to 8.5MB of text that is pure noise to an embedding model.
 - **Extraction is capped at 1,000,000 characters.** A large spreadsheet can flatten into millions of characters and thousands of embedding calls. Past the cap the text is cut, a `[Truncated: …]` marker is appended, and `truncated: true` comes back so the UI can say so — nothing is dropped silently.
+- **Filenames are validated by what is dangerous, not by an ASCII allowlist.** The first version allowed only `[w .()-]`, which rejected `Ringkasan Proyék.docx`, `Laporan – Q1.pdf` (Word autocorrects a hyphen into an en dash), `data, final.xlsx`, `notes & ideas.md` and every non-Latin filename — 8 of 10 ordinary names. It now rejects path components, `..`, dotfiles, control characters, the Windows-illegal set `< > : " | ? *`, reserved device names (`CON`, `NUL`, `COM1`…), trailing dots/spaces, and names over 200 bytes.
+- **Deleting an upload uses `unlinkSync`, never `fs.rmSync`.** On Windows, `fs.rmSync` returns successfully **without deleting anything** when the filename contains non-ASCII characters (reproduced on Node 24: `rmSync` left `Ringkasan Proyék.xlsx` in place every time, `unlinkSync` removed it). This only became reachable once non-ASCII filenames were allowed. `removeUpload` also re-checks that the file is gone afterwards and reports a clear error if it is not — a file locked by Word or Excel is the everyday case, and the dashboard must not claim a removal that did not happen.
+- **Every Qdrant write passes `wait: true`.** Qdrant defaults to `wait=false`, acknowledging a write before the points are searchable. Without it, an upload returned indexed while a search issued immediately after still missed the document, and a delete reported success while the document was still being returned. Verified: with `wait: true`, a document uploaded and searched with zero delay comes back as the top hit.
 - **Upload size ceiling is ~20MB.** Files travel base64-encoded inside JSON (~1.33x inflation) against a 32MB `express.json` limit; the browser checks the limit before reading the file.
 - **Re-uploading the same filename replaces it** — old vectors are deleted first, and the response says `replaced: true`.
 - **`GET /api/config` never returns the embedding API key**, only `embeddingApiKeyConfigured: boolean`.
@@ -131,6 +134,7 @@ See [../design-system/README.md](../design-system/README.md) for tokens, motion 
 - `src/config/config.ts` — `dataDir`
 - `web/src/components/layout/{app-shell,sidebar,page-header,theme-toggle}.tsx`
 - `web/src/components/{stat-row,empty-state,run-table,upload-panel,flow-diagram,copy-button}.tsx`
+- `src/qdrant/qdrant-repository.ts` — `wait: true` on every write
 - `web/src/pages/{dashboard,projects,project-layout,project-overview,project-documents,project-search,project-history,project-mcp,rag-flow,settings}.tsx`
 - `web/src/lib/{api-client,format,projects-context}.ts(x)`, `web/src/index.css`
 

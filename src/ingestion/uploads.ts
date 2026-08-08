@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { QdrantClient } from '@qdrant/js-client-rest';
@@ -46,21 +46,45 @@ export function uploadsDirFor(dataDir: string, projectId: string): string {
   return path.join(dataDir, 'uploads', projectId);
 }
 
+/** Characters Windows forbids in a filename, plus control characters. */
+const ILLEGAL_NAME_CHARS = /[<>:"|?*\u0000-\u001f\u007f]/;
+/** CON, PRN, NUL, COM1… still resolve to devices on Windows even with an extension. */
+const RESERVED_DEVICE_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
+/** Most filesystems cap a single path segment at 255 bytes. */
+const MAX_NAME_BYTES = 200;
+
 /**
- * Filenames arrive from a browser file picker, so they are untrusted input:
- * anything with a directory component, a leading dot, or an unsupported
- * extension is rejected rather than sanitized into something surprising.
+ * Filenames arrive from a browser file picker, so they are untrusted input.
+ *
+ * This rejects what is actually dangerous — path components, dotfiles,
+ * control characters, Windows-illegal characters and reserved device names —
+ * rather than allowing only a list of safe-looking ASCII. An allowlist looks
+ * stricter but is simply wrong here: it threw out `Ringkasan Proyék.docx`,
+ * `Laporan – Q1.pdf` (Word turns a hyphen into an en dash), `data, final.xlsx`
+ * and every non-Latin filename, none of which are a security problem.
  */
 export function assertSafeUploadName(name: string): string {
   const trimmed = name.trim();
   if (!trimmed) throw new Error('Filename is required');
+
   if (trimmed !== path.basename(trimmed) || trimmed.includes('/') || trimmed.includes('\\')) {
     throw new Error(`Filename must not contain a path: ${name}`);
   }
+  if (trimmed.includes('..')) throw new Error(`Filename must not contain "..": ${name}`);
   if (trimmed.startsWith('.')) throw new Error(`Filename must not start with a dot: ${name}`);
-  if (!/^[\w .()\-]+$/.test(trimmed)) {
-    throw new Error(`Filename contains unsupported characters: ${name}`);
+  // Windows silently strips a trailing dot or space, which would let two
+  // different uploads resolve to the same file on disk.
+  if (/[. ]$/.test(trimmed)) throw new Error(`Filename must not end with a dot or space: ${name}`);
+  if (ILLEGAL_NAME_CHARS.test(trimmed)) {
+    throw new Error(`Filename must not contain any of < > : " | ? * or control characters: ${name}`);
   }
+  if (RESERVED_DEVICE_NAMES.test(trimmed)) {
+    throw new Error(`"${trimmed}" is a reserved device name on Windows — rename the file.`);
+  }
+  if (Buffer.byteLength(trimmed, 'utf8') > MAX_NAME_BYTES) {
+    throw new Error(`Filename is too long (max ${MAX_NAME_BYTES} bytes): ${name}`);
+  }
+
   assertSupportedUploadExtension(trimmed);
   return trimmed;
 }
@@ -174,11 +198,25 @@ export async function removeUpload(
   if (!existsSync(absolutePath)) {
     throw new Error(`Uploaded document "${name}" does not exist`);
   }
+  // Vectors first: a leftover file that isn't indexed is harmless and fixes
+  // itself on re-upload, whereas a leftover index entry would keep serving an
+  // agent content for a document that no longer exists.
   await deleteFileVectors(
     deps.qdrantClient,
     deps.qdrantCollection,
     project.id,
     `${UPLOAD_PREFIX}${name}`,
   );
-  rmSync(absolutePath);
+  // unlinkSync, not rmSync: on Windows `fs.rmSync` returns without error and
+  // without deleting anything when the filename contains non-ASCII characters
+  // (verified on Node 24 — `Ringkasan Proyék.xlsx` survived every call).
+  // unlink is also the right primitive for removing one known file.
+  unlinkSync(absolutePath);
+  // Belt and braces: a file locked by Excel or Word is an everyday case on
+  // Windows, and it must not be reported to the dashboard as a removal.
+  if (existsSync(absolutePath)) {
+    throw new Error(
+      `Removed "${name}" from the index, but the file itself could not be deleted — it may be open in another program. Close it and try again.`,
+    );
+  }
 }

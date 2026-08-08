@@ -22,8 +22,23 @@ function qdrantStub() {
 }
 
 describe('assertSafeUploadName', () => {
-  it('accepts a plain supported filename', () => {
+  it('accepts a plain supported filename and trims surrounding whitespace', () => {
     expect(assertSafeUploadName(' api-notes.md ')).toBe('api-notes.md');
+  });
+
+  it.each([
+    'Laporan Keuangan Q1.pdf',
+    'Ringkasan Proyék.docx',
+    'Laporan – Q1.pdf',
+    'data, final.xlsx',
+    'notes & ideas.md',
+    '報告書.pdf',
+    'spec_v2+final.md',
+    'harga 100% naik.txt',
+    'file#1.md',
+    "client's brief.docx",
+  ])('accepts the ordinary real-world filename %s', (name) => {
+    expect(assertSafeUploadName(name)).toBe(name);
   });
 
   it.each([
@@ -31,10 +46,42 @@ describe('assertSafeUploadName', () => {
     '../secret.md',
     'nested/file.md',
     'nested\\file.md',
+    'a..b.md',
     '.env',
     '.hidden.md',
   ])('rejects the traversal or hidden path %s', (name) => {
     expect(() => assertSafeUploadName(name)).toThrow();
+  });
+
+  it.each(['star*.md', 'q?.md', 'pipe|.md', 'lt<gt>.md', 'quote".md', 'C:evil.md'])(
+    'rejects the Windows-illegal name %s',
+    (name) => {
+      expect(() => assertSafeUploadName(name)).toThrow();
+    },
+  );
+
+  it('rejects control characters, which no file picker produces but an API caller can', () => {
+    expect(() => assertSafeUploadName(`a\u0000b.md`)).toThrow();
+    expect(() => assertSafeUploadName(`bell\u0007.md`)).toThrow();
+    expect(() => assertSafeUploadName(`del\u007f.md`)).toThrow();
+  });
+
+  it.each(['CON.md', 'nul.txt', 'COM1.md', 'lpt9.pdf'])(
+    'rejects the reserved Windows device name %s',
+    (name) => {
+      expect(() => assertSafeUploadName(name)).toThrow('reserved device name');
+    },
+  );
+
+  it('rejects a trailing dot or space, which Windows would silently strip into a name collision', () => {
+    expect(() => assertSafeUploadName('report.md.')).toThrow('must not end with a dot or space');
+    // A space *inside* the name is fine — only a trailing one is a problem, and
+    // trim() has already removed it by this point.
+    expect(assertSafeUploadName('quarterly report .md ')).toBe('quarterly report .md');
+  });
+
+  it('rejects an over-long filename', () => {
+    expect(() => assertSafeUploadName(`${'x'.repeat(250)}.md`)).toThrow('too long');
   });
 
   it('rejects an unsupported extension', () => {
@@ -107,6 +154,7 @@ describe('uploadDocument', () => {
 
     expect(result.replaced).toBe(true);
     expect(qdrantClient.delete).toHaveBeenCalledWith('project_rag_documents', {
+      wait: true,
       filter: {
         must: [
           { key: 'project', match: { value: 'sample' } },
@@ -241,6 +289,37 @@ describe('listUploads / removeUpload', () => {
 
     expect(listUploads(dataDir, 'sample')).toEqual([]);
     expect(existsSync(path.join(uploadsDirFor(dataDir, 'sample'), 'notes.md'))).toBe(false);
+  });
+
+  it('actually deletes a file whose name contains non-ASCII characters', async () => {
+    // Regression: fs.rmSync on Windows returns success without deleting when
+    // the filename has non-ASCII characters, so removeUpload must use unlink.
+    const name = 'Ringkasan Proyék – Q1.md';
+    const qdrantClient = qdrantStub();
+    await uploadDocument(
+      project,
+      { filename: name, content: '# Ringkasan\n\nIsi dokumen.\n' },
+      {
+        qdrantClient,
+        qdrantUrl: 'http://localhost:6333',
+        qdrantCollection: 'project_rag_documents',
+        embeddingProvider: {
+          embedDocuments: vi.fn((texts: string[]) => Promise.resolve(texts.map(() => [0.1]))),
+          embedQuery: vi.fn(),
+        } as any,
+        dataDir,
+      },
+    );
+    expect(existsSync(path.join(uploadsDirFor(dataDir, 'sample'), name))).toBe(true);
+
+    await removeUpload(project, name, {
+      qdrantClient,
+      qdrantCollection: 'project_rag_documents',
+      dataDir,
+    });
+
+    expect(existsSync(path.join(uploadsDirFor(dataDir, 'sample'), name))).toBe(false);
+    expect(listUploads(dataDir, 'sample')).toEqual([]);
   });
 
   it('throws for a document that was never uploaded', async () => {

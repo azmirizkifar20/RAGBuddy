@@ -50,6 +50,7 @@ describe('indexProject', () => {
       vectors: { size: 2, distance: 'Cosine' },
     });
     expect(qdrantClient.delete).toHaveBeenCalledWith('project_rag_documents', {
+      wait: true,
       filter: {
         must: [{ key: 'project', match: { value: 'sample' } }],
         must_not: [{ key: 'source', match: { value: 'upload' } }],
@@ -129,6 +130,7 @@ describe('indexProject', () => {
     expect(qdrantClient.createCollection).not.toHaveBeenCalled();
     expect(qdrantClient.upsert).not.toHaveBeenCalled();
     expect(qdrantClient.delete).toHaveBeenCalledWith('project_rag_documents', {
+      wait: true,
       filter: {
         must: [{ key: 'project', match: { value: 'sample' } }],
         must_not: [{ key: 'source', match: { value: 'upload' } }],
