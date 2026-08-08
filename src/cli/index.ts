@@ -7,6 +7,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { createMcpServer } from '../mcp/server';
 import { installHook, uninstallHook } from '../git/hook-installer';
 import { runHookCommand } from './hook-command';
+import { runProjectRegister, runProjectList, runProjectRemove } from './project-command';
 import { indexProject } from '../ingestion/indexer';
 import { syncProject } from '../ingestion/sync';
 import { searchProject } from '../retrieval/search';
@@ -63,6 +64,39 @@ async function main(): Promise<void> {
     console.log(
       `[project-rag] ${result.action === 'install' ? 'Installed' : 'Uninstalled'} the post-commit hook for "${result.projectName}".`,
     );
+    return;
+  }
+
+  if (parsed.command === 'project') {
+    if (parsed.action === 'list') {
+      const projects = runProjectList(registry);
+      if (projects.length === 0) {
+        console.log('No projects registered.');
+      } else {
+        for (const p of projects) {
+          console.log(`${p.id}\t${p.name}\t${p.repository}\t[${p.paths.join(', ')}]`);
+        }
+      }
+      return;
+    }
+    if (parsed.action === 'remove') {
+      runProjectRemove(registry, parsed.id);
+      console.log(`[project-rag] Removed project "${parsed.id}" from the registry.`);
+      return;
+    }
+    const project = runProjectRegister(registry, {
+      id: parsed.id,
+      repository: parsed.repository,
+      name: parsed.name,
+      paths: parsed.paths,
+    });
+    console.log(`[project-rag] Registered project "${project.id}" (${project.repository}).`);
+    return;
+  }
+
+  if (parsed.command === 'web') {
+    console.error('The "web" command is not available yet in this build.');
+    process.exitCode = 1;
     return;
   }
 
