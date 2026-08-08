@@ -174,6 +174,27 @@ export function getRuntimeConfig(): Promise<RuntimeConfig> {
   return fetch('/api/config').then(parseJsonResponse<RuntimeConfig>)
 }
 
+export interface FsEntry {
+  name: string
+  path: string
+  isGitRepo: boolean
+}
+
+export interface FsListResult {
+  path: string
+  parent: string | null
+  isGitRepo: boolean
+  entries: FsEntry[]
+}
+
+export function listFsRoots(): Promise<{ roots: string[]; home: string }> {
+  return fetch('/api/fs/roots').then(parseJsonResponse<{ roots: string[]; home: string }>)
+}
+
+export function listFsDir(dirPath: string): Promise<FsListResult> {
+  return fetch(`/api/fs/list?path=${encodeURIComponent(dirPath)}`).then(parseJsonResponse<FsListResult>)
+}
+
 export interface StreamHandlers {
   onLog: (message: string) => void
   onDone: (result: unknown) => void

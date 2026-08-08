@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { FolderPicker } from '@/components/folder-picker'
 import { registerProject, type Project } from '@/lib/api-client'
 
 function fieldForError(message: string): 'id' | 'repository' | 'general' {
@@ -31,6 +32,7 @@ export function AddProjectModal({
 }) {
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [repository, setRepository] = useState('')
   const [errors, setErrors] = useState<{ id?: string; repository?: string; general?: string }>({})
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -43,14 +45,13 @@ export function AddProjectModal({
 
     const form = new FormData(formElement)
     const id = String(form.get('id') ?? '').trim()
-    const repository = String(form.get('repository') ?? '').trim()
     const name = String(form.get('name') ?? '').trim()
     const pathsRaw = String(form.get('paths') ?? '').trim()
 
     try {
       const project = await registerProject({
         id,
-        repository,
+        repository: repository.trim(),
         name: name || undefined,
         paths: pathsRaw ? pathsRaw.split(',').map((p) => p.trim()).filter(Boolean) : undefined,
       })
@@ -58,6 +59,7 @@ export function AddProjectModal({
       onRegistered(project)
       setOpen(false)
       formElement.reset()
+      setRepository('')
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       setErrors({ [fieldForError(message)]: message })
@@ -91,7 +93,18 @@ export function AddProjectModal({
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="repository">Repository path</Label>
-              <Input id="repository" name="repository" required placeholder="D:\\projects\\my-project" />
+              <div className="flex gap-1.5">
+                <Input
+                  id="repository"
+                  name="repository"
+                  required
+                  placeholder="D:\projects\my-project"
+                  value={repository}
+                  onChange={(event) => setRepository(event.target.value)}
+                  className="flex-1"
+                />
+                <FolderPicker initialPath={repository} onSelect={setRepository} />
+              </div>
               <p className="text-xs text-muted-foreground">
                 Absolute path to a Git repository on this machine.
               </p>

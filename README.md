@@ -122,7 +122,7 @@ Open `http://localhost:4300`. The dashboard has a sidebar with these pages:
 | Page | What it does |
 |------|--------------|
 | **Dashboard** | Totals across every project, project cards, and a live feed of recent ingest/sync/upload runs |
-| **Projects** | Filterable list of every registered repository. `+ Add project` registers a new one — project ID, absolute repo path, optional display name, optional comma-separated doc paths (defaults to `docs`) |
+| **Projects** | Filterable list of every registered repository. `+ Add project` registers a new one — project ID, absolute repo path (**Browse** opens a folder picker over the server's filesystem, so you never have to type or copy-paste it), optional display name, optional comma-separated doc paths (defaults to `docs`) |
 | **Project → Overview** | Stats, the ingest/sync console with a live streaming log, the auto-sync toggle, and the indexed paths |
 | **Project → Documents** | Browse every indexed file (filter by repository vs uploaded), and **upload your own** PDF / Word / Excel / Markdown / CSV / text documents by drag-and-drop |
 | **Project → Search** | The same retrieval path an agent hits over MCP — use it to sanity-check what your agent will actually see |

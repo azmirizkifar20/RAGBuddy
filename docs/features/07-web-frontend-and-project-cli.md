@@ -30,6 +30,8 @@ REST API (`src/server/app.ts`, mounted at `/api/projects`):
 | `GET` | `/api/projects` | `ProjectRegistry.list()` + `getIndexedFileHashes` + `isHookInstalled` per project |
 | `GET` | `/api/projects/:id` | Same per-project shape, single project |
 | `POST` | `/api/projects` | `project-command.ts`'s register logic |
+| `GET` | `/api/fs/roots` | Drive letters (Windows) or `/` (POSIX) plus the home directory — starting points for the folder picker |
+| `GET` | `/api/fs/list?path=` | Subdirectories of an absolute path, each flagged `isGitRepo` — powers the Add Project 'Browse' dialog |
 | `DELETE` | `/api/projects/:id` | `project-command.ts`'s remove logic |
 | `GET` | `/api/projects/:id/knowledge` | `getIndexedFileHashes` — sorted indexed file list |
 | `POST` | `/api/projects/:id/ingest` | `indexProject(..., { onLog })` — **SSE stream** |
@@ -52,6 +54,7 @@ No new persisted data — the API is a thin read/write layer over the existing `
 
 ## 5) Edge Cases & Rules
 
+- **Repository folder picker**: `AddProjectModal`'s "Browse" button opens `FolderPicker`, which walks the server's filesystem via `GET /api/fs/roots` (drive letters on Windows / `/` on POSIX, plus the home directory) and `GET /api/fs/list?path=` (subdirectories of an absolute path, each flagged `isGitRepo`). This exists because the dashboard runs on the same machine as the process it's browsing — the trust model is unchanged (localhost, no auth, the CLI already accepts an arbitrary absolute path typed by hand); the picker only makes that easier, it doesn't expose anything new. Only directories are listed (never file contents), and dotfolders are hidden from the list but a `.git` folder is still detected to flag the parent as a repo.
 - The ingest/sync SSE endpoints are triggered by `POST`, so the browser's native `EventSource` (GET-only, no body) can't consume them — `api-client.ts`'s `streamRun` parses the `event:`/`data:` wire format directly off a streamed `fetch` response body instead.
 - Solo-user, localhost only — no authentication, matching the CLI's own trust model (`init.md` §27).
 - Nothing in `src/ingestion/`, `src/qdrant/`, `src/embedding/`, `src/retrieval/`, `src/mcp/`, or any existing CLI command (`ingest`/`sync`/`hook install`/`hook uninstall`/`search`/`mcp`) was modified by this feature — it only adds new callers on top of those, unchanged.
@@ -62,9 +65,9 @@ No new persisted data — the API is a thin read/write layer over the existing `
 - `src/git/hook-installer.ts` — `isHookInstalled` (new)
 - `src/cli/project-command.ts` — `runProjectRegister`/`runProjectList`/`runProjectRemove`, shared by the CLI and the API
 - `src/cli/args.ts`, `src/cli/index.ts` — `project` and `web` commands
-- `src/server/app.ts`, `src/server/sse.ts`, `src/server/routes/{projects,knowledge,search,hook,ingest,sync}.ts`
+- `src/server/app.ts`, `src/server/sse.ts`, `src/server/routes/{projects,knowledge,search,hook,ingest,sync,fs}.ts`
 - `web/src/lib/api-client.ts` — REST + SSE client
-- `web/src/components/{project-card,hook-toggle,delete-confirm-modal,add-project-modal,search-panel,log-stream}.tsx`
+- `web/src/components/{project-card,hook-toggle,delete-confirm-modal,add-project-modal,folder-picker,search-panel,log-stream}.tsx`
 - `web/src/pages/{dashboard,project-detail}.tsx`, `web/src/App.tsx`
 - Spec source: `docs/superpowers/specs/2026-08-08-web-frontend-design.md`
 

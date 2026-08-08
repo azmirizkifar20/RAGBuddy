@@ -12,6 +12,7 @@ import { registerIngestRoutes } from './routes/ingest';
 import { registerSyncRoutes } from './routes/sync';
 import { registerUploadRoutes } from './routes/uploads';
 import { registerHistoryRoutes } from './routes/history';
+import { registerFsRoutes } from './routes/fs';
 
 /** Everything the MCP setup page needs to print a copy-pasteable config. Never includes the API key. */
 export interface RuntimeInfo {
@@ -54,6 +55,10 @@ export function createApp(deps: AppDeps): Express {
   registerUploadRoutes(apiRouter, deps);
   registerHistoryRoutes(apiRouter, deps);
   app.use('/api/projects', apiRouter);
+
+  const fsRouter = express.Router();
+  registerFsRoutes(fsRouter);
+  app.use('/api/fs', fsRouter);
 
   app.get('/api/config', (_req, res) => {
     res.json({
