@@ -1,0 +1,99 @@
+import { useState, type FormEvent } from 'react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { registerProject, type Project } from '@/lib/api-client'
+
+function fieldForError(message: string): 'id' | 'repository' | 'general' {
+  if (message.includes('already registered')) return 'id'
+  if (message.includes('Repository path does not exist') || message.includes('Not a Git repository')) {
+    return 'repository'
+  }
+  return 'general'
+}
+
+export function AddProjectModal({ onRegistered }: { onRegistered: (project: Project) => void }) {
+  const [open, setOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [errors, setErrors] = useState<{ id?: string; repository?: string; general?: string }>({})
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setErrors({})
+    setSubmitting(true)
+
+    const form = new FormData(event.currentTarget)
+    const id = String(form.get('id') ?? '').trim()
+    const repository = String(form.get('repository') ?? '').trim()
+    const name = String(form.get('name') ?? '').trim()
+    const pathsRaw = String(form.get('paths') ?? '').trim()
+
+    try {
+      const project = await registerProject({
+        id,
+        repository,
+        name: name || undefined,
+        paths: pathsRaw ? pathsRaw.split(',').map((p) => p.trim()).filter(Boolean) : undefined,
+      })
+      toast.success(`Registered "${project.name}".`)
+      onRegistered(project)
+      setOpen(false)
+      event.currentTarget.reset()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      setErrors({ [fieldForError(message)]: message })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>+ Add Project</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Register a project</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 py-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="id">Project ID</Label>
+              <Input id="id" name="id" required placeholder="my-project" />
+              {errors.id && <p className="text-sm text-destructive">{errors.id}</p>}
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="repository">Repository path</Label>
+              <Input id="repository" name="repository" required placeholder="/path/to/repo" />
+              {errors.repository && <p className="text-sm text-destructive">{errors.repository}</p>}
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="name">Display name (optional)</Label>
+              <Input id="name" name="name" placeholder="My Project" />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="paths">Paths to index (optional, comma-separated)</Label>
+              <Input id="paths" name="paths" placeholder="docs,notes" />
+            </div>
+            {errors.general && <p className="text-sm text-destructive">{errors.general}</p>}
+          </div>
+          <DialogFooter>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? 'Registering...' : 'Register'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
