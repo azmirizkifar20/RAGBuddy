@@ -128,4 +128,31 @@ describe('indexProject', () => {
       filter: { must: [{ key: 'project', match: { value: 'sample' } }] },
     });
   });
+
+  it('throws without touching Qdrant when the repository path is not accessible', async () => {
+    const project = {
+      id: 'sample',
+      name: 'sample',
+      repository: path.join(dir, 'does-not-exist'),
+      paths: ['docs'],
+    };
+    const embeddingProvider = { embedDocuments: vi.fn(), embedQuery: vi.fn() };
+    const qdrantClient = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [] }),
+      createCollection: vi.fn().mockResolvedValue(true),
+      delete: vi.fn().mockResolvedValue(true),
+      upsert: vi.fn().mockResolvedValue(true),
+    } as any;
+
+    await expect(
+      indexProject(project, {
+        qdrantClient,
+        qdrantUrl: 'http://localhost:6333',
+        qdrantCollection: 'project_rag_documents',
+        embeddingProvider: embeddingProvider as any,
+      }),
+    ).rejects.toThrow();
+
+    expect(qdrantClient.getCollections).not.toHaveBeenCalled();
+  });
 });

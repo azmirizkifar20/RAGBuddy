@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
+import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { QdrantClient } from '@qdrant/js-client-rest';
 import type { ProjectConfig } from '../projects/project-types';
@@ -28,6 +29,9 @@ export async function indexProject(
   project: ProjectConfig,
   deps: IndexProjectDeps,
 ): Promise<IndexProjectResult> {
+  if (!existsSync(project.repository) || !existsSync(path.join(project.repository, '.git'))) {
+    throw new Error(`Repository is not accessible or not a Git repository: ${project.repository}`);
+  }
   const log = deps.onLog ?? (() => {});
   const files = scanDocuments(project.repository, project.paths);
   log(`Scanned ${files.length} file(s)`);
