@@ -10,11 +10,32 @@ export interface EmbeddingConfig {
   apiKey?: string;
 }
 
+// ponytail: fixed concurrency/timeout, make configurable via EmbeddingConfig if a real workload needs tuning
+export const EMBEDDING_CONCURRENCY = 5;
+export const EMBEDDING_TIMEOUT_MS = 30_000;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const current = nextIndex++;
+      results[current] = await fn(items[current]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+  return results;
+}
+
 class OllamaEmbeddingProvider implements EmbeddingProvider {
   constructor(private readonly config: EmbeddingConfig) {}
 
   embedDocuments(texts: string[]): Promise<number[][]> {
-    return Promise.all(texts.map((text) => this.embedOne(text)));
+    return mapWithConcurrency(texts, EMBEDDING_CONCURRENCY, (text) => this.embedOne(text));
   }
 
   embedQuery(text: string): Promise<number[]> {
@@ -26,6 +47,7 @@ class OllamaEmbeddingProvider implements EmbeddingProvider {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: this.config.model, prompt: text }),
+      signal: AbortSignal.timeout(EMBEDDING_TIMEOUT_MS),
     });
     if (!res.ok) {
       throw new Error(`Ollama embedding request failed: ${res.status} ${res.statusText}`);
@@ -56,6 +78,7 @@ class OpenAICompatibleEmbeddingProvider implements EmbeddingProvider {
         ...(this.config.apiKey ? { Authorization: `Bearer ${this.config.apiKey}` } : {}),
       },
       body: JSON.stringify({ model: this.config.model, input }),
+      signal: AbortSignal.timeout(EMBEDDING_TIMEOUT_MS),
     });
     if (!res.ok) {
       throw new Error(`Embedding request failed: ${res.status} ${res.statusText}`);
