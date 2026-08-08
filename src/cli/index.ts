@@ -1,5 +1,11 @@
 #!/usr/bin/env node
-import 'dotenv/config';
+import path from 'node:path';
+import { config as loadDotenv } from 'dotenv';
+// Resolved against this file's own location, not process.cwd() — the git
+// post-commit hook invokes this script with cwd set to the TARGET repo
+// (e.g. the project being synced), not project-rag's own directory, so a
+// cwd-relative .env lookup would silently find nothing there.
+loadDotenv({ path: path.resolve(__dirname, '../../.env') });
 import { loadConfig } from '../config/config';
 import { ProjectRegistry } from '../projects/project-registry';
 import { createQdrantClient } from '../qdrant/qdrant-client';
@@ -9,7 +15,6 @@ import { createMcpServer } from '../mcp/server';
 import { installHook, uninstallHook } from '../git/hook-installer';
 import { runHookCommand } from './hook-command';
 import { runProjectRegister, runProjectList, runProjectRemove } from './project-command';
-import path from 'node:path';
 import { createApp } from '../server/app';
 import { indexProject } from '../ingestion/indexer';
 import { syncProject } from '../ingestion/sync';

@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { loadConfig } from '../../src/config/config';
 
@@ -13,7 +14,30 @@ describe('loadConfig', () => {
     expect(config.qdrantCollection).toBe('project_rag_documents');
     expect(config.embeddingBaseUrl).toBe('http://localhost:11434');
     expect(config.ragTopK).toBe(5);
-    expect(config.projectRegistryPath).toBe('./config/projects.json');
+    expect(config.projectRegistryPath).toBe(path.resolve(__dirname, '../../config/projects.json'));
+  });
+
+  it('resolves a relative PROJECT_REGISTRY_PATH against the project root, not process.cwd()', () => {
+    const config = loadConfig({
+      QDRANT_URL: 'http://localhost:6333',
+      EMBEDDING_PROVIDER: 'ollama',
+      EMBEDDING_MODEL: 'bge-m3',
+      PROJECT_REGISTRY_PATH: './custom/registry.json',
+    } as NodeJS.ProcessEnv);
+
+    expect(config.projectRegistryPath).toBe(path.resolve(__dirname, '../../custom/registry.json'));
+  });
+
+  it('keeps an absolute PROJECT_REGISTRY_PATH unchanged', () => {
+    const absolute = path.resolve('/tmp/somewhere/registry.json');
+    const config = loadConfig({
+      QDRANT_URL: 'http://localhost:6333',
+      EMBEDDING_PROVIDER: 'ollama',
+      EMBEDDING_MODEL: 'bge-m3',
+      PROJECT_REGISTRY_PATH: absolute,
+    } as NodeJS.ProcessEnv);
+
+    expect(config.projectRegistryPath).toBe(absolute);
   });
 
   it('throws when a required var is missing', () => {

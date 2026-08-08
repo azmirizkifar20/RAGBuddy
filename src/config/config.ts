@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 export interface AppConfig {
   qdrantUrl: string;
   qdrantCollection: string;
@@ -30,7 +32,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     embeddingModel,
     embeddingApiKey: env.EMBEDDING_API_KEY,
     ragTopK: env.RAG_TOP_K ? Number(env.RAG_TOP_K) : 5,
-    projectRegistryPath: env.PROJECT_REGISTRY_PATH ?? './config/projects.json',
+    // Resolved against this file's own location, not process.cwd() — the git
+    // post-commit hook (and any other caller) may run with cwd set to a
+    // different repo entirely, so a cwd-relative default would silently
+    // point at the wrong (or a nonexistent) registry file there.
+    projectRegistryPath: path.resolve(__dirname, '../../', env.PROJECT_REGISTRY_PATH ?? './config/projects.json'),
   };
 }
 
