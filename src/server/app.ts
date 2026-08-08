@@ -7,6 +7,8 @@ import { registerProjectsRoutes } from './routes/projects';
 import { registerKnowledgeRoutes } from './routes/knowledge';
 import { registerSearchRoutes } from './routes/search';
 import { registerHookRoutes } from './routes/hook';
+import { registerIngestRoutes } from './routes/ingest';
+import { registerSyncRoutes } from './routes/sync';
 
 export interface AppDeps {
   registry: ProjectRegistry;
@@ -27,6 +29,8 @@ export function createApp(deps: AppDeps): Express {
   registerKnowledgeRoutes(apiRouter, deps);
   registerSearchRoutes(apiRouter, deps);
   registerHookRoutes(apiRouter, deps);
+  registerIngestRoutes(apiRouter, deps);
+  registerSyncRoutes(apiRouter, deps);
   app.use('/api/projects', apiRouter);
 
   app.use(express.static(deps.staticDir));
