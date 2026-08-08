@@ -1,16 +1,17 @@
 # Full Ingestion
 
-**Status: Planned** (Phase 2 — Full Ingestion). Not yet implemented; traced from [`../../init.md`](../../init.md) §8–§11, §26.
+**Status: Implemented** (Phase 2 — Full Ingestion). Traced from [`../../init.md`](../../init.md) §8–§11, §26.
 
 ## 1) What This Feature Is
 
 The full-rebuild pipeline: scan a project's configured doc paths, chunk the Markdown structure-aware, hash content, embed, and upsert everything into Qdrant. This is what makes the Qdrant index fully rebuildable from Git at any time.
 
-**Phase 1 scope:** Phase 1 delivered the scanner, hasher, parser, and chunker building blocks (`src/ingestion/{scanner,hasher,parser,chunker}.ts`); the full `project-rag ingest` orchestration (`src/ingestion/indexer.ts`) is still Phase 2.
+**Full rebuild only, not incremental:** `project-rag ingest <project>` always re-scans, re-chunks, and re-upserts the complete document set for a project — it does not skip unchanged files or diff against the existing index. Hash-based skip/incremental sync (comparing `content_hash` to avoid re-embedding unchanged chunks) is still Phase 3 and not yet implemented; a reader should not assume `ingest` is incremental.
 
 - Spec: [`../../init.md`](../../init.md) §8 (Markdown Parsing), §9 (Content Hashing), §11 (Initial Full Index)
-- Implemented (Phase 1): `src/ingestion/{scanner,hasher,parser,chunker}.ts`
-- Planned (Phase 2): `src/ingestion/indexer.ts`
+- Implemented (Phase 1 building blocks): `src/ingestion/{scanner,hasher,parser,chunker}.ts`
+- Implemented (Phase 2 orchestration): `src/ingestion/indexer.ts`, `src/git/git-status.ts`, `src/qdrant/qdrant-repository.ts`, `src/cli/{args,ingest-command,index}.ts`
+- Planned (Phase 3): hash-based skip/incremental sync
 
 ## 2) Flow / Behavior
 
@@ -40,6 +41,8 @@ Not applicable — CLI only.
 ## Related Files
 
 - Spec source: [`../../init.md`](../../init.md) §8, §9, §11
+- Phase 2 orchestration: `src/ingestion/indexer.ts`, `src/git/git-status.ts`, `src/qdrant/qdrant-repository.ts`, `src/cli/args.ts`, `src/cli/ingest-command.ts`, `src/cli/index.ts`
+- Phase 1 building blocks (used by the pipeline): `src/ingestion/scanner.ts`, `src/ingestion/hasher.ts`, `src/ingestion/parser.ts`, `src/ingestion/chunker.ts`
 
 ## Cross-References
 
