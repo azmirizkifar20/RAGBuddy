@@ -3,7 +3,7 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-08
-**Recent**: Phase 4 (Retrieval) implemented: project-filtered vector similarity search (`searchPoints`/`searchProject`) and `project-rag search <project> "<query>"` — see `docs/superpowers/plans/2026-08-08-phase4-retrieval.md`.
+**Recent**: Phase 5 (MCP Server) implemented: `search_project_docs`, `get_project_document`, `list_project_knowledge`, cwd-or-explicit project resolution, and `project-rag mcp` — see `docs/superpowers/plans/2026-08-08-phase5-mcp-server.md`.
 
 ## Index
 
@@ -11,7 +11,7 @@ This folder contains documentation for implemented features and current state.
 2. [Full Ingestion](./02-ingestion-full-index.md) — Implemented
 3. [Incremental Sync](./03-incremental-sync.md) — Implemented
 4. [Retrieval / Search](./04-retrieval-search.md) — Implemented
-5. [MCP Server](./05-mcp-server.md) — Planned
+5. [MCP Server](./05-mcp-server.md) — Implemented
 6. [Git Hook Auto Sync](./06-git-hook-auto-sync.md) — Planned
 
 ---

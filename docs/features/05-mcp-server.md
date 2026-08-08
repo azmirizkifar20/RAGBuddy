@@ -1,13 +1,13 @@
 # MCP Server
 
-**Status: Planned** (Phase 5 — MCP). Not yet implemented; traced from [`../../init.md`](../../init.md) §14–§15, §26.
+**Status: Implemented** (Phase 5 — MCP). Traced from [`../../init.md`](../../init.md) §14–§15, §26.
 
 ## 1) What This Feature Is
 
 The single MCP server (`project-rag mcp`) that Claude Code, OpenCode, and Codex all connect to — the same implementation for every agent, no per-agent RAG logic (`init.md` §28).
 
 - Spec: [`../../init.md`](../../init.md) §14 (MCP Server), §15 (MCP Project Detection)
-- Planned files: `src/mcp/server.ts`, `src/mcp/tools/{search-project-docs,get-project-document,list-project-knowledge}.ts`
+- Implementation: `src/mcp/server.ts`, `src/mcp/tools/{search-project-docs,get-project-document,list-project-knowledge}.ts`, `src/mcp/tool-result.ts`, `src/mcp/document-reader.ts`, `src/projects/project-resolver.ts`, `src/cli/{args,index}.ts` (extended for the `mcp` command)
 
 ## 2) Flow / Behavior
 
@@ -29,12 +29,18 @@ Not applicable — MCP protocol only, consumed by coding agents' own UIs.
 
 ## 5) Edge Cases & Rules
 
-- `get_project_document` must prevent `../../etc/passwd`-style traversal and any access outside the registered repository (`init.md` §14, §21.3, §21.6)
-- Cross-project access must be impossible even via crafted parameters (`init.md` §21.7)
-- Do not expose API keys in logs or unnecessary absolute paths in responses (`init.md` §21.8–21.9)
+- `get_project_document` rejects `../../etc/passwd`-style traversal AND any file outside the project's configured documentation `paths` — stricter than just "inside the repo": a direct filesystem read bypasses the ingestion scanner's own exclusion rules (`.env`, non-`docs/` files), so `document-reader.ts` re-applies an equivalent boundary itself (`init.md` §14, §21.3, §21.6)
+- Cross-project access must be impossible even via crafted parameters — enforced by `resolveProject` requiring either an explicit registered `project` id or an unambiguous cwd match (`init.md` §21.7)
+- Do not expose API keys in logs or unnecessary absolute paths in responses (`init.md` §21.8–21.9) — none of the three tools' responses include `absolute_path`
+- Ambiguous or unmatched cwd → explicit error naming the conflicting project ids (or "no registered project"), never a silent guess (`init.md` §15)
 
 ## Related Files
 
+- `src/projects/project-resolver.ts` — `resolveProject`: explicit `project` argument wins, otherwise matches the cwd against registered repositories
+- `src/mcp/document-reader.ts` — `getProjectDocument`: path-traversal-safe, scoped to configured documentation paths
+- `src/mcp/tool-result.ts` — `toolText`/`toolError`: shared MCP result-shape helpers
+- `src/mcp/tools/search-project-docs.ts`, `get-project-document.ts`, `list-project-knowledge.ts` — the three tool registrations
+- `src/mcp/server.ts` — `createMcpServer`: assembles the server and registers all three tools
 - Spec source: [`../../init.md`](../../init.md) §14, §15, §28
 
 ## Cross-References
