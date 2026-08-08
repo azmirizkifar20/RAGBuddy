@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { upsertChunks, deleteProjectVectors } from '../../src/qdrant/qdrant-repository';
+import { upsertChunks, deleteProjectVectors, getIndexedFileHashes, deleteFileVectors } from '../../src/qdrant/qdrant-repository';
 import type { DocumentPoint } from '../../src/qdrant/qdrant-repository';
 
 describe('upsertChunks', () => {
@@ -45,6 +45,63 @@ describe('deleteProjectVectors', () => {
     await deleteProjectVectors(client, 'docs', 'bidubadu');
     expect(client.delete).toHaveBeenCalledWith('docs', {
       filter: { must: [{ key: 'project', match: { value: 'bidubadu' } }] },
+    });
+  });
+});
+
+describe('getIndexedFileHashes', () => {
+  it('builds a file→hash map from existing points, paginating until exhausted', async () => {
+    const client = {
+      scroll: vi
+        .fn()
+        .mockResolvedValueOnce({
+          points: [{ id: 'a', payload: { file: 'docs/a.md', content_hash: 'hash-a' } }],
+          next_page_offset: 'page2',
+        })
+        .mockResolvedValueOnce({
+          points: [{ id: 'b', payload: { file: 'docs/b.md', content_hash: 'hash-b' } }],
+          next_page_offset: null,
+        }),
+    } as any;
+
+    const result = await getIndexedFileHashes(client, 'docs', 'sample');
+
+    expect(result).toEqual(
+      new Map([
+        ['docs/a.md', 'hash-a'],
+        ['docs/b.md', 'hash-b'],
+      ]),
+    );
+    expect(client.scroll).toHaveBeenCalledTimes(2);
+    expect(client.scroll).toHaveBeenNthCalledWith(
+      1,
+      'docs',
+      expect.objectContaining({
+        filter: { must: [{ key: 'project', match: { value: 'sample' } }] },
+        offset: undefined,
+      }),
+    );
+    expect(client.scroll).toHaveBeenNthCalledWith(2, 'docs', expect.objectContaining({ offset: 'page2' }));
+  });
+
+  it('returns an empty map when there are no points', async () => {
+    const client = { scroll: vi.fn().mockResolvedValue({ points: [], next_page_offset: null }) } as any;
+    const result = await getIndexedFileHashes(client, 'docs', 'sample');
+    expect(result.size).toBe(0);
+  });
+});
+
+describe('deleteFileVectors', () => {
+  it('deletes points filtered by project and file', async () => {
+    const client = { delete: vi.fn().mockResolvedValue(true) } as any;
+    await deleteFileVectors(client, 'docs', 'sample', 'docs/a.md');
+    expect(client.delete).toHaveBeenCalledWith('docs', {
+      filter: {
+        must: [
+          { key: 'project', match: { value: 'sample' } },
+          { key: 'file', match: { value: 'docs/a.md' } },
+        ],
+      },
     });
   });
 });
