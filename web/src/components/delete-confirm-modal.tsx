@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Trash2Icon } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,8 +42,9 @@ export function DeleteConfirmModal({
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          Remove project
+        <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:bg-destructive/10">
+          <Trash2Icon className="size-3.5" />
+          Remove
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>

@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
+import { FolderGitIcon, PlusIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,13 +22,21 @@ function fieldForError(message: string): 'id' | 'repository' | 'general' {
   return 'general'
 }
 
-export function AddProjectModal({ onRegistered }: { onRegistered: (project: Project) => void }) {
+export function AddProjectModal({
+  onRegistered,
+  trigger,
+}: {
+  onRegistered: (project: Project) => void
+  trigger?: ReactNode
+}) {
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors] = useState<{ id?: string; repository?: string; general?: string }>({})
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    // `currentTarget` is nulled once the handler's synchronous part returns,
+    // so the form element has to be captured before the first await.
     const formElement = event.currentTarget
     setErrors({})
     setSubmitting(true)
@@ -60,22 +69,35 @@ export function AddProjectModal({ onRegistered }: { onRegistered: (project: Proj
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>+ Add Project</Button>
+        {trigger ?? (
+          <Button className="gap-1.5">
+            <PlusIcon className="size-4" /> Add project
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Register a project</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderGitIcon className="size-4 text-brand" />
+              Register a project
+            </DialogTitle>
           </DialogHeader>
           <div className="grid gap-3 py-4">
             <div className="grid gap-1.5">
               <Label htmlFor="id">Project ID</Label>
               <Input id="id" name="id" required placeholder="my-project" />
+              <p className="text-xs text-muted-foreground">
+                Used by agents and the CLI — lowercase, no spaces.
+              </p>
               {errors.id && <p className="text-sm text-destructive">{errors.id}</p>}
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="repository">Repository path</Label>
-              <Input id="repository" name="repository" required placeholder="/path/to/repo" />
+              <Input id="repository" name="repository" required placeholder="D:\\projects\\my-project" />
+              <p className="text-xs text-muted-foreground">
+                Absolute path to a Git repository on this machine.
+              </p>
               {errors.repository && <p className="text-sm text-destructive">{errors.repository}</p>}
             </div>
             <div className="grid gap-1.5">
@@ -85,6 +107,7 @@ export function AddProjectModal({ onRegistered }: { onRegistered: (project: Proj
             <div className="grid gap-1.5">
               <Label htmlFor="paths">Paths to index (optional, comma-separated)</Label>
               <Input id="paths" name="paths" placeholder="docs,notes" />
+              <p className="text-xs text-muted-foreground">Defaults to `docs`.</p>
             </div>
             {errors.general && <p className="text-sm text-destructive">{errors.general}</p>}
           </div>

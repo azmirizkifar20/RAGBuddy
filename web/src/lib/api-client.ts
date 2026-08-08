@@ -4,7 +4,10 @@ export interface Project {
   repository: string
   paths: string[]
   indexedFileCount: number
+  chunkCount: number
+  uploadCount: number
   hookInstalled: boolean
+  lastRunAt: string | null
 }
 
 export interface SearchResult {
@@ -14,12 +17,67 @@ export interface SearchResult {
   content: string
 }
 
+export type DocumentSource = 'repository' | 'upload'
+
+export interface IndexedDocument {
+  file: string
+  source: DocumentSource
+  chunkCount: number
+  title: string
+}
+
+export interface KnowledgeResponse {
+  files: string[]
+  documents: IndexedDocument[]
+  chunkCount: number
+}
+
+export interface UploadedDocument {
+  file: string
+  name: string
+  sizeBytes: number
+  uploadedAt: string
+}
+
+export type RunKind = 'ingest' | 'sync' | 'upload' | 'upload-remove'
+export type RunTrigger = 'cli' | 'web' | 'hook'
+
+export interface RunRecord {
+  id: string
+  project: string
+  kind: RunKind
+  status: 'success' | 'error'
+  trigger: RunTrigger
+  startedAt: string
+  durationMs: number
+  summary: Record<string, number | string | boolean>
+  error?: string
+}
+
+export interface RuntimeConfig {
+  qdrantUrl: string
+  qdrantCollection: string
+  ragTopK: number
+  dataDir: string
+  nodePath: string
+  cliEntrypoint: string
+  embeddingProvider: string
+  embeddingModel: string
+  embeddingBaseUrl: string
+  embeddingApiKeyConfigured: boolean
+  projectRegistryPath: string
+}
+
 async function parseJsonResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }))
     throw new Error(body.error ?? res.statusText)
   }
   return res.json() as Promise<T>
+}
+
+async function expectNoContent(res: Response): Promise<void> {
+  if (!res.ok) await parseJsonResponse(res)
 }
 
 export function listProjects(): Promise<Project[]> {
@@ -45,13 +103,12 @@ export function registerProject(input: RegisterProjectInput): Promise<Project> {
   }).then(parseJsonResponse<Project>)
 }
 
-export async function removeProject(id: string): Promise<void> {
-  const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' })
-  if (!res.ok) await parseJsonResponse(res)
+export function removeProject(id: string): Promise<void> {
+  return fetch(`/api/projects/${id}`, { method: 'DELETE' }).then(expectNoContent)
 }
 
-export function getKnowledge(id: string): Promise<{ files: string[] }> {
-  return fetch(`/api/projects/${id}/knowledge`).then(parseJsonResponse<{ files: string[] }>)
+export function getKnowledge(id: string): Promise<KnowledgeResponse> {
+  return fetch(`/api/projects/${id}/knowledge`).then(parseJsonResponse<KnowledgeResponse>)
 }
 
 export function searchProject(id: string, query: string): Promise<{ results: SearchResult[] }> {
@@ -62,14 +119,49 @@ export function searchProject(id: string, query: string): Promise<{ results: Sea
   }).then(parseJsonResponse<{ results: SearchResult[] }>)
 }
 
-export async function installHook(id: string): Promise<void> {
-  const res = await fetch(`/api/projects/${id}/hook`, { method: 'POST' })
-  if (!res.ok) await parseJsonResponse(res)
+export function installHook(id: string): Promise<void> {
+  return fetch(`/api/projects/${id}/hook`, { method: 'POST' }).then(expectNoContent)
 }
 
-export async function uninstallHook(id: string): Promise<void> {
-  const res = await fetch(`/api/projects/${id}/hook`, { method: 'DELETE' })
-  if (!res.ok) await parseJsonResponse(res)
+export function uninstallHook(id: string): Promise<void> {
+  return fetch(`/api/projects/${id}/hook`, { method: 'DELETE' }).then(expectNoContent)
+}
+
+export function listUploads(id: string): Promise<{ uploads: UploadedDocument[] }> {
+  return fetch(`/api/projects/${id}/uploads`).then(parseJsonResponse<{ uploads: UploadedDocument[] }>)
+}
+
+export interface UploadResult {
+  file: string
+  name: string
+  chunksIndexed: number
+  replaced: boolean
+}
+
+export function uploadDocument(id: string, filename: string, content: string): Promise<UploadResult> {
+  return fetch(`/api/projects/${id}/uploads`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename, content }),
+  }).then(parseJsonResponse<UploadResult>)
+}
+
+export function removeUpload(id: string, filename: string): Promise<void> {
+  return fetch(`/api/projects/${id}/uploads/${encodeURIComponent(filename)}`, {
+    method: 'DELETE',
+  }).then(expectNoContent)
+}
+
+export function getHistory(id: string, limit = 50): Promise<{ runs: RunRecord[] }> {
+  return fetch(`/api/projects/${id}/history?limit=${limit}`).then(parseJsonResponse<{ runs: RunRecord[] }>)
+}
+
+export function getActivity(limit = 20): Promise<{ runs: RunRecord[] }> {
+  return fetch(`/api/activity?limit=${limit}`).then(parseJsonResponse<{ runs: RunRecord[] }>)
+}
+
+export function getRuntimeConfig(): Promise<RuntimeConfig> {
+  return fetch('/api/config').then(parseJsonResponse<RuntimeConfig>)
 }
 
 export interface StreamHandlers {

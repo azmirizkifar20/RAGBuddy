@@ -12,9 +12,8 @@ This project uses structured documentation under `docs/`:
 - `docs/features/` - Current-state (and planned) feature documentation
 - `docs/steering/` - Technical architecture and stack decisions
 - `docs/issue/` - Bug reports and root cause analysis
-
-There is no `docs/design-system/` folder — the `web/` frontend is a small internal dashboard (Vite + React + Tailwind + shadcn/ui), not a design-system-driven product UI.
+- `docs/design-system/` - Tokens, motion and component conventions for the `web/` dashboard (Vite + React + Tailwind + shadcn/ui). It is a small internal tool, so this records the conventions it follows rather than prescribing a component library.
 
 ## Project Status
 
-`project-rag` is fully implemented: all six phases from `init.md` §26 (Foundation, Full Ingestion, Incremental Sync, Retrieval, MCP Server, Git Hook Auto Sync) plus the web frontend + CLI `project` subcommands (`docs/features/07-web-frontend-and-project-cli.md`). `docs/features/*.md` describe shipped, current-state behavior — see `docs/features/README.md` for the full index.
+`project-rag` is fully implemented: all six phases from `init.md` §26 (Foundation, Full Ingestion, Incremental Sync, Retrieval, MCP Server, Git Hook Auto Sync) plus the web frontend + CLI `project` subcommands (`docs/features/07-web-frontend-and-project-cli.md`) and the dashboard redesign with document uploads and sync history (`docs/features/08-dashboard-redesign-uploads-and-history.md`). `docs/features/*.md` describe shipped, current-state behavior — see `docs/features/README.md` for the full index.

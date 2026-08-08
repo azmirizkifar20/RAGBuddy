@@ -7,7 +7,7 @@ A multi-project RAG (Retrieval-Augmented Generation) service that gives coding a
 `project-rag` indexes the `docs/` folder (configurable) of one or more registered Git repositories into [Qdrant](https://qdrant.tech), a vector database, and exposes that index three ways:
 
 - **CLI** — `project-rag ingest/sync/search/hook/project/mcp/web`
-- **Web dashboard** — register projects, browse indexed files, search, run ingest/sync with a live log, toggle auto-sync, all from a browser
+- **Web dashboard** — register projects, browse indexed files, upload extra documents, search, run ingest/sync with a live log, review sync history, toggle auto-sync, and copy per-project MCP config, all from a browser
 - **MCP server** — a coding agent working in your repo can call `search_project_docs` to find the architecture doc, feature spec, or issue writeup relevant to what it's doing right now, instead of relying on whatever happened to fit in its context window
 
 ## Why it exists
@@ -117,13 +117,32 @@ Both call the exact same underlying registry — pick whichever fits the moment.
 npm run web              # or: node dist/cli/index.js web [--port 4300]
 ```
 
-Open `http://localhost:4300`. From the dashboard you can:
+Open `http://localhost:4300`. The dashboard has a sidebar with these pages:
 
-- **Register a project** (`+ Add Project`) — project ID, repository path (absolute path to a local Git repo), optional display name, optional comma-separated doc paths (defaults to `docs`)
-- See each project's indexed file count and auto-sync status at a glance
-- Open a project to browse its indexed files, run **Search**, trigger **Ingest**/**Sync** with a live streaming log, toggle the **auto-sync Git hook**, or **remove** the project (unregisters only — never touches Qdrant vectors or the Git repository itself)
+| Page | What it does |
+|------|--------------|
+| **Dashboard** | Totals across every project, project cards, and a live feed of recent ingest/sync/upload runs |
+| **Projects** | Filterable list of every registered repository. `+ Add project` registers a new one — project ID, absolute repo path, optional display name, optional comma-separated doc paths (defaults to `docs`) |
+| **Project → Overview** | Stats, the ingest/sync console with a live streaming log, the auto-sync toggle, and the indexed paths |
+| **Project → Documents** | Browse every indexed file (filter by repository vs uploaded), and **upload your own** `.md`/`.mdx`/`.txt` documents by drag-and-drop |
+| **Project → Search** | The same retrieval path an agent hits over MCP — use it to sanity-check what your agent will actually see |
+| **Project → History** | Every ingest, sync and upload for this project, whether it came from the dashboard, the CLI, or a `git commit` |
+| **Project → MCP setup** | Copy-pasteable MCP config for Claude Code, OpenCode and Codex, with your machine's real resolved paths already filled in |
+| **How RAG works** | Three interactive diagrams — indexing pipeline, retrieval pipeline, auto-sync loop — each step linked to the file that implements it |
+| **Settings** | Read-only view of the running configuration (Qdrant, embedding model, resolved paths) |
+
+Removing a project unregisters it only — it never touches Qdrant vectors or the Git repository itself.
 
 For frontend development with hot reload: `cd web && npm run dev` (proxies `/api` to `localhost:4300`, so `project-rag web` must also be running).
+
+### Uploading documents
+
+Some knowledge doesn't belong in the repository — a meeting note, a vendor's API PDF exported to Markdown, a scratch spec. Drop those on **Project → Documents → Upload**:
+
+- Files are stored in project-rag's own data directory (`PROJECT_RAG_DATA_DIR`, default `./data`) — **nothing is written into your Git repository**
+- They're embedded immediately and become searchable through the same MCP tools, addressed as `uploads/<filename>`
+- A `sync` never reports them as deleted, and a full `ingest` never wipes them — repository documents and uploads are tracked separately in Qdrant
+- Re-uploading the same filename replaces it; deleting removes both the file and its vectors
 
 ### CLI
 
@@ -137,7 +156,7 @@ project-rag project remove <id>
 
 (The registry is a plain JSON file at `PROJECT_REGISTRY_PATH`, default `./config/projects.json`, shape shown in `config/projects.example.json` — editing it directly still works too, if you'd rather script it.)
 
-Full details on both: [`docs/features/07-web-frontend-and-project-cli.md`](docs/features/07-web-frontend-and-project-cli.md).
+Full details: [`docs/features/07-web-frontend-and-project-cli.md`](docs/features/07-web-frontend-and-project-cli.md) and [`docs/features/08-dashboard-redesign-uploads-and-history.md`](docs/features/08-dashboard-redesign-uploads-and-history.md).
 
 ## Initial ingestion
 
@@ -223,6 +242,8 @@ Remove it with `project-rag hook uninstall bidubadu`. Details: [`docs/features/0
 
 ## MCP setup for Claude Code
 
+> The web dashboard generates all of the snippets below with your machine's real resolved paths already filled in — open any project and go to **MCP setup**. The rest of this section is the same thing, by hand.
+
 Add `project-rag` as an MCP server. From your terminal, in any registered project's directory (or anywhere, if you'll pass an explicit project id per call):
 
 ```bash
@@ -252,7 +273,32 @@ Claude Code will then have `search_project_docs`, `get_project_document`, and `l
 
 ## MCP setup for OpenCode
 
-Same server, same three tools — `project-rag` intentionally has one MCP implementation shared by every agent (`init.md` §28), not a separate integration per client. Add it to OpenCode's MCP server configuration the same way, pointing at the same `node .../dist/cli/index.js mcp` command and env vars as above. Check OpenCode's own docs for its exact config file location/format; the server side is identical.
+Same server, same three tools — `project-rag` intentionally has one MCP implementation shared by every agent (`init.md` §28), not a separate integration per client. Add it to OpenCode's MCP server configuration the same way, pointing at the same `node .../dist/cli/index.js mcp` command as above:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "project-rag": {
+      "type": "local",
+      "command": ["node", "/absolute/path/to/project-rag/dist/cli/index.js", "mcp"],
+      "enabled": true
+    }
+  }
+}
+```
+
+## MCP setup for Codex
+
+Same server again — add it to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.project-rag]
+command = "node"
+args = ["/absolute/path/to/project-rag/dist/cli/index.js", "mcp"]
+```
+
+No `env` block is needed for any of these three: the server reads `.env` from its own install directory, not from the agent's working directory.
 
 ## Troubleshooting
 
@@ -280,6 +326,7 @@ project-rag ingest <project-id>   # repeat for every registered project
 - [`docs/steering/`](docs/steering/README.md) — architecture, tech stack, routing, system flow, API/tool conventions, setup
 - [`docs/features/`](docs/features/README.md) — one doc per feature, traced to real files
 - [`docs/issue/`](docs/issue/README.md) — bug reports and root cause analysis
+- [`docs/design-system/`](docs/design-system/README.md) — tokens, motion and component conventions for the web dashboard
 - [`init.md`](init.md) — the original build specification this project was implemented against
 
 ## Development

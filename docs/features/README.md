@@ -2,8 +2,8 @@
 
 This folder contains documentation for implemented features and current state.
 
-**Updated**: 2026-08-08
-**Recent**: Web frontend + CLI `project` subcommands implemented: `project-rag project register/list/remove`, `project-rag web` (Express REST API + Vite/React SPA dashboard) — see `docs/superpowers/plans/2026-08-08-web-backend-api.md` and `docs/superpowers/plans/2026-08-08-web-frontend.md`.
+**Updated**: 2026-08-09
+**Recent**: Dashboard redesigned around a sidebar shell, plus document uploads, sync history, an MCP setup page and a RAG flow explainer — see [08-dashboard-redesign-uploads-and-history.md](./08-dashboard-redesign-uploads-and-history.md).
 
 ## Index
 
@@ -14,6 +14,7 @@ This folder contains documentation for implemented features and current state.
 5. [MCP Server](./05-mcp-server.md) — Implemented
 6. [Git Hook Auto Sync](./06-git-hook-auto-sync.md) — Implemented
 7. [Web Frontend & CLI Project Subcommands](./07-web-frontend-and-project-cli.md) — Implemented
+8. [Dashboard Redesign, Document Uploads & Sync History](./08-dashboard-redesign-uploads-and-history.md) — Implemented
 
 ---
 
