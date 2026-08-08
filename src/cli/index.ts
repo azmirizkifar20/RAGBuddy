@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import 'dotenv/config';
 import { loadConfig } from '../config/config';
 import { ProjectRegistry } from '../projects/project-registry';
 import { createQdrantClient } from '../qdrant/qdrant-client';
