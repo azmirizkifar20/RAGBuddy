@@ -58,6 +58,7 @@ describe('deleteProjectVectors', () => {
 describe('getIndexedFileHashes', () => {
   it('builds a file→hash map from existing points, paginating until exhausted', async () => {
     const client = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'docs' }] }),
       scroll: vi
         .fn()
         .mockResolvedValueOnce({
@@ -91,9 +92,24 @@ describe('getIndexedFileHashes', () => {
   });
 
   it('returns an empty map when there are no points', async () => {
-    const client = { scroll: vi.fn().mockResolvedValue({ points: [], next_page_offset: null }) } as any;
+    const client = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'docs' }] }),
+      scroll: vi.fn().mockResolvedValue({ points: [], next_page_offset: null }),
+    } as any;
     const result = await getIndexedFileHashes(client, 'docs', 'sample');
     expect(result.size).toBe(0);
+  });
+
+  it('returns an empty map without calling scroll when the collection does not exist yet', async () => {
+    const client = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [] }),
+      scroll: vi.fn(),
+    } as any;
+
+    const result = await getIndexedFileHashes(client, 'docs', 'sample');
+
+    expect(result.size).toBe(0);
+    expect(client.scroll).not.toHaveBeenCalled();
   });
 });
 

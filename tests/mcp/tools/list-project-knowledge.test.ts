@@ -36,6 +36,7 @@ describe('list_project_knowledge tool', () => {
       find: vi.fn(),
     } as any;
     const qdrantClient = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'project_rag_documents' }] }),
       scroll: vi.fn().mockResolvedValue({
         points: [
           { id: '1', payload: { file: 'docs/b.md', content_hash: 'h2' } },
@@ -62,7 +63,10 @@ describe('list_project_knowledge tool', () => {
       list: vi.fn().mockReturnValue([{ id: 'sample', name: 'Sample', repository: repo, paths: ['docs'] }]),
       find: vi.fn(),
     } as any;
-    const qdrantClient = { scroll: vi.fn().mockResolvedValue({ points: [], next_page_offset: null }) } as any;
+    const qdrantClient = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'project_rag_documents' }] }),
+      scroll: vi.fn().mockResolvedValue({ points: [], next_page_offset: null }),
+    } as any;
     const client = await setup({
       registry,
       qdrantClient,

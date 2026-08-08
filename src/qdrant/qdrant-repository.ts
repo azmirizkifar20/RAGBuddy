@@ -48,6 +48,10 @@ export async function getIndexedFileHashes(
   project: string,
 ): Promise<Map<string, string>> {
   const hashes = new Map<string, string>();
+  const collections = await client.getCollections();
+  const collectionExists = collections.collections.some((c) => c.name === collectionName);
+  if (!collectionExists) return hashes;
+
   let offset: string | number | Record<string, unknown> | null | undefined;
   do {
     const result = await client.scroll(collectionName, {

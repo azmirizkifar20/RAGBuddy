@@ -21,7 +21,10 @@ describe('GET /api/projects', () => {
       list: vi.fn().mockReturnValue([{ id: 'sample', name: 'Sample', repository: '/r', paths: ['docs'] }]),
       find: vi.fn(),
     };
-    const qdrantClient = { scroll: vi.fn().mockResolvedValue({ points: [], next_page_offset: null }) };
+    const qdrantClient = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'project_rag_documents' }] }),
+      scroll: vi.fn().mockResolvedValue({ points: [], next_page_offset: null }),
+    };
     const deps = baseDeps({ registry, qdrantClient });
     const app = createApp(deps);
 
@@ -45,7 +48,10 @@ describe('GET /api/projects', () => {
       list: vi.fn().mockReturnValue([{ id: 'sample', name: 'Sample', repository: '/r', paths: ['docs'] }]),
       find: vi.fn(),
     };
-    const qdrantClient = { scroll: vi.fn().mockRejectedValue(new Error('fetch failed')) };
+    const qdrantClient = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'project_rag_documents' }] }),
+      scroll: vi.fn().mockRejectedValue(new Error('fetch failed')),
+    };
     const app = createApp(baseDeps({ registry, qdrantClient }));
 
     const res = await request(app).get('/api/projects');
@@ -70,7 +76,10 @@ describe('GET /api/projects/:id', () => {
       list: vi.fn(),
       find: vi.fn().mockReturnValue({ id: 'sample', name: 'Sample', repository: '/r', paths: ['docs'] }),
     };
-    const qdrantClient = { scroll: vi.fn().mockRejectedValue(new Error('fetch failed')) };
+    const qdrantClient = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'project_rag_documents' }] }),
+      scroll: vi.fn().mockRejectedValue(new Error('fetch failed')),
+    };
     const app = createApp(baseDeps({ registry, qdrantClient }));
 
     const res = await request(app).get('/api/projects/sample');
