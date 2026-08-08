@@ -8,6 +8,8 @@ import { createMcpServer } from '../mcp/server';
 import { installHook, uninstallHook } from '../git/hook-installer';
 import { runHookCommand } from './hook-command';
 import { runProjectRegister, runProjectList, runProjectRemove } from './project-command';
+import path from 'node:path';
+import { createApp } from '../server/app';
 import { indexProject } from '../ingestion/indexer';
 import { syncProject } from '../ingestion/sync';
 import { searchProject } from '../retrieval/search';
@@ -95,8 +97,19 @@ async function main(): Promise<void> {
   }
 
   if (parsed.command === 'web') {
-    console.error('The "web" command is not available yet in this build.');
-    process.exitCode = 1;
+    const app = createApp({
+      registry,
+      qdrantClient,
+      qdrantUrl: config.qdrantUrl,
+      qdrantCollection: config.qdrantCollection,
+      embeddingProvider,
+      ragTopK: config.ragTopK,
+      staticDir: path.resolve(__dirname, '../../web/dist'),
+    });
+    const port = parsed.port ?? 4300;
+    app.listen(port, () => {
+      console.log(`[project-rag] Web UI running at http://localhost:${port}`);
+    });
     return;
   }
 
