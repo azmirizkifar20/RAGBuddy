@@ -13,8 +13,8 @@ This project uses structured documentation under `docs/`:
 - `docs/steering/` - Technical architecture and stack decisions
 - `docs/issue/` - Bug reports and root cause analysis
 
-There is no `docs/design-system/` folder — `project-rag` is a backend service (CLI + MCP server), it has no UI layer.
+There is no `docs/design-system/` folder — the `web/` frontend is a small internal dashboard (Vite + React + Tailwind + shadcn/ui), not a design-system-driven product UI.
 
 ## Project Status
 
-`project-rag` is currently at the **specification stage**. The full build spec lives in [`init.md`](./init.md) at the repo root. No application source code exists yet — `docs/features/*.md` describe the *planned* behavior traced from that spec, not shipped code. Implementation should proceed through the phases defined in `init.md` §26 (Foundation → Full Ingestion → Incremental Sync → Retrieval → MCP → Git Hook).
+`project-rag` is fully implemented: all six phases from `init.md` §26 (Foundation, Full Ingestion, Incremental Sync, Retrieval, MCP Server, Git Hook Auto Sync) plus the web frontend + CLI `project` subcommands (`docs/features/07-web-frontend-and-project-cli.md`). `docs/features/*.md` describe shipped, current-state behavior — see `docs/features/README.md` for the full index.
