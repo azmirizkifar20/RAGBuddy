@@ -22,32 +22,37 @@ Git Repository (project-a, project-b, ...)
        CLI (project / ingest / sync / search / hook / mcp)
 ```
 
-## Layers & Boundaries (planned — `init.md` §4)
+## Layers & Boundaries (`init.md` §4)
 
-- **CLI layer**: `src/cli/` — command parsing, calls into ingestion/retrieval/registry
-- **Project management layer**: `src/projects/project-registry.ts`, `src/projects/project-types.ts` — registered repos, path config, project resolution
-- **Ingestion layer**: `src/ingestion/{scanner,parser,chunker,hasher,indexer}.ts` — scan → parse → chunk → hash → index
-- **Embedding layer**: `src/embedding/embedding-provider.ts` — provider-agnostic `embedDocuments`/`embedQuery` interface
-- **Storage layer**: `src/qdrant/{qdrant-client,qdrant-repository}.ts` — all Qdrant reads/writes, project-filtered
+- **CLI layer**: `src/cli/{args,index,ingest-command,sync-command,search-command,hook-command}.ts` — argv parsing, per-command orchestration, calls into ingestion/retrieval/registry/hook-installer
+- **Project management layer**: `src/projects/{project-registry,project-types,project-resolver}.ts` — registered repos, path config, project lookup (explicit id, or cwd-based resolution for MCP tools)
+- **Ingestion layer**: `src/ingestion/{scanner,parser,chunker,hasher,payload-builder,indexer,sync}.ts` — scan → parse → chunk → hash; `indexer.ts` is the full-rebuild path, `sync.ts` is the incremental (hash-diff) path, both share `payload-builder.ts`'s chunk-payload/category helpers
+- **Embedding layer**: `src/embedding/embedding-provider.ts` — provider-agnostic `embedDocuments`/`embedQuery` interface (Ollama, OpenAI-compatible)
+- **Storage layer**: `src/qdrant/{qdrant-client,qdrant-repository}.ts` — all Qdrant reads/writes, project-filtered (`upsertChunks`, `deleteProjectVectors`, `deleteFileVectors`, `getIndexedFileHashes`, `searchPoints`)
 - **Retrieval layer**: `src/retrieval/search.ts` — topK similarity search, enforces project filter before returning results
-- **Git integration layer**: `src/git/{git-status,git-diff}.ts` — commit metadata, hook installation
-- **MCP layer**: `src/mcp/server.ts`, `src/mcp/tools/*` — the single MCP interface shared by all agents (no separate implementations per agent)
+- **Git integration layer**: `src/git/{git-status,hook-installer}.ts` — commit metadata and post-commit hook install/uninstall (chains safely with any pre-existing hook)
+- **MCP layer**: `src/mcp/{server,tool-result,document-reader}.ts`, `src/mcp/tools/{search-project-docs,get-project-document,list-project-knowledge}.ts` — the single MCP interface shared by all agents (no separate implementations per agent)
+- **Config layer**: `src/config/config.ts` — env var loading/validation
 
 Dependency direction: CLI and MCP are the two entry points; both call into project management → ingestion/retrieval → embedding/storage. Ingestion/retrieval/embedding/storage never depend on CLI or MCP.
 
 ## Key Components
 
-| Component | Responsibility | Planned Files |
+| Component | Responsibility | Files |
 |-----------|----------------|-----------|
-| Project Registry | Register/list/remove/resolve projects | `src/projects/project-registry.ts` |
-| Scanner | Walk configured doc paths, apply include/exclude rules | `src/ingestion/scanner.ts` |
+| Project Registry | Register/list/remove/find projects (JSON-persisted) | `src/projects/project-registry.ts` |
+| Project Resolver | Resolve project from cwd or explicit id, for MCP tools | `src/projects/project-resolver.ts` |
+| Scanner | Walk configured doc paths, apply include/exclude rules, path-traversal-safe | `src/ingestion/scanner.ts` |
 | Hasher | SHA-256 content hash per file for incremental sync | `src/ingestion/hasher.ts` |
-| Chunker | Structure-aware Markdown chunking (heading-preserving) | `src/ingestion/chunker.ts` |
-| Indexer | Orchestrates chunk → embed → upsert/delete | `src/ingestion/indexer.ts` |
-| EmbeddingProvider | Pluggable embedding backend (Ollama/OpenAI-compatible) | `src/embedding/embedding-provider.ts` |
-| Qdrant Repository | Project-filtered vector CRUD | `src/qdrant/qdrant-repository.ts` |
+| Parser / Chunker | Heading-aware markdown parsing + overlap-bounded chunking | `src/ingestion/{parser,chunker}.ts` |
+| Indexer | Full-rebuild: scan → chunk → embed → delete-all → upsert | `src/ingestion/indexer.ts` |
+| Sync | Incremental: hash-diff against Qdrant, only re-embed changed files, per-file delete-then-upsert | `src/ingestion/sync.ts` |
+| EmbeddingProvider | Pluggable embedding backend (Ollama/OpenAI-compatible), concurrency-capped + timeout | `src/embedding/embedding-provider.ts` |
+| Qdrant Repository | Project-filtered vector CRUD + search | `src/qdrant/qdrant-repository.ts` |
 | Retrieval | topK search with mandatory project filter | `src/retrieval/search.ts` |
+| Document Reader | Path-traversal-safe, configured-path-scoped file read for MCP | `src/mcp/document-reader.ts` |
 | MCP Tools | `search_project_docs`, `get_project_document`, `list_project_knowledge` | `src/mcp/tools/*` |
+| Hook Installer | Marker-delimited `post-commit` hook install/uninstall, safe chaining | `src/git/hook-installer.ts` |
 
 ## Cross-Module Communication
 

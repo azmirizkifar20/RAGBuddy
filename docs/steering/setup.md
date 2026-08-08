@@ -1,36 +1,42 @@
 # Setup & Running
 
-How to run, debug, and work on this project locally. **Status: planned** — nothing is scaffolded yet; this documents the setup [`../../init.md`](../../init.md) specifies for Phase 1 onward.
+How to run, debug, and work on this project locally. All commands below are real and working — see the root [`README.md`](../../README.md) for the narrative walkthrough; this doc is the quick-reference version.
 
 ## Prerequisites
 
-- Node.js (LTS) + npm
-- Docker + Docker Compose (for Qdrant — `init.md` §20)
-- Optional: Ollama running locally if using the Ollama embedding provider (`EMBEDDING_PROVIDER=ollama`)
+- Node.js 18+ (developed on Node 24) + npm
+- Docker + Docker Compose (for Qdrant — `docker-compose.yml` at the repo root)
+- Optional: Ollama running locally if using the Ollama embedding provider (`EMBEDDING_PROVIDER=ollama`, the default)
 
-## Install & Configure (planned)
+## Install & Configure
 
-1. `npm install` (once `package.json` exists)
-2. Copy `.env.example` → `.env` and fill required vars (see [system-flow.md](./system-flow.md) Environment & Config section)
-3. Create `config/projects.yaml` (or the chosen registry format) with at least one registered project (`init.md` §5)
+1. `npm install`
+2. `cp .env.example .env` and fill required vars (see [system-flow.md](./system-flow.md) Environment & Config section)
+3. Create `config/projects.json` (see `config/projects.example.json`) with at least one registered project
 4. `docker compose up -d` to start Qdrant
 
-## Run (planned)
+## Run
 
-- Register a project: `project-rag project register <id> <repository>`
+- Register a project: edit `config/projects.json` directly (id, name, absolute `repository` path, `paths` array — default `["docs"]`)
 - Full index: `project-rag ingest <project>`
 - Incremental sync: `project-rag sync <project>`
 - Search: `project-rag search <project> "<query>"`
-- Install Git hook: `project-rag hook install <project>`
+- Install Git hook: `project-rag hook install <project>` (`hook uninstall <project>` to remove)
 - Start MCP server: `project-rag mcp`
-- Tests: Vitest — exact command TBD once `package.json` exists (expected `npm test` / `npx vitest run`)
+- Build: `npm run build` (compiles `src/` → `dist/`, via `tsconfig.build.json`)
+- Typecheck: `npm run typecheck`
+- Tests: `npm test` (Vitest; 109 tests across all 6 phases as of this writing)
+
+Once built, `project-rag` is also usable as a global command via `npm link` from this directory (`package.json`'s `bin` field points at `dist/cli/index.js`); until then, invoke it directly as `node dist/cli/index.js <command>`.
 
 ## Debug
 
-- Structured logs per `init.md` §22 (`[INFO]`/`[WARN]`/`[ERROR]` with enough context to debug — e.g. sync summaries, Qdrant/embedding errors)
-- Common issues to check once implemented: Qdrant reachability (`QDRANT_URL`), embedding provider reachability, registry path correctness
+- Structured logs: `[INFO]` lines from `ingest`/`sync`/hook runs (via the `onLog` callback wired in `src/cli/index.ts`), `[project-rag] Error: ...` on failure
+- Common issues to check: Qdrant reachability (`QDRANT_URL`, `docker compose ps`), embedding provider reachability (`EMBEDDING_BASE_URL`, is Ollama/the OpenAI-compatible endpoint actually running), registry path correctness (`PROJECT_REGISTRY_PATH`)
+- `ingest`/`sync` refuse to run (rather than silently wiping a project's index) if the registered `repository` path is missing or isn't a Git repo — see `src/ingestion/indexer.ts`/`src/ingestion/sync.ts`'s liveness guard
+- See the root [`README.md`](../../README.md#troubleshooting) for a fuller troubleshooting list
 
 ## DB / Tooling Access
 
-- Qdrant runs via Docker Compose; no local DB credentials needed for the vector store itself
-- Qdrant is a rebuildable index only — if deleted, re-run `project-rag ingest <project>` for every registered project to rebuild from Git (`init.md` §1, §24)
+- Qdrant runs via Docker Compose (`docker-compose.yml`), exposing REST on `6333` and gRPC on `6334`; no local DB credentials needed for the vector store itself
+- Qdrant is a rebuildable index only — if deleted (`docker compose down -v`), `docker compose up -d` then `project-rag ingest <project>` for every registered project rebuilds the complete index from Git
