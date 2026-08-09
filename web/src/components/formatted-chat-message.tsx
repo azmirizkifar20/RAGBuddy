@@ -1,150 +1,7 @@
-import { useState, type ReactNode } from 'react'
-
-type Block =
-  | { kind: 'code'; lang: string; code: string }
-  | { kind: 'table'; header: string[]; rows: string[][] }
-  | { kind: 'paragraph'; text: string }
-
-function splitBlocks(text: string): Block[] {
-  const blocks: Block[] = []
-  const lines = text.split('\n')
-  let i = 0
-
-  while (i < lines.length) {
-    const line = lines[i]
-
-    const fence = line.match(/^```(\S*)\s*$/)
-    if (fence) {
-      const lang = fence[1] || 'code'
-      const code: string[] = []
-      i++
-      while (i < lines.length && !lines[i].startsWith('```')) {
-        code.push(lines[i])
-        i++
-      }
-      i++ // skip closing fence (or run off the end)
-      blocks.push({ kind: 'code', lang, code: code.join('\n') })
-      continue
-    }
-
-    if (line.startsWith('|')) {
-      const tableLines: string[] = []
-      while (i < lines.length && lines[i].startsWith('|')) {
-        tableLines.push(lines[i])
-        i++
-      }
-      const parsed = parseTable(tableLines)
-      if (parsed) blocks.push({ kind: 'table', ...parsed })
-      continue
-    }
-
-    const para: string[] = [line]
-    i++
-    while (i < lines.length) {
-      const nxt = lines[i]
-      if (nxt.startsWith('```') || nxt.startsWith('|')) break
-      para.push(nxt)
-      i++
-    }
-    const textBlock = para.filter((l) => l.trim() !== '').join('\n')
-    if (textBlock) blocks.push({ kind: 'paragraph', text: textBlock })
-  }
-
-  return blocks
-}
-
-function parseTable(lines: string[]): { header: string[]; rows: string[][] } | null {
-  const split = (line: string) =>
-    line
-      .replace(/^\||\|$/g, '')
-      .split('|')
-      .map((cell) => cell.trim())
-
-  const header = split(lines[0])
-  const rows: string[][] = []
-  for (let i = 1; i < lines.length; i++) {
-    const cells = split(lines[i])
-    // Skip a separator row like |---|---| (all cells containing only - and :)
-    if (cells.every((c) => /^:?-+:?$/.test(c))) continue
-    rows.push(cells)
-  }
-  return { header, rows }
-}
-
-function renderInline(text: string, keyPrefix: string): ReactNode[] {
-  const nodes: ReactNode[] = []
-  const regex = /`([^`]+)`|\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/g
-  let lastIndex = 0
-  let match: RegExpExecArray | null
-  let key = 0
-
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      nodes.push(text.slice(lastIndex, match.index))
-    }
-    if (match[1] !== undefined) {
-      nodes.push(
-        <code
-          key={`${keyPrefix}${key}`}
-          className="rounded bg-muted-foreground/10 px-1.5 py-0.5 font-mono text-xs text-foreground"
-        >
-          {match[1]}
-        </code>,
-      )
-    } else if (match[2] !== undefined) {
-      nodes.push(<strong key={`${keyPrefix}${key}`}>{match[2]}</strong>)
-    } else {
-      nodes.push(
-        <a
-          key={`${keyPrefix}${key}`}
-          href={match[4]}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-brand underline"
-        >
-          {match[3]}
-        </a>,
-      )
-    }
-    lastIndex = regex.lastIndex
-    key++
-  }
-
-  if (lastIndex < text.length) nodes.push(text.slice(lastIndex))
-  return nodes
-}
-
-function renderParagraph(text: string): ReactNode {
-  const lines = text.split('\n')
-  const listItems: string[] = []
-  const rest: string[] = []
-
-  for (let idx = 0; idx < lines.length; idx++) {
-    const line = lines[idx]
-    if (line.startsWith('- ')) listItems.push(line.slice(2))
-    else rest.push(line)
-  }
-
-  const restNodes = rest
-    .filter((l) => l.trim() !== '')
-    .map((l, i) => <p key={i}>{renderInline(l, `p${i}-`)}</p>)
-
-  const list = listItems.length ? (
-    <ul className="my-1 list-disc space-y-0.5 pl-5">
-      {listItems.map((item, i) => (
-        <li key={i}>{renderInline(item, `li${i}-`)}</li>
-      ))}
-    </ul>
-  ) : null
-
-  if (restNodes.length === 0 && list) return list
-  return (
-    <>
-      {restNodes}
-      {list}
-    </>
-  )
-}
+import { useState } from 'react'
+import ReactMarkdown, { type Components } from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { MermaidBlock } from '@/components/mermaid-block'
 
 function CodeBlock({ lang, code }: { lang: string; code: string }) {
   const [copied, setCopied] = useState(false)
@@ -166,7 +23,7 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
   return (
     <div className="my-2 overflow-hidden rounded-lg border border-border">
       <div className="flex items-center justify-between bg-muted/80 px-3 py-1.5 font-mono text-xs">
-        <span>{lang}</span>
+        <span className="text-muted-foreground">{lang}</span>
         <button type="button" onClick={copy} className="text-muted-foreground hover:text-foreground">
           {copied ? 'Copied' : 'Copy'}
         </button>
@@ -185,45 +42,98 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
   )
 }
 
+const mdComponents: Components = {
+  // `pre` is a pass-through: the `code` renderer below already emits the styled
+  // wrapper (or a Mermaid diagram) for fenced blocks, so we must not nest a second `<pre>`.
+  pre: ({ children }) => <>{children}</>,
+  code({ className, children }) {
+    const classNames = className ?? ''
+    const raw = Array.isArray(children) ? children.join('') : String(children ?? '')
+    const code = raw.replace(/\n$/, '')
+
+    if (/language-mermaid/.test(classNames)) {
+      return <MermaidBlock code={code} />
+    }
+    if (/language-/.test(classNames)) {
+      const lang = classNames.replace('language-', '') || 'text'
+      return <CodeBlock lang={lang} code={code} />
+    }
+    return (
+      <code className="rounded bg-muted-foreground/10 px-1.5 py-0.5 font-mono text-xs text-foreground">
+        {children}
+      </code>
+    )
+  },
+  h1: ({ children }) => (
+    <h1 className="my-3 font-heading text-lg font-semibold text-foreground first:mt-0">{children}</h1>
+  ),
+  h2: ({ children }) => <h2 className="my-3 font-heading text-base font-semibold text-foreground">{children}</h2>,
+  h3: ({ children }) => <h3 className="my-2 font-heading text-sm font-semibold text-foreground">{children}</h3>,
+  h4: ({ children }) => <h4 className="my-2 font-heading text-sm font-medium text-foreground">{children}</h4>,
+  h5: ({ children }) => <h5 className="my-2 font-heading text-sm font-medium text-foreground">{children}</h5>,
+  h6: ({ children }) => (
+    <h6 className="my-2 font-heading text-xs font-medium tracking-wide text-muted-foreground uppercase">{children}</h6>
+  ),
+  p: ({ children }) => <p className="my-2 text-sm leading-relaxed text-foreground">{children}</p>,
+  strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+  em: ({ children }) => <em className="italic">{children}</em>,
+  del: ({ children }) => <del className="text-muted-foreground line-through">{children}</del>,
+  blockquote: ({ children }) => (
+    <blockquote className="my-2 border-l-2 border-border pl-3 text-sm text-muted-foreground">{children}</blockquote>
+  ),
+  ul({ className, children }) {
+    const isTask = (className ?? '').includes('contains-task-list')
+    return (
+      <ul className={isTask ? 'my-2 space-y-1 pl-1' : 'my-2 list-disc space-y-1 pl-5'}>{children}</ul>
+    )
+  },
+  ol: ({ children }) => <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>,
+  li({ className, children }) {
+    const isTask = (className ?? '').includes('task-list-item')
+    return (
+      <li className={isTask ? 'flex items-start gap-2 text-sm leading-relaxed' : 'text-sm leading-relaxed'}>
+        {children}
+      </li>
+    )
+  },
+  input: ({ checked }) => (
+    <input
+      type="checkbox"
+      checked={Boolean(checked)}
+      readOnly
+      disabled
+      className="mt-0.5 size-4 shrink-0 rounded border-border accent-brand"
+    />
+  ),
+  table: ({ children }) => (
+    <div className="my-2 overflow-x-auto rounded-lg border border-border">
+      <table className="w-full border-collapse text-sm">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => <thead className="bg-muted/50">{children}</thead>,
+  tbody: ({ children }) => <tbody>{children}</tbody>,
+  tr: ({ children }) => <tr className="border-b border-border last:border-b-0">{children}</tr>,
+  th: ({ children }) => (
+    <th className="px-3 py-2 text-left font-medium text-foreground">{children}</th>
+  ),
+  td: ({ children }) => <td className="px-3 py-2 align-top text-foreground">{children}</td>,
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-brand underline underline-offset-2 hover:text-brand/80">
+      {children}
+    </a>
+  ),
+  img: ({ src, alt }) => (
+    <img src={src} alt={alt ?? ''} className="my-2 max-w-full rounded-lg border border-border" />
+  ),
+  hr: () => <hr className="my-4 border-border" />,
+}
+
 export function FormattedChatMessage({ text }: { text: string }) {
-  const blocks = splitBlocks(text)
   return (
-    <div className="space-y-2 text-sm">
-      {blocks.map((block, i) => {
-        if (block.kind === 'code') return <CodeBlock key={i} lang={block.lang} code={block.code} />
-        if (block.kind === 'table') {
-          return (
-            <div key={i} className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr>
-                    {block.header.map((cell, j) => (
-                      <th
-                        key={j}
-                        className="border border-border/60 bg-muted/50 px-3 py-1.5 text-left font-medium"
-                      >
-                        {renderInline(cell, `th${j}-`)}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {block.rows.map((row, r) => (
-                    <tr key={r} className="even:bg-muted/30">
-                      {row.map((cell, c) => (
-                        <td key={c} className="border border-border/60 px-3 py-1.5">
-                          {renderInline(cell, `td${r}-${c}-`)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
-        }
-        return <div key={i}>{renderParagraph(block.text)}</div>
-      })}
+    <div className="min-w-0">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+        {text}
+      </ReactMarkdown>
     </div>
   )
 }
