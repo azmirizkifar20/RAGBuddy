@@ -35,7 +35,7 @@ Git Repository (project-a, project-b, ...)
 - **Git integration layer**: `src/git/{git-status,hook-installer}.ts` — commit metadata and post-commit hook install/uninstall (chains safely with any pre-existing hook)
 - **MCP layer**: `src/mcp/{server,tool-result,document-reader}.ts`, `src/mcp/tools/{search-project-docs,get-project-document,list-project-knowledge}.ts` — the single MCP interface shared by all agents (no separate implementations per agent)
 - **Config layer**: `src/config/config.ts` — env var loading/validation
-- **Web layer**: `src/server/{app,sse}.ts`, `src/server/routes/{projects,knowledge,search,hook,ingest,sync}.ts` — a third entry point (alongside CLI and MCP) exposing the same underlying modules over a REST API + SSE, serving the `web/` React SPA statically; started by `project-rag web`
+- **Web layer**: `src/server/{app,sse}.ts`, `src/server/routes/{projects,knowledge,search,hook,ingest,sync,chat}.ts` — a third entry point (alongside CLI and MCP) exposing the same underlying modules over a REST API + SSE, serving the `web/` React SPA statically; started by `project-rag web`
 
 Dependency direction: CLI and MCP are the two entry points; both call into project management → ingestion/retrieval → embedding/storage. Ingestion/retrieval/embedding/storage never depend on CLI or MCP.
 
@@ -57,6 +57,7 @@ Dependency direction: CLI and MCP are the two entry points; both call into proje
 | MCP Tools | `get_project_context`, `search_project_docs`, `get_project_document`, `list_project_knowledge` | `src/mcp/tools/*` |
 | Project Context Aggregator | Orientation-only context assembly: README/steering summaries + Git status + doc inventory, no vector search | `src/context/project-context.ts` |
 | Hook Installer | Marker-delimited `post-commit` hook install/uninstall, safe chaining | `src/git/hook-installer.ts` |
+| Chat Route | SSE streaming chat per project: auto-compaction (`CHAT_CONTEXT_LIMIT`), conditional RAG search, multimodal routing to the configured chat provider, client-abort via `res.on('close')` | `src/server/routes/chat.ts` |
 
 ## Cross-Module Communication
 

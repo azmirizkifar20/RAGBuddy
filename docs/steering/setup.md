@@ -25,7 +25,7 @@ How to run, debug, and work on this project locally. All commands below are real
 - Start MCP server: `project-rag mcp`
 - Build: `npm run build` (compiles `src/` → `dist/`, via `tsconfig.build.json`)
 - Typecheck: `npm run typecheck`
-- Tests: `npm test` (Vitest; 109 tests across all 6 phases as of this writing)
+- Tests: `npm test` (Vitest; 280 tests across all suites as of this writing)
 
 Once built, `project-rag` is also usable as a global command via `npm link` from this directory (`package.json`'s `bin` field points at `dist/cli/index.js`); until then, invoke it directly as `node dist/cli/index.js <command>`.
 

@@ -1,6 +1,6 @@
 # API / Tool Conventions
 
-`project-rag` has no HTTP REST API. Its two "API" surfaces are the **MCP tools** and the **CLI**. Both are fully implemented; conventions below are specified in [`../../init.md`](../../init.md) §14–§21.
+`project-rag` has three API surfaces: the **MCP tools**, the **CLI**, and the **web HTTP API** (REST + SSE, serving the `web/` React dashboard). The MCP and CLI are fully implemented; the HTTP layer is added by the web features. Conventions below are specified in [`../../init.md`](../../init.md) §14–§21.
 
 ## MCP Tool Conventions (`src/mcp/tools/`)
 
@@ -20,14 +20,23 @@
 - A registered repository that's moved/deleted/no-longer-a-Git-repo → `ingest`/`sync` throw a clear error before touching Qdrant, rather than silently treating "no files scanned" as "everything was deleted"
 - Git hook sync failures (Qdrant down, embedding provider down, project-rag unavailable) → logged as a warning by the generated hook script, the underlying `git commit` always still succeeds (`init.md` §12)
 
+## Web HTTP + SSE Conventions (`src/server/`)
+
+- The web API is REST over `/api/...` plus SSE for streaming endpoints; JSON bodies for POST/DELETE, `application/json` responses
+- SSE transport lives in `src/server/sse.ts`: `startSse(res)` sets `text/event-stream` + flushes headers; `sendSseEvent(res, event, data)` writes `event: <name>\ndata: <json>\n\n`
+- **Chat stream contract** (`POST /api/projects/:id/chat`): the server emits, in order, `event: token` (`data: {text}`) as the provider streams, then `event: sources` (`data: {sources: [{file, section, score}]}`) when RAG is on, then `event: done` (`data: {}`). Any failure emits `event: error` (`data: {message}`) before `res.end()`
+- Chat request body: `{ messages: Array<{role, content}>, useRag?: boolean }`; `content` may be a string or an array of `{type: 'text'|'image_url'}` parts for multimodal
+- Chat auto-compaction: when `messages.length > CHAT_CONTEXT_LIMIT`, older messages are summarized via the chat provider and prepended as a system context message; the newest `CHAT_CONTEXT_LIMIT` are kept verbatim
+- Abort: the client may abort the stream; the server stops the upstream provider fetch via `res.on('close')` guarded by `!res.writableEnded` (`src/server/routes/chat.ts`)
+- Chat is per-project: the `project` filter is applied at the retrieval layer, consistent with the search/MCP isolation rule below
+
 ## Naming & Routing
 
 - CLI command tree and MCP tool names are fixed by spec (`init.md` §14, §18) — see [routing.md](./routing.md)
-- No versioning scheme (single MCP server, no public HTTP surface)
+- No versioning scheme (single running version) — this is a local developer tool, not multi-user SaaS
 
-## Auth & Permissions
+## Trust Boundary
 
-- No authentication system (`init.md` §27) — this is a local developer tool, not multi-user SaaS
 - Trust boundary is "only registered repositories/configured paths may be read" (`init.md` §21.1–21.2), enforced by the project registry + scanner + document reader, not by user auth
 
 ## Data Access

@@ -46,4 +46,16 @@ EMBEDDING_MODEL           # required
 EMBEDDING_API_KEY         # optional, only meaningful for openai
 RAG_TOP_K                 # optional, default 5
 PROJECT_REGISTRY_PATH     # optional, default ./config/projects.json
+PROJECT_RAG_DATA_DIR      # optional, default ./data (sync history + uploads)
+CHAT_MODEL                # optional, default gpt-4o-mini (openai) / llama3 (ollama)
+CHAT_CONTEXT_LIMIT        # optional, default 10 — max chat messages kept verbatim; older ones auto-summarized
 ```
+
+## Request Lifecycle — project chat (`POST /api/projects/:id/chat`)
+
+1. Browser calls the chat endpoint → express route in `src/server/routes/chat.ts` (`registerChatRoutes`)
+2. Validate the project is registered (404 otherwise) and `messages` is a non-empty array (400 otherwise); `useRag` defaults to true
+3. Auto-compaction: if `messages.length > CHAT_CONTEXT_LIMIT`, summarize the older messages via the chat provider (`src/server/routes/chat.ts`'s `summarize`) and prepend a `Summary of earlier conversation:` system message; keep the newest `CHAT_CONTEXT_LIMIT` verbatim
+4. If `useRag`, embed the last user text and search the project's docs (top-K = `RAG_TOP_K`), injecting retrieved chunks as a system context message; RAG failures degrade silently to no-context
+5. Stream the provider response back as SSE (`event: token` frames), then `event: sources` (when RAG provided results), then `event: done`; client abort is honoured via `res.on('close')` without `writableEnded`
+6. Multimodal: image parts are passed through for OpenAI-compatible providers; flattened to text + `images[]` for Ollama
