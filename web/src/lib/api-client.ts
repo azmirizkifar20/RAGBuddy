@@ -249,3 +249,93 @@ export function ingestProject(id: string, handlers: StreamHandlers): Promise<voi
 export function syncProject(id: string, handlers: StreamHandlers): Promise<void> {
   return streamRun(`/api/projects/${id}/sync`, handlers)
 }
+
+export type ChatRole = 'user' | 'assistant'
+
+export interface ChatContentImage {
+  type: 'image_url'
+  image_url: { url: string }
+}
+
+export interface ChatContentText {
+  type: 'text'
+  text: string
+}
+
+export type ChatContentPart = ChatContentText | ChatContentImage
+
+export interface ChatMessage {
+  role: ChatRole
+  content: string | ChatContentPart[]
+}
+
+export interface ChatSource {
+  file: string
+  section: string
+  score: number
+}
+
+export interface ChatStreamHandlers {
+  onToken: (text: string) => void
+  onSources: (sources: ChatSource[]) => void
+  onError: (message: string) => void
+  onDone: () => void
+}
+
+/**
+ * SSE chat stream. Follows the same `event:`/`data:` wire format as streamRun,
+ * but sends a JSON body and accepts an AbortSignal so the UI can stop mid-stream.
+ * On abort it resolves cleanly instead of throwing.
+ */
+export async function streamProjectChat(
+  id: string,
+  body: { messages: ChatMessage[]; useRag: boolean },
+  handlers: ChatStreamHandlers,
+  signal?: AbortSignal,
+): Promise<void> {
+  try {
+    const res = await fetch(`/api/projects/${id}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    })
+    if (!res.ok || !res.body) {
+      const parsed = await res.json().catch(() => ({ error: res.statusText }))
+      handlers.onError(parsed.error ?? res.statusText)
+      return
+    }
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+
+      const frames = buffer.split('\n\n')
+      buffer = frames.pop() ?? ''
+
+      for (const frame of frames) {
+        const lines = frame.split('\n')
+        const eventLine = lines.find((line) => line.startsWith('event: '))
+        const dataLine = lines.find((line) => line.startsWith('data: '))
+        if (!eventLine || !dataLine) continue
+
+        const event = eventLine.slice('event: '.length)
+        const data = JSON.parse(dataLine.slice('data: '.length))
+
+        if (event === 'token') handlers.onToken(data.text)
+        else if (event === 'sources') handlers.onSources(data.sources)
+        else if (event === 'error') handlers.onError(data.message)
+        else if (event === 'done') handlers.onDone()
+      }
+    }
+  } catch (err) {
+    // Abort is a clean stop, not an error.
+    if (signal?.aborted) return
+    throw err
+  }
+}
