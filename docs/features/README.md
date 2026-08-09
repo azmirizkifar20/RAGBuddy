@@ -3,7 +3,7 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-09
-**Recent**: Added the `get_project_context` MCP tool — a compact orientation overview (identity, Git status, tech-stack/architecture/system-flow summaries, documentation inventory) meant to run before deeper exploration with `search_project_docs` — see [05-mcp-server.md §2](./05-mcp-server.md#2-flow--behavior).
+**Recent**: Added per-project chat — a streaming SSE chat endpoint (`POST /api/projects/:id/chat`) with optional RAG grounding, auto-compaction over `CHAT_CONTEXT_LIMIT`, and a browser-side multi-session UI persisted in `localStorage` — see [09-project-chat.md](./09-project-chat.md).
 
 ## Index
 
@@ -15,6 +15,7 @@ This folder contains documentation for implemented features and current state.
 6. [Git Hook Auto Sync](./06-git-hook-auto-sync.md) — Implemented
 7. [Web Frontend & CLI Project Subcommands](./07-web-frontend-and-project-cli.md) — Implemented
 8. [Dashboard Redesign, Document Uploads & Sync History](./08-dashboard-redesign-uploads-and-history.md) — Implemented
+9. [Per-Project Chat](./09-project-chat.md) — Implemented
 
 ---
 

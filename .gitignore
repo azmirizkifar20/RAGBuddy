@@ -5,3 +5,4 @@ dist/
 config/projects.json
 data/
 opencode.jsonc
+.omo/
