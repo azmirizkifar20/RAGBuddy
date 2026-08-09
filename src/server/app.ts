@@ -7,6 +7,7 @@ import type { SyncHistoryStore } from '../history/sync-history';
 import { registerProjectsRoutes } from './routes/projects';
 import { registerKnowledgeRoutes } from './routes/knowledge';
 import { registerSearchRoutes } from './routes/search';
+import { registerChatRoutes } from './routes/chat';
 import { registerHookRoutes } from './routes/hook';
 import { registerIngestRoutes } from './routes/ingest';
 import { registerSyncRoutes } from './routes/sync';
@@ -31,7 +32,11 @@ export interface AppDeps {
   qdrantUrl: string;
   qdrantCollection: string;
   embeddingProvider: EmbeddingProvider;
+  embeddingBaseUrl: string;
+  embeddingApiKey?: string;
   ragTopK: number;
+  chatModel: string;
+  chatContextLimit: number;
   staticDir: string;
   dataDir: string;
   history: SyncHistoryStore;
@@ -49,6 +54,7 @@ export function createApp(deps: AppDeps): Express {
   registerProjectsRoutes(apiRouter, deps);
   registerKnowledgeRoutes(apiRouter, deps);
   registerSearchRoutes(apiRouter, deps);
+  registerChatRoutes(apiRouter, deps);
   registerHookRoutes(apiRouter, deps);
   registerIngestRoutes(apiRouter, deps);
   registerSyncRoutes(apiRouter, deps);
@@ -65,6 +71,8 @@ export function createApp(deps: AppDeps): Express {
       qdrantUrl: deps.qdrantUrl,
       qdrantCollection: deps.qdrantCollection,
       ragTopK: deps.ragTopK,
+      chatModel: deps.chatModel,
+      chatContextLimit: deps.chatContextLimit,
       dataDir: deps.dataDir,
       ...deps.runtime,
     });
