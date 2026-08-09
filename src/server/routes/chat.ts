@@ -31,7 +31,13 @@ interface Source {
 
 const RAG_SYSTEM_PROMPT =
   'You are a helpful assistant. Answer the user using the provided project documents as context. ' +
-  'If the answer is not in the documents, say so clearly instead of guessing.';
+  'If the answer is not in the documents, say so clearly instead of guessing. ' +
+  // Unquoted Mermaid labels break the parser the moment they contain punctuation,
+  // numbering or brackets — quoting every label is the one rule that avoids
+  // almost all of it, and the dashboard renders these diagrams inline.
+  'When you draw a Mermaid diagram, wrap every node and edge label in double quotes, ' +
+  'e.g. A["Scan docs"] -->|"on commit"| B["Qdrant"]. ' +
+  'Never leave a label unquoted when it contains punctuation, numbering, parentheses or slashes.';
 
 function flattenContent(content: string | ContentPart[]): { text: string; images: string[] } {
   if (typeof content === 'string') return { text: content, images: [] };

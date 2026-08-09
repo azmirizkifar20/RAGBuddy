@@ -31,7 +31,6 @@ const TABS = [
   { segment: '', label: 'Overview', end: true },
   { segment: '/documents', label: 'Documents', end: false },
   { segment: '/search', label: 'Search', end: false },
-  { segment: '/chat', label: 'Chat', end: false },
   { segment: '/history', label: 'History', end: false },
   { segment: '/mcp', label: 'MCP setup', end: false },
 ]

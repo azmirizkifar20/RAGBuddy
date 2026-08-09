@@ -1,6 +1,6 @@
 # Per-Project Chat
 
-**Status: Implemented**. Adds a streaming chat interface to the dashboard (extends [08-dashboard-redesign-uploads-and-history.md](./08-dashboard-redesign-uploads-and-history.md)). Each project gets its own chat tab where you can ask questions grounded in that project's indexed documents, toggle retrieval on or off, attach files, and keep multiple sessions. No chat history is stored on the server; every session lives in the browser's `localStorage`.
+**Status: Implemented**. Adds a streaming chat interface to the dashboard (extends [08-dashboard-redesign-uploads-and-history.md](./08-dashboard-redesign-uploads-and-history.md)). Chat lives at its own top-level sidebar page (`/chat`), not nested under a project's detail tabs — but every chat is still scoped to one project: starting a new chat requires picking a project first (a picker screen at `/chat` with no project selected), and once picked (`/chat/:projectId`) you can ask questions grounded in that project's indexed documents, toggle retrieval on or off, attach files, and keep multiple sessions. No chat history is stored on the server; every session lives in the browser's `localStorage`, keyed per project, so moving the page didn't lose or migrate any existing session.
 
 ## 1) What This Feature Is
 
@@ -91,7 +91,10 @@ The provider is derived from `EMBEDDING_PROVIDER` at runtime (`deps.runtime.embe
 
 ## 5) UI
 
-- **`web/src/pages/project-chat.tsx`** — the chat tab. Session list, active session, message list, input, Use RAG toggle, Stop button, attachments, starter prompts, streaming dots, source chips.
+- **`web/src/pages/ai-chat.tsx`** — the top-level chat page, rendered for both `/chat` and `/chat/:projectId` (`web/src/App.tsx`), sidebar entry "AI Chat" (`web/src/components/layout/sidebar.tsx`).
+  - `/chat` (no `projectId`) — a project picker: a centered heading, then a card per registered project (from `useProjects()`) linking to `/chat/:projectId`. Each card's subtitle ("N saved chat(s)" / "No chats yet") is read directly from that project's `localStorage` key, so returning users can see their history is intact before clicking in.
+  - `/chat/:projectId` — fetches the project via `getProject(id)` (the same call `ProjectLayout` makes, just done locally instead of through `useProjectContext()`, since this page is not nested under `ProjectLayout`) and then renders the chat room: session list, active session, message list, input, Use RAG toggle, Stop button, attachments, starter prompts, streaming dots, source chips.
+  - The old `/projects/:id/chat` tab and route are gone — `ProjectLayout`'s `TABS` no longer lists a Chat entry.
 - **`web/src/components/formatted-chat-message.tsx`** — custom renderer: `splitBlocks` parses fenced code, `|`-tables, and paragraphs; `renderInline` turns inline code, bold, and links into React nodes. Tables are wrapped in a scrollable container with striped rows; code blocks are collapsible with a copy button; nothing is injected as raw HTML.
 - **`web/src/lib/api-client.ts`** — `streamProjectChat` reads the SSE body, splits frames on blank lines, and dispatches `token` / `sources` / `error` / `done` to handlers. It aborts cleanly when the caller's `AbortSignal` fires.
 
@@ -101,7 +104,8 @@ The provider is derived from `EMBEDDING_PROVIDER` at runtime (`deps.runtime.embe
 - Sessions: `new` (random UUID id, title `New chat`), `rename`, `delete`, and `switch`. If no sessions exist, one is created automatically.
 - `MAX_SENT_MESSAGES = 30` caps the number of sent user messages kept per session.
 - Stop: an `AbortController` is held in a ref during streaming; the button aborts it, which ends the SSE read and discards the partial assistant message.
-- Attachments: text-like files (`text/*`, plus `.txt .md .markdown .csv .pdf`) are read and appended to the message as `[Attached File: name]` text; images are stored as data URLs and sent as `image_url` parts. Attachments and images can be attached or removed before send.
+- Attachments: text-like files (`text/*`, plus `.txt .md .markdown .csv .pdf`) are read and appended to the message as `[Attached File: name]` text; images (`image/png`, `image/jpeg`, `image/webp`) are stored as data URLs and sent as `image_url` parts. Attachments and images can be attached or removed before send.
+- Drag and drop: the **whole conversation column** is the drop zone, not just the composer — dropping a file anywhere else would hit the browser default and navigate away from the chat. Several files can be dropped at once, mixing images and documents. While a file drag is over the column an overlay marks the target; the state is tracked with a depth counter because `dragenter`/`dragleave` also fire when the cursor crosses child elements. Only drags carrying `Files` arm the zone, so dragging selected text does nothing. Files of an unsupported type are reported via `toast.error` instead of being dropped silently.
 
 ## 6) Data Shape
 
@@ -137,7 +141,7 @@ This is the `localStorage` shape only. The server keeps no chat records; message
 - `src/server/app.ts`
 - `src/config/config.ts`
 - `src/retrieval/search.ts`
-- `web/src/pages/project-chat.tsx`
+- `web/src/pages/ai-chat.tsx`
 - `web/src/components/formatted-chat-message.tsx`
 - `web/src/lib/api-client.ts`
 

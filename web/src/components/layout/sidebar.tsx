@@ -1,11 +1,21 @@
 import { NavLink } from 'react-router'
-import { BoxesIcon, LayoutDashboardIcon, SettingsIcon, WorkflowIcon, XIcon } from 'lucide-react'
+import {
+  BoxesIcon,
+  LayoutDashboardIcon,
+  MessageSquareIcon,
+  PanelLeftIcon,
+  SettingsIcon,
+  WorkflowIcon,
+  XIcon,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ThemeToggle, ThemeToggleSegmented } from '@/components/layout/theme-toggle'
 import { cn } from '@/lib/utils'
 import type { Project } from '@/lib/api-client'
 
 const MAIN_NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboardIcon, end: true },
+  { to: '/chat', label: 'AI Chat', icon: MessageSquareIcon, end: false },
   { to: '/projects', label: 'Projects', icon: BoxesIcon, end: true },
   { to: '/flow', label: 'How RAG works', icon: WorkflowIcon, end: false },
   { to: '/settings', label: 'Settings', icon: SettingsIcon, end: false },
@@ -24,10 +34,14 @@ export function Sidebar({
   projects,
   open,
   onClose,
+  collapsed,
+  onToggleCollapsed,
 }: {
   projects: Project[]
   open: boolean
   onClose: () => void
+  collapsed: boolean
+  onToggleCollapsed: () => void
 }) {
   return (
     <>
@@ -41,12 +55,32 @@ export function Sidebar({
       <aside
         className={cn(
           'fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-200 ease-out lg:translate-x-0',
+          // `lg:` here means this only ever narrows the desktop, persistent
+          // sidebar — the mobile off-canvas overlay always stays w-60, since
+          // collapse is a desktop-only affordance.
+          collapsed && 'lg:w-16',
           open ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4">
-          <span className="size-2 rounded-full bg-brand" />
-          <p className="flex-1 font-heading text-sm font-semibold">Code Context RAG</p>
+        <div
+          className={cn(
+            'flex h-14 items-center gap-2 border-b border-sidebar-border px-4',
+            collapsed && 'lg:justify-center lg:px-2',
+          )}
+        >
+          <span className={cn('size-2 shrink-0 rounded-full bg-brand', collapsed && 'lg:hidden')} />
+          <p className={cn('flex-1 truncate font-heading text-sm font-semibold', collapsed && 'lg:hidden')}>
+            Code Context RAG
+          </p>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden lg:flex"
+            onClick={onToggleCollapsed}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <PanelLeftIcon className="size-4" />
+          </Button>
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={onClose} aria-label="Close menu">
             <XIcon className="size-4" />
           </Button>
@@ -55,15 +89,25 @@ export function Sidebar({
         <nav className="flex-1 overflow-y-auto p-3">
           <div className="flex flex-col gap-0.5">
             {MAIN_NAV.map((item) => (
-              <NavLink key={item.to} to={item.to} end={item.end} className={navClasses} onClick={onClose}>
+              // Native `title` rather than a Radix Tooltip: `TooltipTrigger asChild`
+              // merges its own className onto the child, which silently drops
+              // NavLink's function-form className (and with it the flex layout).
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={(state) => cn(navClasses(state), collapsed && 'lg:justify-center')}
+                onClick={onClose}
+                title={collapsed ? item.label : undefined}
+              >
                 <item.icon className="size-4 shrink-0" />
-                {item.label}
+                <span className={cn(collapsed && 'lg:hidden')}>{item.label}</span>
               </NavLink>
             ))}
           </div>
 
           {projects.length > 0 && (
-            <div className="mt-6">
+            <div className={cn('mt-6', collapsed && 'lg:hidden')}>
               <p className="px-2.5 pb-1.5 text-xs text-muted-foreground">Projects</p>
               <div className="flex flex-col gap-0.5">
                 {projects.map((project) => (
@@ -86,6 +130,15 @@ export function Sidebar({
             </div>
           )}
         </nav>
+
+        <div className="border-t border-sidebar-border p-3">
+          <div className={cn(collapsed && 'lg:hidden')}>
+            <ThemeToggleSegmented />
+          </div>
+          <div className={cn('hidden justify-center', collapsed && 'lg:flex')}>
+            <ThemeToggle />
+          </div>
+        </div>
       </aside>
     </>
   )

@@ -63,30 +63,33 @@ export function MermaidBlock({ code }: { code: string }) {
     setError(false)
     setResult(null)
 
-    // Re-initialise on every theme/code change so the diagram uses the current palette.
-    mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: 'antiscript',
-      theme,
-      maxTextSize: 50000,
-    })
+    // Everything mermaid touches sits inside one try/catch: `initialize` and
+    // `render` can both throw *synchronously* on malformed input, and a bare
+    // `.catch()` only sees rejected promises — a sync throw would escape the
+    // effect and unmount the whole chat, taking the input box with it.
+    void (async () => {
+      try {
+        // Re-initialise on every theme/code change so the diagram uses the current palette.
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: 'antiscript',
+          theme,
+          maxTextSize: 50000,
+        })
 
-    // Reuse a fresh id per render; mermaid.render mutates the DOM node it produces.
-    const id = `mermaid-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`
-
-    mermaid
-      .render(id, code)
-      .then(({ svg, bindFunctions }) => {
+        // Fresh id per render; mermaid.render mutates the DOM node it produces.
+        const id = `mermaid-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`
+        const { svg, bindFunctions } = await mermaid.render(id, code)
         if (cancelled) return
         setResult({ svg, bind: bindFunctions })
-        setLoading(false)
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
         if (cancelled) return
         console.error('Mermaid render failed:', err)
         setError(true)
-        setLoading(false)
-      })
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
 
     return () => {
       cancelled = true

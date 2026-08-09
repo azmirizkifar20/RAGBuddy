@@ -10,7 +10,7 @@ import { ProjectLayout } from '@/pages/project-layout'
 import { ProjectOverview } from '@/pages/project-overview'
 import { ProjectDocuments } from '@/pages/project-documents'
 import { ProjectSearch } from '@/pages/project-search'
-import { ProjectChat } from '@/pages/project-chat'
+import { AiChat } from '@/pages/ai-chat'
 import { ProjectHistory } from '@/pages/project-history'
 import { ProjectMcp } from '@/pages/project-mcp'
 import { RagFlow } from '@/pages/rag-flow'
@@ -31,10 +31,11 @@ function App() {
                   <Route index element={<ProjectOverview />} />
                   <Route path="documents" element={<ProjectDocuments />} />
                   <Route path="search" element={<ProjectSearch />} />
-                  <Route path="chat" element={<ProjectChat />} />
                   <Route path="history" element={<ProjectHistory />} />
                   <Route path="mcp" element={<ProjectMcp />} />
                 </Route>
+                <Route path="chat" element={<AiChat />} />
+                <Route path="chat/:projectId" element={<AiChat />} />
                 <Route path="flow" element={<RagFlow />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

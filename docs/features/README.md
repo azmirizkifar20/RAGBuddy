@@ -3,7 +3,7 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-09
-**Recent**: Added per-project chat — a streaming SSE chat endpoint (`POST /api/projects/:id/chat`) with optional RAG grounding, auto-compaction over `CHAT_CONTEXT_LIMIT`, and a browser-side multi-session UI persisted in `localStorage` — see [09-project-chat.md](./09-project-chat.md).
+**Recent**: Moved chat to its own top-level sidebar page (`/chat` project picker, `/chat/:projectId` chat room) instead of a project detail tab, and added a collapsible sidebar rail with the theme toggle moved into its footer — see [09-project-chat.md](./09-project-chat.md) and [../design-system/README.md](../design-system/README.md).
 
 ## Index
 

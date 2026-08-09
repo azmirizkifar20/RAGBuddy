@@ -63,13 +63,15 @@ A global `@media (prefers-reduced-motion: reduce)` block flattens every animatio
 
 `AppShell` (`web/src/components/layout/app-shell.tsx`) is the only page frame:
 
-- Fixed 15rem sidebar (`lg:pl-60` on the content), off-canvas below `lg` with a backdrop.
-- Sticky 3.5rem topbar: menu button (mobile), breadcrumb derived from the route, theme toggle, add-project button.
+- Sidebar is 15rem expanded (`lg:pl-60` on the content) or a 4rem icon rail when collapsed (`lg:pl-16`) — desktop-only, off-canvas below `lg` with a backdrop (mobile always renders the full 15rem overlay regardless of the collapsed flag).
+- Sticky 3.5rem topbar: menu button (mobile), breadcrumb derived from the route, add-project button. The theme toggle lives in the sidebar footer, not the topbar.
 - Content is `max-w-6xl` centred with responsive padding.
 
-`Sidebar` has exactly two sections: the four workspace links, then a flat list of every project. **It never expands a per-project sub-menu** — inside a project, navigation is the tab bar owned by `ProjectLayout`, so there is only ever one place to look for the current level of navigation.
+`Sidebar` has exactly two nav sections: the five workspace links (Dashboard, AI Chat, Projects, How RAG works, Settings), then a flat list of every project. **It never expands a per-project sub-menu** — inside a project, navigation is the tab bar owned by `ProjectLayout`, so there is only ever one place to look for the current level of navigation. `/chat` is one of the five top-level workspace links, not a project tab — see the `AiChat` row below.
 
-`PageHeader` is the standard page opener: title, description, right-aligned actions. No icon.
+The sidebar can collapse to an icon-only rail (`collapsed` state in `AppShell`, persisted in `localStorage` under `code-context-rag:sidebar-collapsed`, toggled by a button next to the logo). Collapsed: labels hide, each icon gets a `Tooltip` with its label, the per-project list disappears (names can't survive as icons), and the footer's segmented Light/Dark toggle falls back to the single-icon `ThemeToggle`. This is desktop-only — the mobile off-canvas sidebar is unaffected and always shows full labels.
+
+`PageHeader` is the standard page opener: title, description, right-aligned actions. No icon. The one deliberate exception is the `/chat` picker screen's centered "Chat with a project" heading (see `AiChat` below) — a bigger centered heading used only because there is no single item to attach a `PageHeader` to yet (no project chosen).
 
 ## 3) Components
 
@@ -84,7 +86,7 @@ A global `@media (prefers-reduced-motion: reduce)` block flattens every animatio
 | `FlowDiagram` | `components/flow-diagram.tsx` | Reusable interactive pipeline diagram (dashed SVG connectors, click a stage for detail). |
 | `CopyButton` / `CodeBlock` | `components/copy-button.tsx` | Copy affordance used across the MCP setup and settings pages. |
 | `FormattedChatMessage` | `components/formatted-chat-message.tsx` | Custom markdown renderer for chat replies — paragraphs, lists, inline code badges, striped scrollable tables, collapsible code blocks (>20 lines) with a copy button. Body text is `text-sm`, matching user bubbles. |
-| `ProjectChat` page | `pages/project-chat.tsx` | Full chat room: session sidebar, header (title + Use RAG `Switch`), message feed, input bar with file/image attachments. Sources render as clickable badges via the inline `SourcesList`. |
+| `AiChat` page | `pages/ai-chat.tsx` | Top-level chat page at `/chat` and `/chat/:projectId`. No project in the URL → project-picker screen (centered heading, a card grid of registered projects with a `localStorage`-derived "N saved chat(s)" subtitle). A project chosen → the chat room: session sidebar, header (title + Use RAG `Switch`), message feed, input bar with file/image attachments. Sources render as clickable badges via the inline `SourcesList`. |
 
 Primitives added on top of the original shadcn set: `tabs`, `tooltip`, `separator`, `skeleton`, `table`, `textarea`, `switch`, `label`.
 
