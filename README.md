@@ -309,6 +309,23 @@ args = ["/absolute/path/to/project-rag/dist/cli/index.js", "mcp"]
 
 No `env` block is needed for any of these three: the server reads `.env` from its own install directory, not from the agent's working directory.
 
+## Teaching your agent to actually use it
+
+The four tools above are visible to your agent automatically once the MCP server connects — no extra config needed for that. But an agent only *reaches* for a tool it happens to think of; it won't necessarily call `get_project_context` before diving into a task just because the tool exists. Add this to the **registered project's** `AGENTS.md` / `CLAUDE.md` so your agent knows when to use each one:
+
+```markdown
+## Knowledge Retrieval Strategy (code-context-rag MCP)
+
+Before implementing a non-trivial feature in this project:
+  1. Use `get_project_context` first to understand the project (identity, Git status, tech stack/architecture summaries, doc inventory).
+  2. Use `search_project_docs` for architecture, business rules, historical issues, conventions, and documented behavior.
+  3. Use `get_project_document` to read a full doc found via search when a snippet isn't enough.
+  4. Use `list_project_knowledge` to see everything currently indexed when orienting from scratch.
+  5. Read the actual source code before making implementation decisions — treat it as the final authority for current behavior.
+
+Don't force `get_project_context` for trivial tasks where it adds no value.
+```
+
 ## Troubleshooting
 
 - **`[project-rag] Error: Project "<id>" is not registered`** — the project id doesn't exist in the registry at `PROJECT_REGISTRY_PATH`. Check via `project-rag project list` or the web dashboard.

@@ -14,14 +14,14 @@ This project uses structured documentation under `docs/`:
 - `docs/issue/` - Bug reports and root cause analysis
 - `docs/design-system/` - Tokens, motion and component conventions for the `web/` dashboard (Vite + React + Tailwind + shadcn/ui). It is a small internal tool, so this records the conventions it follows rather than prescribing a component library.
 
-## Knowledge Retrieval Strategy (for agents working via the `project-rag` MCP server)
+## Knowledge Retrieval Strategy (code-context-rag MCP)
 
-Before implementing a non-trivial feature in a project served by `project-rag`:
-
-1. Use `get_project_context` first to understand the project (identity, Git status, tech stack/architecture/system-flow summaries, doc inventory).
-2. Use `search_project_docs` for architecture, business rules, historical issues, conventions, and documented behavior.
-3. Use Graphify/code intelligence for source-code relationships, callers, symbols, and dependencies.
-4. Read the actual source code before making implementation decisions — treat it as the final authority for current behavior.
+Before implementing a non-trivial feature in this project:
+  1. Use `get_project_context` first to understand the project (identity, Git status, tech stack/architecture summaries, doc inventory).
+  2. Use `search_project_docs` for architecture, business rules, historical issues, conventions, and documented behavior.
+  3. Use `get_project_document` to read a full doc found via search when a snippet isn't enough.
+  4. Use `list_project_knowledge` to see everything currently indexed when orienting from scratch.
+  5. Read the actual source code before making implementation decisions — treat it as the final authority for current behavior.
 
 Don't force `get_project_context` for trivial tasks where it adds no value.
 

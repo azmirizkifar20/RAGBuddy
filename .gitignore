@@ -4,3 +4,4 @@ dist/
 .env
 config/projects.json
 data/
+opencode.jsonc
