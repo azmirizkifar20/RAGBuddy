@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Paperclip, Pencil, Plus, Send, Square, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { FormattedChatMessage } from '@/components/formatted-chat-message'
 import {
   streamProjectChat,
@@ -30,6 +32,32 @@ interface ChatSession {
 
 const STORAGE_PREFIX = 'project-rag:chats:'
 const MAX_SENT_MESSAGES = 30
+
+function loadFromStorage<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as T) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function loadSessions(key: string): ChatSession[] {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    // Older builds stored { sessions: [...], activeId } under this key; new
+    // builds store the array directly. Accept both so a refresh never crashes.
+    if (Array.isArray(parsed)) return parsed as ChatSession[]
+    if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { sessions?: unknown }).sessions)) {
+      return (parsed as { sessions: ChatSession[] }).sessions
+    }
+    return []
+  } catch {
+    return []
+  }
+}
 
 const STARTERS = [
   'How does auto-sync work?',
@@ -101,48 +129,38 @@ export function ProjectChat() {
   const { project } = useProjectContext()
   const storageKey = `${STORAGE_PREFIX}${project.id}`
 
-  const [sessions, setSessions] = useState<ChatSession[]>([])
-  const [activeId, setActiveId] = useState('')
+  const [sessions, setSessions] = useState<ChatSession[]>(() => loadSessions(storageKey))
+  const [activeId, setActiveId] = useState(() => loadFromStorage<string>(`${storageKey}:active`, ''))
   const [input, setInput] = useState('')
   const [useRag, setUseRag] = useState(true)
   const [images, setImages] = useState<string[]>([])
   const [attachments, setAttachments] = useState<{ name: string; text: string }[]>([])
   const [streaming, setStreaming] = useState(false)
   const [streamText, setStreamText] = useState('')
-  const [streamSources, setStreamSources] = useState<ChatSource[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Mirror of streamText for callbacks (onDone/onError) that run against a
+  // stale closure captured at send() time; avoids saving an empty assistant reply.
+  const streamTextRef = useRef('')
+  const streamSourcesRef = useRef<ChatSource[]>([])
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storageKey)
-      if (raw) {
-        const parsed = JSON.parse(raw)
-        if (Array.isArray(parsed.sessions)) {
-          setSessions(parsed.sessions)
-          if (typeof parsed.activeId === 'string') setActiveId(parsed.activeId)
-        }
-      }
-    } catch {
-      /* corrupt storage — start fresh */
-    }
-  }, [storageKey])
-
-  useEffect(() => {
-    if (sessions.length === 0) {
+    if (sessions.length > 0) {
+      if (!sessions.some((s) => s.id === activeId)) setActiveId(sessions[0].id)
+    } else {
       const s = newSession()
       setSessions([s])
       setActiveId(s.id)
-    } else if (!sessions.some((s) => s.id === activeId)) {
-      setActiveId(sessions[0].id)
     }
-  }, [sessions, activeId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (sessions.length) {
-      localStorage.setItem(storageKey, JSON.stringify({ sessions, activeId }))
+      localStorage.setItem(storageKey, JSON.stringify(sessions))
+      localStorage.setItem(`${storageKey}:active`, activeId)
     }
   }, [sessions, activeId, storageKey])
 
@@ -153,6 +171,10 @@ export function ProjectChat() {
   const activeSession = sessions.find((s) => s.id === activeId)
 
   function finalize(keepAssistant: boolean) {
+    // Read refs into locals BEFORE the setSessions updater runs (React defers
+    // updater execution until render, by which point the refs are reset below).
+    const text = streamTextRef.current
+    const sources = streamSourcesRef.current
     if (keepAssistant) {
       setSessions((prev) =>
         prev.map((s) =>
@@ -163,8 +185,8 @@ export function ProjectChat() {
                   ...s.messages,
                   {
                     role: 'assistant' as const,
-                    content: streamText,
-                    sources: streamSources.length ? streamSources : undefined,
+                    content: text,
+                    sources: sources.length ? sources : undefined,
                   },
                 ],
               }
@@ -174,7 +196,8 @@ export function ProjectChat() {
     }
     setStreaming(false)
     setStreamText('')
-    setStreamSources([])
+    streamTextRef.current = ''
+    streamSourcesRef.current = []
     abortRef.current = null
   }
 
@@ -223,14 +246,20 @@ export function ProjectChat() {
     abortRef.current = controller
     setStreaming(true)
     setStreamText('')
-    setStreamSources([])
+    streamTextRef.current = ''
+    streamSourcesRef.current = []
 
     streamProjectChat(
       project.id,
       { messages: chatMessages, useRag },
       {
-        onToken: (t) => setStreamText((prev) => prev + t),
-        onSources: (src) => setStreamSources(src),
+        onToken: (t) => {
+          streamTextRef.current += t
+          setStreamText((prev) => prev + t)
+        },
+        onSources: (src) => {
+          streamSourcesRef.current = src
+        },
         onError: (msg) => {
           toast.error(msg)
           finalize(false)
@@ -250,7 +279,8 @@ export function ProjectChat() {
     abortRef.current?.abort()
     setStreaming(false)
     setStreamText('')
-    setStreamSources([])
+    streamTextRef.current = ''
+    streamSourcesRef.current = []
     abortRef.current = null
   }
 
@@ -405,6 +435,20 @@ export function ProjectChat() {
 
       {/* Main panel */}
       <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex items-center justify-between gap-2 border-b px-4 py-2">
+          <h2 className="min-w-0 truncate text-sm font-medium">
+            {activeSession?.title ?? 'Chat'}
+          </h2>
+          <Label htmlFor="use-rag-toggle" className="flex shrink-0 cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+            <Switch
+              id="use-rag-toggle"
+              checked={useRag}
+              onCheckedChange={setUseRag}
+              aria-label="Use RAG"
+            />
+            Use RAG
+          </Label>
+        </div>
         <div className="flex-1 overflow-y-auto p-4">
           {activeSession && activeSession.messages.length === 0 && !streaming && (
             <div className="mx-auto flex h-full max-w-xl flex-col justify-center gap-3">
@@ -553,25 +597,6 @@ export function ProjectChat() {
                 <Send className="size-4" />
               </Button>
             )}
-          </div>
-
-          <div className="mt-2 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setUseRag((v) => !v)}
-              className={cn(
-                'relative h-5 w-9 rounded-full transition-colors',
-                useRag ? 'bg-brand' : 'bg-muted',
-              )}
-            >
-              <span
-                className={cn(
-                  'absolute top-0.5 size-4 rounded-full bg-white transition-transform',
-                  useRag ? 'translate-x-4' : 'translate-x-0.5',
-                )}
-              />
-            </button>
-            <span className="text-xs text-muted-foreground">Use RAG</span>
           </div>
         </div>
       </div>

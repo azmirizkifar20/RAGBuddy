@@ -188,7 +188,7 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
 export function FormattedChatMessage({ text }: { text: string }) {
   const blocks = splitBlocks(text)
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 text-sm">
       {blocks.map((block, i) => {
         if (block.kind === 'code') return <CodeBlock key={i} lang={block.lang} code={block.code} />
         if (block.kind === 'table') {

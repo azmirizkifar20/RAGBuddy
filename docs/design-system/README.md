@@ -52,6 +52,8 @@ Keyframes live in `index.css` and are exposed as `--animate-*` theme values, use
 | `animate-fade-in` | Content that swaps in place (tab panels, the flow-diagram detail pane). |
 | `animate-spin` | A refresh icon while its request is in flight. |
 | `animate-blink` | The console caret while a run is streaming. |
+| `animate-pulse` | The streaming caret (`▍`) at the end of an in-progress chat reply, plus the `ThinkingDots` bounce. These are *state* indicators (reply in flight), not decoration. |
+| `animate-bounce` | Chat `ThinkingDots` — the three bouncing dots shown while a reply streams. Same exception as `animate-pulse`. |
 | `animate-dash` | The flow-diagram connectors, where the direction of travel *is* the information. |
 | `animate-shimmer` | Skeleton placeholders. |
 
@@ -81,8 +83,10 @@ A global `@media (prefers-reduced-motion: reduce)` block flattens every animatio
 | `UploadPanel` | `components/upload-panel.tsx` | Drag-and-drop uploader plus the uploaded-document list. |
 | `FlowDiagram` | `components/flow-diagram.tsx` | Reusable interactive pipeline diagram (dashed SVG connectors, click a stage for detail). |
 | `CopyButton` / `CodeBlock` | `components/copy-button.tsx` | Copy affordance used across the MCP setup and settings pages. |
+| `FormattedChatMessage` | `components/formatted-chat-message.tsx` | Custom markdown renderer for chat replies — paragraphs, lists, inline code badges, striped scrollable tables, collapsible code blocks (>20 lines) with a copy button. Body text is `text-sm`, matching user bubbles. |
+| `ProjectChat` page | `pages/project-chat.tsx` | Full chat room: session sidebar, header (title + Use RAG `Switch`), message feed, input bar with file/image attachments. Sources render as clickable badges via the inline `SourcesList`. |
 
-Primitives added on top of the original shadcn set: `tabs`, `tooltip`, `separator`, `skeleton`, `table`, `textarea`.
+Primitives added on top of the original shadcn set: `tabs`, `tooltip`, `separator`, `skeleton`, `table`, `textarea`, `switch`, `label`.
 
 **Tabular data goes in a `Table`**, not in a stack of cards — sync history, indexed documents, and any future list with more than two attributes per row.
 
@@ -99,5 +103,6 @@ Primitives added on top of the original shadcn set: `tabs`, `tooltip`, `separato
 ## Cross-References
 
 - Feature doc: [../features/08-dashboard-redesign-uploads-and-history.md](../features/08-dashboard-redesign-uploads-and-history.md)
+- Project chat: [../features/09-project-chat.md](../features/09-project-chat.md)
 - Original web feature: [../features/07-web-frontend-and-project-cli.md](../features/07-web-frontend-and-project-cli.md)
 - Architecture: [../steering/architecture.md](../steering/architecture.md)
