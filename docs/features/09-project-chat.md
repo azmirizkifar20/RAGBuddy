@@ -5,7 +5,7 @@
 ## 1) What This Feature Is
 
 1. **Streaming chat per project** — a `POST /api/projects/:id/chat` endpoint that streams the model's reply token-by-token over SSE, with optional RAG grounding.
-2. **Multi-session, client-persisted** — any number of named chat sessions per project, stored in `localStorage` under `project-rag:chats:${projectId}`. Nothing chat-related is written to the server or Qdrant.
+2. **Multi-session, client-persisted** — any number of named chat sessions per project, stored in `localStorage` under `project-rag:chats:${projectId}` (kept as-is through the rename so existing sessions aren't orphaned). Nothing chat-related is written to the server or Qdrant.
 3. **Conditional RAG** — a "Use RAG" toggle controls whether the last user message is routed through the retrieval layer and injected as context.
 4. **Control + rich input** — a Stop button aborts mid-stream via `AbortController`, starter prompts seed a new session, and attachments (images and text-like files) can be dragged or picked.
 5. **Custom markdown renderer** — striped scrollable tables, collapsible code blocks with a copy button, and inline-code badges, rendered without `dangerouslySetInnerHTML`.
@@ -100,7 +100,7 @@ The provider is derived from `EMBEDDING_PROVIDER` at runtime (`deps.runtime.embe
 
 ### Multi-session behavior
 
-- Persistence: `localStorage`, key `project-rag:chats:${projectId}`, value `{ sessions, activeId }`. Loaded on mount, written on every change. Corrupt storage is ignored and the UI starts fresh.
+- Persistence: `localStorage`, key `project-rag:chats:${projectId}` (unchanged since before the rename), value `{ sessions, activeId }`. Loaded on mount, written on every change. Corrupt storage is ignored and the UI starts fresh.
 - Sessions: `new` (random UUID id, title `New chat`), `rename`, `delete`, and `switch`. If no sessions exist, one is created automatically.
 - `MAX_SENT_MESSAGES = 30` caps the number of sent user messages kept per session.
 - Stop: an `AbortController` is held in a ref during streaming; the button aborts it, which ends the SSE read and discards the partial assistant message.

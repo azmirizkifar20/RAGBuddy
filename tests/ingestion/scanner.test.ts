@@ -8,7 +8,7 @@ describe('scanDocuments', () => {
   let dir: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-scanner-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-scanner-'));
     mkdirSync(path.join(dir, 'docs', 'steering'), { recursive: true });
     mkdirSync(path.join(dir, 'docs', 'node_modules'), { recursive: true });
     writeFileSync(path.join(dir, 'docs', 'README.md'), '# Readme');
@@ -48,7 +48,7 @@ describe('scanDocuments', () => {
   });
 
   it('rejects absolute configured paths outside the repository root', () => {
-    const outside = path.join(tmpdir(), 'project-rag-scanner-outside-target');
+    const outside = path.join(tmpdir(), 'ragbuddy-scanner-outside-target');
     expect(() => scanDocuments(dir, [outside])).toThrow();
   });
 });
@@ -57,7 +57,7 @@ describe('scanDocuments — repository root README', () => {
   let dir: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-scanner-readme-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-scanner-readme-'));
     mkdirSync(path.join(dir, 'docs'), { recursive: true });
     writeFileSync(path.join(dir, 'docs', 'architecture.md'), '# Architecture');
   });

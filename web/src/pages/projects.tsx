@@ -27,7 +27,7 @@ export function Projects() {
     <div className="animate-fade-up">
       <PageHeader
         title="Projects"
-        description={`${projects.length} ${projects.length === 1 ? 'repository' : 'repositories'} registered with project-rag.`}
+        description={`${projects.length} ${projects.length === 1 ? 'repository' : 'repositories'} registered with RAGBuddy.`}
         actions={<AddProjectModal onRegistered={() => refresh()} />}
       />
 

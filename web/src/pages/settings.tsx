@@ -39,7 +39,7 @@ export function Settings() {
     <div className="animate-fade-up">
       <PageHeader
         title="Settings"
-        description="Read-only view of the running configuration. Change these in project-rag's .env, then restart the server."
+        description="Read-only view of the running configuration. Change these in RAGBuddy's .env, then restart the server."
       />
 
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -77,7 +77,7 @@ export function Settings() {
 
           <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
             The embedding API key itself is never sent to this dashboard — only whether one is present. To change any
-            setting, edit <code className="font-mono">.env</code> in project-rag's install directory and restart{' '}
+            setting, edit <code className="font-mono">.env</code> in RAGBuddy's install directory and restart{' '}
             <code className="font-mono">npm run web</code>: configuration is read once at startup, so a running server
             keeps using the values it booted with. Switching the embedding model also requires a full re-ingest of every
             project — vectors from different models are not comparable.

@@ -9,7 +9,7 @@ describe('buildProjectContext', () => {
   let dir: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-context-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-context-'));
     mkdirSync(path.join(dir, 'docs', 'steering'), { recursive: true });
   });
 
@@ -21,7 +21,7 @@ describe('buildProjectContext', () => {
 
   function qdrantStub(points: { file: string; source?: string; document_type?: string; title?: string }[]) {
     return {
-      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'project_rag_documents' }] }),
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'ragbuddy_documents' }] }),
       scroll: vi.fn().mockResolvedValue({
         points: points.map((p, i) => ({ id: String(i), payload: p })),
         next_page_offset: null,
@@ -32,7 +32,7 @@ describe('buildProjectContext', () => {
   it('returns project identity and repository name without leaking the absolute path', async () => {
     const result = await buildProjectContext(project(), {
       qdrantClient: qdrantStub([]),
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
     });
 
     expect(result.project).toEqual({ id: 'sample', name: 'Sample' });
@@ -45,7 +45,7 @@ describe('buildProjectContext', () => {
 
     const result = await buildProjectContext(project(), {
       qdrantClient: qdrantStub([]),
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
     });
 
     expect(result.overview).toBeDefined();
@@ -58,7 +58,7 @@ describe('buildProjectContext', () => {
 
     const result = await buildProjectContext(project(), {
       qdrantClient: qdrantStub([]),
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
     });
 
     expect(result.steering.architecture).toContain('Layered.');
@@ -74,7 +74,7 @@ describe('buildProjectContext', () => {
         { file: 'docs/steering/tech-stack.md' },
         { file: 'README.md' },
       ]),
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
     });
 
     expect(result.documentation.total).toBe(4);
@@ -84,7 +84,7 @@ describe('buildProjectContext', () => {
   it('reports git as unavailable for a non-Git repository', async () => {
     const result = await buildProjectContext(project(), {
       qdrantClient: qdrantStub([]),
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
     });
 
     expect(result.git).toEqual({ available: false });
@@ -101,7 +101,7 @@ describe('buildProjectContext', () => {
 
     const result = await buildProjectContext(project(), {
       qdrantClient: qdrantStub([]),
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
     });
 
     expect(result.git).toMatchObject({ available: true, branch: 'main', dirty: true });
@@ -117,7 +117,7 @@ describe('buildProjectContext', () => {
 
     const result = await buildProjectContext(project(), {
       qdrantClient,
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
     });
 
     expect(result.documentation).toEqual({ total: 0, categories: {}, importantDocuments: [] });

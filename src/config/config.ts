@@ -32,7 +32,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 
   return {
     qdrantUrl,
-    qdrantCollection: env.QDRANT_COLLECTION ?? 'project_rag_documents',
+    qdrantCollection: env.QDRANT_COLLECTION ?? 'ragbuddy_documents',
     embeddingProvider,
     embeddingBaseUrl: env.EMBEDDING_BASE_URL ?? DEFAULT_EMBEDDING_BASE_URL[embeddingProvider],
     embeddingModel,
@@ -44,7 +44,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     // point at the wrong (or a nonexistent) registry file there.
     projectRegistryPath: path.resolve(__dirname, '../../', env.PROJECT_REGISTRY_PATH ?? './config/projects.json'),
     // Same cwd-independence rule as the registry path above.
-    dataDir: path.resolve(__dirname, '../../', env.PROJECT_RAG_DATA_DIR ?? './data'),
+    dataDir: path.resolve(__dirname, '../../', env.RAGBUDDY_DATA_DIR ?? './data'),
     chatModel: embeddingProvider === 'openai' ? (env.CHAT_MODEL ?? 'gpt-4o-mini') : (env.CHAT_MODEL ?? 'llama3'),
     chatContextLimit: env.CHAT_CONTEXT_LIMIT ? (Number.isNaN(Number(env.CHAT_CONTEXT_LIMIT)) ? 10 : Number(env.CHAT_CONTEXT_LIMIT)) : 10,
   };

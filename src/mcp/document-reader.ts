@@ -58,7 +58,7 @@ export async function getProjectDocument(
 }
 
 /**
- * Uploaded documents live in project-rag's own data dir, not the repository,
+ * Uploaded documents live in RAGBuddy's own data dir, not the repository,
  * so they get their own read path. `assertSafeUploadName` rejects anything
  * with a directory component, which is what keeps `uploads/../../secret` out.
  */

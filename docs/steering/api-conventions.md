@@ -1,6 +1,6 @@
 # API / Tool Conventions
 
-`project-rag` has three API surfaces: the **MCP tools**, the **CLI**, and the **web HTTP API** (REST + SSE, serving the `web/` React dashboard). The MCP and CLI are fully implemented; the HTTP layer is added by the web features. Conventions below are specified in [`../../init.md`](../../init.md) §14–§21.
+`ragbuddy` has three API surfaces: the **MCP tools**, the **CLI**, and the **web HTTP API** (REST + SSE, serving the `web/` React dashboard). The MCP and CLI are fully implemented; the HTTP layer is added by the web features. Conventions below are specified in [`../../init.md`](../../init.md) §14–§21.
 
 ## MCP Tool Conventions (`src/mcp/tools/`)
 
@@ -18,7 +18,7 @@
 - Invalid/ambiguous project resolution → explicit error naming the conflicting project ids (or "no registered project"), never a silent fallback (`init.md` §15)
 - Path traversal or out-of-repo/out-of-configured-paths access attempts → rejected outright, both in the ingestion scanner (`src/ingestion/scanner.ts`) and the MCP document reader (`src/mcp/document-reader.ts`) (`init.md` §21.3, §21.6)
 - A registered repository that's moved/deleted/no-longer-a-Git-repo → `ingest`/`sync` throw a clear error before touching Qdrant, rather than silently treating "no files scanned" as "everything was deleted"
-- Git hook sync failures (Qdrant down, embedding provider down, project-rag unavailable) → logged as a warning by the generated hook script, the underlying `git commit` always still succeeds (`init.md` §12)
+- Git hook sync failures (Qdrant down, embedding provider down, ragbuddy unavailable) → logged as a warning by the generated hook script, the underlying `git commit` always still succeeds (`init.md` §12)
 
 ## Web HTTP + SSE Conventions (`src/server/`)
 

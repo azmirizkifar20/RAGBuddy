@@ -6,7 +6,7 @@
 
 The full-rebuild pipeline: scan a project's configured doc paths, chunk the Markdown structure-aware, hash content, embed, and upsert everything into Qdrant. This is what makes the Qdrant index fully rebuildable from Git at any time.
 
-**Full rebuild only, not incremental:** `project-rag ingest <project>` always re-scans, re-chunks, and re-upserts the complete document set for a project — it does not skip unchanged files or diff against the existing index. Hash-based skip/incremental sync (comparing `content_hash` to avoid re-embedding unchanged chunks) is still Phase 3 and not yet implemented; a reader should not assume `ingest` is incremental.
+**Full rebuild only, not incremental:** `ragbuddy ingest <project>` always re-scans, re-chunks, and re-upserts the complete document set for a project — it does not skip unchanged files or diff against the existing index. Hash-based skip/incremental sync (comparing `content_hash` to avoid re-embedding unchanged chunks) is still Phase 3 and not yet implemented; a reader should not assume `ingest` is incremental.
 
 - Spec: [`../../init.md`](../../init.md) §8 (Markdown Parsing), §9 (Content Hashing), §11 (Initial Full Index)
 - Implemented (Phase 1 building blocks): `src/ingestion/{scanner,hasher,parser,chunker}.ts`
@@ -15,7 +15,7 @@ The full-rebuild pipeline: scan a project's configured doc paths, chunk the Mark
 
 ## 2) Flow / Behavior
 
-`project-rag ingest <project>`:
+`ragbuddy ingest <project>`:
 1. Read all configured documents (default `docs/`, per project config)
 2. Remove existing vectors for that project in Qdrant
 3. Chunk + hash + embed + upsert the complete set

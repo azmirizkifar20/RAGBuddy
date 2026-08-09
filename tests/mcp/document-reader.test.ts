@@ -8,7 +8,7 @@ describe('getProjectDocument', () => {
   let dir: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-docreader-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-docreader-'));
     mkdirSync(path.join(dir, 'docs', 'steering'), { recursive: true });
     writeFileSync(path.join(dir, 'docs', 'steering', 'architecture.md'), '# Architecture\n\nContent.\n');
     writeFileSync(path.join(dir, 'secret.txt'), 'top secret');
@@ -69,7 +69,7 @@ describe('getProjectDocument', () => {
     let dataDir: string;
 
     beforeEach(() => {
-      dataDir = mkdtempSync(path.join(tmpdir(), 'project-rag-docreader-data-'));
+      dataDir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-docreader-data-'));
       mkdirSync(path.join(dataDir, 'uploads', 'sample'), { recursive: true });
       writeFileSync(path.join(dataDir, 'uploads', 'sample', 'notes.md'), '# Uploaded\n\nFrom the dashboard.\n');
       writeFileSync(path.join(dataDir, 'private.md'), 'not an upload');

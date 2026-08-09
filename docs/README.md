@@ -11,7 +11,7 @@ This folder is organized by document type.
 
 ## Folder Intent
 
-- `features/`: Feature documentation for `project-rag` itself — current-state, all implemented.
+- `features/`: Feature documentation for `ragbuddy` itself — current-state, all implemented.
 - `steering/`: Technical architecture, routing (CLI/MCP), and stack decisions.
 - `issue/`: Bug reports, root cause analysis, and issue findings.
 - `design-system/`: Tokens, motion and component conventions for the `web/` dashboard.

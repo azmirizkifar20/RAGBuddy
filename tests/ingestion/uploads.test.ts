@@ -14,7 +14,7 @@ const project = { id: 'sample', name: 'Sample', repository: '/repo', paths: ['do
 
 function qdrantStub() {
   return {
-    getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'project_rag_documents' }] }),
+    getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'ragbuddy_documents' }] }),
     createCollection: vi.fn().mockResolvedValue(true),
     delete: vi.fn().mockResolvedValue(true),
     upsert: vi.fn().mockResolvedValue(true),
@@ -97,7 +97,7 @@ describe('uploadDocument', () => {
   let dataDir: string;
 
   beforeEach(() => {
-    dataDir = mkdtempSync(path.join(tmpdir(), 'project-rag-uploads-'));
+    dataDir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-uploads-'));
   });
 
   afterEach(() => {
@@ -108,7 +108,7 @@ describe('uploadDocument', () => {
     return {
       qdrantClient,
       qdrantUrl: 'http://localhost:6333',
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
       embeddingProvider: {
         // One vector per chunk, like a real provider — a fixed-length mock
         // would hand undefined vectors to every chunk past the first.
@@ -153,7 +153,7 @@ describe('uploadDocument', () => {
     const result = await uploadDocument(project, { filename: 'notes.md', content: '# Two\n' }, deps(qdrantClient));
 
     expect(result.replaced).toBe(true);
-    expect(qdrantClient.delete).toHaveBeenCalledWith('project_rag_documents', {
+    expect(qdrantClient.delete).toHaveBeenCalledWith('ragbuddy_documents', {
       wait: true,
       filter: {
         must: [
@@ -252,7 +252,7 @@ describe('listUploads / removeUpload', () => {
   let dataDir: string;
 
   beforeEach(() => {
-    dataDir = mkdtempSync(path.join(tmpdir(), 'project-rag-uploads-list-'));
+    dataDir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-uploads-list-'));
   });
 
   afterEach(() => {
@@ -271,7 +271,7 @@ describe('listUploads / removeUpload', () => {
       {
         qdrantClient,
         qdrantUrl: 'http://localhost:6333',
-        qdrantCollection: 'project_rag_documents',
+        qdrantCollection: 'ragbuddy_documents',
         embeddingProvider: { embedDocuments: vi.fn().mockResolvedValue([[0.1]]), embedQuery: vi.fn() } as any,
         dataDir,
       },
@@ -283,7 +283,7 @@ describe('listUploads / removeUpload', () => {
 
     await removeUpload(project, 'notes.md', {
       qdrantClient,
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
       dataDir,
     });
 
@@ -302,7 +302,7 @@ describe('listUploads / removeUpload', () => {
       {
         qdrantClient,
         qdrantUrl: 'http://localhost:6333',
-        qdrantCollection: 'project_rag_documents',
+        qdrantCollection: 'ragbuddy_documents',
         embeddingProvider: {
           embedDocuments: vi.fn((texts: string[]) => Promise.resolve(texts.map(() => [0.1]))),
           embedQuery: vi.fn(),
@@ -314,7 +314,7 @@ describe('listUploads / removeUpload', () => {
 
     await removeUpload(project, name, {
       qdrantClient,
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
       dataDir,
     });
 
@@ -326,7 +326,7 @@ describe('listUploads / removeUpload', () => {
     await expect(
       removeUpload(project, 'missing.md', {
         qdrantClient: qdrantStub(),
-        qdrantCollection: 'project_rag_documents',
+        qdrantCollection: 'ragbuddy_documents',
         dataDir,
       }),
     ).rejects.toThrow('does not exist');

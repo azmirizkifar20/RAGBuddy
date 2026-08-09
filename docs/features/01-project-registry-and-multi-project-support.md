@@ -4,16 +4,16 @@
 
 ## 1) What This Feature Is
 
-A registry of Git repositories `project-rag` is allowed to index, keyed by a project id. This is the foundation every other feature depends on: ingestion, sync, retrieval, and MCP tools all resolve "which project" through this registry before touching any files or vectors.
+A registry of Git repositories `ragbuddy` is allowed to index, keyed by a project id. This is the foundation every other feature depends on: ingestion, sync, retrieval, and MCP tools all resolve "which project" through this registry before touching any files or vectors.
 
 - Spec: [`../../init.md`](../../init.md) §5 (Multi-Project Support), §18 (CLI)
 - Implementation: (see Related Files below)
 
 ## 2) Flow / Behavior
 
-- `project-rag project register <id> <repository>` — validates the path is a Git repository, records `id`, `name`, `repository`, and `paths` (default `docs/`)
-- `project-rag project list` — lists registered projects
-- `project-rag project remove <id>` — removes a registration (does not delete the repo)
+- `ragbuddy project register <id> <repository>` — validates the path is a Git repository, records `id`, `name`, `repository`, and `paths` (default `docs/`)
+- `ragbuddy project list` — lists registered projects
+- `ragbuddy project remove <id>` — removes a registration (does not delete the repo)
 - Every other command (`ingest`, `sync`, `search`, `hook install/uninstall`, MCP tools) resolves its target project through this registry before doing anything else
 
 ## 3) Domain & Data

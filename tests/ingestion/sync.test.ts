@@ -13,7 +13,7 @@ describe('syncProject', () => {
   const addedContent = '# Added\n\nAdded content.\n';
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-sync-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-sync-'));
     execFileSync('git', ['init', '-b', 'main'], { cwd: dir });
     execFileSync('git', ['config', 'user.email', 'test@test.com'], { cwd: dir });
     execFileSync('git', ['config', 'user.name', 'Test'], { cwd: dir });
@@ -44,7 +44,7 @@ describe('syncProject', () => {
         ],
         next_page_offset: null,
       }),
-      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'project_rag_documents' }] }),
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'ragbuddy_documents' }] }),
       createCollection: vi.fn().mockResolvedValue(true),
       delete: vi.fn().mockResolvedValue(true),
       upsert: vi.fn().mockResolvedValue(true),
@@ -53,7 +53,7 @@ describe('syncProject', () => {
     const result = await syncProject(project, {
       qdrantClient,
       qdrantUrl: 'http://localhost:6333',
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
       embeddingProvider: embeddingProvider as any,
     });
 
@@ -94,7 +94,7 @@ describe('syncProject', () => {
       syncProject(project, {
         qdrantClient,
         qdrantUrl: 'http://localhost:6333',
-        qdrantCollection: 'project_rag_documents',
+        qdrantCollection: 'ragbuddy_documents',
         embeddingProvider: embeddingProvider as any,
       }),
     ).rejects.toThrow();

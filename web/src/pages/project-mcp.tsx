@@ -59,11 +59,11 @@ export function ProjectMcp() {
   if (!config) return <Skeleton className="h-96" />
 
   const entry = jsonPath(config.cliEntrypoint)
-  const claudeCli = `claude mcp add project-rag -- node "${config.cliEntrypoint}" mcp`
+  const claudeCli = `claude mcp add ragbuddy -- node "${config.cliEntrypoint}" mcp`
 
   const claudeJson = `{
   "mcpServers": {
-    "project-rag": {
+    "ragbuddy": {
       "command": "node",
       "args": ["${entry}", "mcp"]
     }
@@ -73,7 +73,7 @@ export function ProjectMcp() {
   const opencodeJson = `{
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "project-rag": {
+    "ragbuddy": {
       "type": "local",
       "command": ["node", "${entry}", "mcp"],
       "enabled": true
@@ -81,7 +81,7 @@ export function ProjectMcp() {
   }
 }`
 
-  const codexToml = `[mcp_servers.project-rag]
+  const codexToml = `[mcp_servers.ragbuddy]
 command = "node"
 args = ["${entry}", "mcp"]`
 
@@ -90,7 +90,7 @@ args = ["${entry}", "mcp"]`
       <p className="text-sm text-muted-foreground">
         One MCP server serves every project — you register it <strong className="text-foreground">once per agent</strong>,
         not once per project. When your agent runs inside{' '}
-        <code className="font-mono break-all text-foreground">{project.repository}</code>, project-rag resolves{' '}
+        <code className="font-mono break-all text-foreground">{project.repository}</code>, RAGBuddy resolves{' '}
         <code className="font-mono text-foreground">{project.id}</code> automatically from the working directory.
       </p>
 
@@ -113,7 +113,7 @@ args = ["${entry}", "mcp"]`
             <Step index={3} title="Verify it connected">
               <p className="text-sm text-muted-foreground">
                 Run <code className="font-mono">/mcp</code> inside Claude Code —{' '}
-                <code className="font-mono">project-rag</code> should be listed with four tools.
+                <code className="font-mono">ragbuddy</code> should be listed with four tools.
               </p>
             </Step>
           </TabsContent>
@@ -124,7 +124,7 @@ args = ["${entry}", "mcp"]`
             </Step>
             <Step index={2} title="Restart OpenCode">
               <p className="text-sm text-muted-foreground">
-                The four tools become available under the <code className="font-mono">project-rag</code> server.
+                The four tools become available under the <code className="font-mono">ragbuddy</code> server.
               </p>
             </Step>
           </TabsContent>

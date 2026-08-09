@@ -13,7 +13,7 @@ describe('project upload routes', () => {
   let dataDir: string;
 
   beforeEach(() => {
-    dataDir = mkdtempSync(path.join(tmpdir(), 'project-rag-upload-routes-'));
+    dataDir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-upload-routes-'));
   });
 
   afterEach(() => {
@@ -25,7 +25,7 @@ describe('project upload routes', () => {
       baseDeps({
         registry: { list: vi.fn(), find: vi.fn().mockReturnValue(sample) },
         qdrantClient: {
-          getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'project_rag_documents' }] }),
+          getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'ragbuddy_documents' }] }),
           createCollection: vi.fn().mockResolvedValue(true),
           delete: vi.fn().mockResolvedValue(true),
           upsert: vi.fn().mockResolvedValue(true),
@@ -118,7 +118,7 @@ describe('GET /api/config', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
       embeddingModel: 'bge-m3',
       embeddingApiKeyConfigured: false,
     });

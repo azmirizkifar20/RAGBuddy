@@ -58,7 +58,7 @@ Browser file picker / drag-drop
 
 Everything is converted into **Markdown-shaped text on purpose**: the existing heading-aware chunker then splits a PDF by page, a Word file by its own headings, and a spreadsheet by sheet, with no special-casing downstream.
 
-Parsers are loaded with `await import(...)` so `project-rag mcp` and `sync` never pay to load three document libraries they don't use.
+Parsers are loaded with `await import(...)` so `ragbuddy mcp` and `sync` never pay to load three document libraries they don't use.
 
 **Uploads store the original bytes, not the extracted text.** The file is the source of truth and the text is derived, so `get_project_document` re-extracts on read — which also means a future parser improvement applies to already-uploaded documents. That is why `getProjectDocument` is now `async`.
 
@@ -66,11 +66,11 @@ Parsers are loaded with `await import(...)` so `project-rag mcp` and `sync` neve
 
 `recordRun(store, meta, run, summarize)` wraps every ingest/sync/upload call site — CLI, web routes, and (via the CLI) the git hook. It times the run, records success *and* failure, and re-throws so existing error handling is untouched. A failing history write is swallowed: observability must never break an ingest.
 
-The git hook now exports `PROJECT_RAG_TRIGGER=hook` before invoking the CLI, which is how the history page distinguishes an automatic sync from one you typed.
+The git hook now exports `RAGBUDDY_TRIGGER=hook` before invoking the CLI, which is how the history page distinguishes an automatic sync from one you typed.
 
 ## 3) Domain & Data
 
-Two new pieces of persisted state, both under `config.dataDir` (default `<install>/data`, overridable with `PROJECT_RAG_DATA_DIR`, resolved against the install directory not `process.cwd()` — same rule as the project registry):
+Two new pieces of persisted state, both under `config.dataDir` (default `<install>/data`, overridable with `RAGBUDDY_DATA_DIR`, resolved against the install directory not `process.cwd()` — same rule as the project registry):
 
 - `data/sync-history.json` — newest-first array of `RunRecord`, capped at 500 entries, rewritten whole on append. A corrupt file is treated as empty.
 - `data/uploads/<projectId>/<filename>` — the uploaded documents themselves.
@@ -107,7 +107,7 @@ See [../design-system/README.md](../design-system/README.md) for tokens, motion 
 
 ## 5) Edge Cases & Rules
 
-- **Uploads never touch the user's repository.** They are stored in project-rag's own data dir. Removing a project from the registry does not delete them (consistent with the existing "removal only unregisters" behaviour).
+- **Uploads never touch the user's repository.** They are stored in ragbuddy's own data dir. Removing a project from the registry does not delete them (consistent with the existing "removal only unregisters" behaviour).
 - **Filenames are untrusted.** `assertSafeUploadName` rejects anything with a path component, a leading dot, unsupported characters, or an unsupported extension — before anything is read, written or embedded. Verified live against `../../../etc/passwd`, `uploads/../../package.json` and `uploads/../../../.env` through both the HTTP route and the MCP `get_project_document` tool.
 - **A failed extract or embed writes nothing.** The file lands on disk only after both succeed, so there is never an orphan file that claims to be indexed.
 - **A scanned PDF is rejected, not silently indexed.** A PDF with no text layer produces no body, and the error says to run OCR first. The synthetic `# <filename>` title is added *after* the empty check precisely so a title-only document can't masquerade as content — a test caught this.
@@ -130,7 +130,7 @@ See [../design-system/README.md](../design-system/README.md) for tokens, motion 
 - `src/qdrant/qdrant-repository.ts` — `scopedFilter`, `getIndexedFiles`, scoped `getIndexedFileHashes`/`deleteProjectVectors`
 - `src/server/routes/{uploads,history}.ts`, `src/server/app.ts` (`/api/config`, `/api/activity`, `RuntimeInfo`)
 - `src/mcp/document-reader.ts` — `uploads/…` read path
-- `src/git/hook-installer.ts` — `PROJECT_RAG_TRIGGER=hook`
+- `src/git/hook-installer.ts` — `RAGBUDDY_TRIGGER=hook`
 - `src/config/config.ts` — `dataDir`
 - `web/src/components/layout/{app-shell,sidebar,page-header,theme-toggle}.tsx`
 - `web/src/components/{stat-row,empty-state,run-table,upload-panel,flow-diagram,copy-button}.tsx`

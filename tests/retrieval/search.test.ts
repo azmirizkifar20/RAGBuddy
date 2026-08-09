@@ -18,12 +18,12 @@ describe('searchProject', () => {
 
     const results = await searchProject('sample', 'hello', {
       qdrantClient,
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
       embeddingProvider: embeddingProvider as any,
     });
 
     expect(embeddingProvider.embedQuery).toHaveBeenCalledWith('hello');
-    expect(qdrantClient.query).toHaveBeenCalledWith('project_rag_documents', {
+    expect(qdrantClient.query).toHaveBeenCalledWith('ragbuddy_documents', {
       query: [0.1, 0.2],
       limit: 5,
       filter: { must: [{ key: 'project', match: { value: 'sample' } }] },
@@ -41,13 +41,13 @@ describe('searchProject', () => {
 
     await searchProject('sample', 'hello', {
       qdrantClient,
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
       embeddingProvider: embeddingProvider as any,
       topK: 3,
     });
 
     expect(qdrantClient.query).toHaveBeenCalledWith(
-      'project_rag_documents',
+      'ragbuddy_documents',
       expect.objectContaining({ limit: 3 }),
     );
   });
@@ -58,7 +58,7 @@ describe('searchProject', () => {
 
     const results = await searchProject('sample', 'nothing matches this', {
       qdrantClient,
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
       embeddingProvider: embeddingProvider as any,
     });
 

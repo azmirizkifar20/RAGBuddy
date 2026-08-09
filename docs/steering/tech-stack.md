@@ -13,7 +13,7 @@ Stack decisions per [`../../init.md`](../../init.md) §3, as actually installed 
 
 ## Frontend
 
-`web/` — a separate Vite project (own `package.json`/toolchain, kept out of the backend's `tsconfig.build.json`): React 19 + TypeScript ~6.0, Tailwind CSS v4 (`@tailwindcss/vite` plugin), shadcn/ui (Radix base, Nova preset) for buttons/cards/dialogs/badges/toasts, `react-router` v8 for the Dashboard/Project Detail routes. `npm run build` produces `web/dist`, served as static files by `project-rag web` (`src/server/app.ts`) alongside its REST API — one process, one port. This is in addition to, not a replacement for, the CLI + MCP server, which remain the primary interface for coding agents.
+`web/` — a separate Vite project (own `package.json`/toolchain, kept out of the backend's `tsconfig.build.json`): React 19 + TypeScript ~6.0, Tailwind CSS v4 (`@tailwindcss/vite` plugin), shadcn/ui (Radix base, Nova preset) for buttons/cards/dialogs/badges/toasts, `react-router` v8 for the Dashboard/Project Detail routes. `npm run build` produces `web/dist`, served as static files by `ragbuddy web` (`src/server/app.ts`) alongside its REST API — one process, one port. This is in addition to, not a replacement for, the CLI + MCP server, which remain the primary interface for coding agents.
 
 ## Database
 
@@ -27,5 +27,5 @@ Stack decisions per [`../../init.md`](../../init.md) §3, as actually installed 
 ## DevOps
 
 - Docker Compose (`docker-compose.yml`) for Qdrant infra (`init.md` §20)
-- The `project-rag` application itself runs locally via Node.js (not containerized), so it can read Git repositories on the host filesystem
+- The `ragbuddy` application itself runs locally via Node.js (not containerized), so it can read Git repositories on the host filesystem
 - Testing: Vitest 2.1 (`init.md` §3, §23) — 109 tests across all six phases as of this writing

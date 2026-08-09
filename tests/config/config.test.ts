@@ -11,7 +11,7 @@ describe('loadConfig', () => {
     } as NodeJS.ProcessEnv);
 
     expect(config.qdrantUrl).toBe('http://localhost:6333');
-    expect(config.qdrantCollection).toBe('project_rag_documents');
+    expect(config.qdrantCollection).toBe('ragbuddy_documents');
     expect(config.embeddingBaseUrl).toBe('http://localhost:11434');
     expect(config.ragTopK).toBe(5);
     expect(config.projectRegistryPath).toBe(path.resolve(__dirname, '../../config/projects.json'));

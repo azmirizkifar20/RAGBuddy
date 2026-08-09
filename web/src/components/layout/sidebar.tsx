@@ -70,7 +70,7 @@ export function Sidebar({
         >
           <span className={cn('size-2 shrink-0 rounded-full bg-brand', collapsed && 'lg:hidden')} />
           <p className={cn('flex-1 truncate font-heading text-sm font-semibold', collapsed && 'lg:hidden')}>
-            Code Context RAG
+            RAGBuddy
           </p>
           <Button
             variant="ghost"

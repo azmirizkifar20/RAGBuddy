@@ -12,7 +12,7 @@ describe('search_project_docs tool', () => {
   let repo: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-mcp-search-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-mcp-search-'));
     repo = path.join(dir, 'repo');
     mkdirSync(path.join(repo, '.git'), { recursive: true });
   });

@@ -23,7 +23,7 @@ export function LogStream({ projectId, onFinished }: { projectId: string; onFini
 
   async function run(mode: Mode) {
     setRunning(mode)
-    setLines([{ text: `$ project-rag ${mode} ${projectId}`, tone: 'log' }])
+    setLines([{ text: `$ ragbuddy ${mode} ${projectId}`, tone: 'log' }])
     const runner = mode === 'ingest' ? ingestProject : syncProject
     const label = mode === 'ingest' ? 'Ingest' : 'Sync'
 

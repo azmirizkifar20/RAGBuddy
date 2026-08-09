@@ -21,7 +21,7 @@ describe('GET /api/fs/list', () => {
   let dir: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-fs-browse-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-fs-browse-'));
     mkdirSync(path.join(dir, 'alpha'));
     mkdirSync(path.join(dir, 'beta'));
     mkdirSync(path.join(dir, '.hidden'));

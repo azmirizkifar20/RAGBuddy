@@ -12,7 +12,7 @@ describe('resolveProject', () => {
   let repoB: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-resolver-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-resolver-'));
     repoA = path.join(dir, 'repo-a');
     repoB = path.join(dir, 'repo-b');
     mkdirSync(path.join(repoA, '.git'), { recursive: true });

@@ -2,7 +2,7 @@
 
 ## Overview
 
-`project-rag` indexes selected documentation (`docs/` by default) from multiple registered Git repositories into Qdrant, and exposes it to coding agents through an MCP server and a CLI. Git remains the source of truth; Qdrant is a rebuildable index. Full spec: [`../../init.md`](../../init.md).
+`ragbuddy` indexes selected documentation (`docs/` by default) from multiple registered Git repositories into Qdrant, and exposes it to coding agents through an MCP server and a CLI. Git remains the source of truth; Qdrant is a rebuildable index. Full spec: [`../../init.md`](../../init.md).
 
 ## Architecture Diagram
 
@@ -13,7 +13,7 @@ Git Repository (project-a, project-b, ...)
         ↓
    Embedding Provider (Ollama / OpenAI-compatible)
         ↓
-   Qdrant (project_rag_documents, payload-filtered by `project`)
+   Qdrant (ragbuddy_documents, payload-filtered by `project`)
         ↓
    Retrieval (project-filtered similarity search)
         ↓
@@ -35,7 +35,7 @@ Git Repository (project-a, project-b, ...)
 - **Git integration layer**: `src/git/{git-status,hook-installer}.ts` — commit metadata and post-commit hook install/uninstall (chains safely with any pre-existing hook)
 - **MCP layer**: `src/mcp/{server,tool-result,document-reader}.ts`, `src/mcp/tools/{search-project-docs,get-project-document,list-project-knowledge}.ts` — the single MCP interface shared by all agents (no separate implementations per agent)
 - **Config layer**: `src/config/config.ts` — env var loading/validation
-- **Web layer**: `src/server/{app,sse}.ts`, `src/server/routes/{projects,knowledge,search,hook,ingest,sync,chat}.ts` — a third entry point (alongside CLI and MCP) exposing the same underlying modules over a REST API + SSE, serving the `web/` React SPA statically; started by `project-rag web`
+- **Web layer**: `src/server/{app,sse}.ts`, `src/server/routes/{projects,knowledge,search,hook,ingest,sync,chat}.ts` — a third entry point (alongside CLI and MCP) exposing the same underlying modules over a REST API + SSE, serving the `web/` React SPA statically; started by `ragbuddy web`
 
 Dependency direction: CLI and MCP are the two entry points; both call into project management → ingestion/retrieval → embedding/storage. Ingestion/retrieval/embedding/storage never depend on CLI or MCP.
 
@@ -62,7 +62,7 @@ Dependency direction: CLI and MCP are the two entry points; both call into proje
 ## Cross-Module Communication
 
 - CLI and MCP call into the same underlying modules (project registry, retrieval, ingestion) — no duplicated logic between agent integrations (`init.md` §28)
-- Git post-commit hook shells out to the `project-rag sync <project>` CLI command; failures are caught and logged as warnings, never block the commit (`init.md` §12)
+- Git post-commit hook shells out to the `ragbuddy sync <project>` CLI command; failures are caught and logged as warnings, never block the commit (`init.md` §12)
 
 ## Data Flow
 
@@ -71,4 +71,4 @@ See [system-flow.md](./system-flow.md) for the full sync/ingest and MCP-call req
 ## Concurrency & Multi-Tenancy Notes
 
 - Project isolation is enforced via Qdrant payload metadata (`project == "<id>"`), checked at the retrieval layer, not left to the LLM (`init.md` §6, §16, §21)
-- Collection strategy starts as a single shared collection (`project_rag_documents`) with payload filtering; the retrieval layer is designed so a later move to per-project collections doesn't require a retrieval rewrite (`init.md` §6, §17)
+- Collection strategy starts as a single shared collection (`ragbuddy_documents`) with payload filtering; the retrieval layer is designed so a later move to per-project collections doesn't require a retrieval rewrite (`init.md` §6, §17)

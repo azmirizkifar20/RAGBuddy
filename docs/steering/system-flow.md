@@ -10,7 +10,7 @@ How the application boots, initializes, and routes requests at runtime. This is 
 
 ## Request Lifecycle — `sync` / `ingest`
 
-1. CLI command (`project-rag sync <project>` / `project-rag ingest <project>`) → `src/cli/index.ts` → `src/cli/{sync,ingest}-command.ts`
+1. CLI command (`ragbuddy sync <project>` / `ragbuddy ingest <project>`) → `src/cli/index.ts` → `src/cli/{sync,ingest}-command.ts`
 2. Validate project exists in registry → `src/projects/project-registry.ts`
 3. Validate the registered repository still exists and is a Git repo (guards against a moved/deleted path silently wiping the index) → `src/ingestion/{indexer,sync}.ts`
 4. Scan configured doc paths → `src/ingestion/scanner.ts`
@@ -32,21 +32,21 @@ How the application boots, initializes, and routes requests at runtime. This is 
 
 ## Background / Scheduled Flows
 
-- Git `post-commit` hook (`.git/hooks/post-commit`, installed by `project-rag hook install <project>` via `src/git/hook-installer.ts`) → shells out to `project-rag sync <project>` using the exact `node` binary and `dist/cli/index.js` path of the installation that ran `hook install` → always exits 0 regardless of sync success, printing a warning on failure — never blocks the commit (`init.md` §12–13)
+- Git `post-commit` hook (`.git/hooks/post-commit`, installed by `ragbuddy hook install <project>` via `src/git/hook-installer.ts`) → shells out to `ragbuddy sync <project>` using the exact `node` binary and `dist/cli/index.js` path of the installation that ran `hook install` → always exits 0 regardless of sync success, printing a warning on failure — never blocks the commit (`init.md` §12–13)
 
 ## Environment & Config
 
 Required/optional env vars (`.env.example`, `src/config/config.ts`):
 ```
 QDRANT_URL                # required
-QDRANT_COLLECTION         # optional, default project_rag_documents
+QDRANT_COLLECTION         # optional, default ragbuddy_documents
 EMBEDDING_PROVIDER        # required, "ollama" | "openai"
 EMBEDDING_BASE_URL        # optional, defaults per provider (localhost:11434 / api.openai.com)
 EMBEDDING_MODEL           # required
 EMBEDDING_API_KEY         # optional, only meaningful for openai
 RAG_TOP_K                 # optional, default 5
 PROJECT_REGISTRY_PATH     # optional, default ./config/projects.json
-PROJECT_RAG_DATA_DIR      # optional, default ./data (sync history + uploads)
+RAGBUDDY_DATA_DIR      # optional, default ./data (sync history + uploads)
 CHAT_MODEL                # optional, default gpt-4o-mini (openai) / llama3 (ollama)
 CHAT_CONTEXT_LIMIT        # optional, default 10 — max chat messages kept verbatim; older ones auto-summarized
 ```

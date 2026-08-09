@@ -11,7 +11,7 @@ describe('hook routes', () => {
   let repo: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-hook-route-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-hook-route-'));
     repo = path.join(dir, 'repo');
     mkdirSync(path.join(repo, '.git', 'hooks'), { recursive: true });
   });

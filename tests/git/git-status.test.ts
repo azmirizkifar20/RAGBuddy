@@ -9,7 +9,7 @@ describe('getCurrentCommit', () => {
   let dir: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-git-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-git-'));
   });
 
   afterEach(() => {
@@ -38,7 +38,7 @@ describe('getCurrentBranch', () => {
   let dir: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-git-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-git-'));
     execFileSync('git', ['init', '-b', 'main'], { cwd: dir });
     execFileSync('git', ['config', 'user.email', 'test@test.com'], { cwd: dir });
     execFileSync('git', ['config', 'user.name', 'Test'], { cwd: dir });
@@ -57,7 +57,7 @@ describe('getCurrentBranch', () => {
   });
 
   it('returns null for a directory that is not a Git repository', () => {
-    const notARepo = mkdtempSync(path.join(tmpdir(), 'project-rag-notgit-'));
+    const notARepo = mkdtempSync(path.join(tmpdir(), 'ragbuddy-notgit-'));
     try {
       expect(getCurrentBranch(notARepo)).toBeNull();
     } finally {
@@ -70,7 +70,7 @@ describe('isRepositoryDirty', () => {
   let dir: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-git-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-git-'));
     execFileSync('git', ['init', '-b', 'main'], { cwd: dir });
     execFileSync('git', ['config', 'user.email', 'test@test.com'], { cwd: dir });
     execFileSync('git', ['config', 'user.name', 'Test'], { cwd: dir });
@@ -93,7 +93,7 @@ describe('isRepositoryDirty', () => {
   });
 
   it('returns false for a directory that is not a Git repository', () => {
-    const notARepo = mkdtempSync(path.join(tmpdir(), 'project-rag-notgit-'));
+    const notARepo = mkdtempSync(path.join(tmpdir(), 'ragbuddy-notgit-'));
     try {
       expect(isRepositoryDirty(notARepo)).toBe(false);
     } finally {

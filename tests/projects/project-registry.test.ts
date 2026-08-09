@@ -10,7 +10,7 @@ describe('ProjectRegistry', () => {
   let repoPath: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-registry-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-registry-'));
     registryPath = path.join(dir, 'projects.json');
     repoPath = path.join(dir, 'sample-repo');
     mkdirSync(path.join(repoPath, '.git'), { recursive: true });

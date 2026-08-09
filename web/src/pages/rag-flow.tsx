@@ -7,7 +7,7 @@ const INDEXING: FlowStage[] = [
     title: 'Sources',
     caption: 'repo + uploads',
     detail:
-      'Two inputs feed the same pipeline: the Markdown files inside a registered repository’s configured paths, and documents you upload through the dashboard — PDF, Word, Excel, Markdown, CSV or plain text. Uploads are stored by project-rag, never written into your repository.',
+      'Two inputs feed the same pipeline: the Markdown files inside a registered repository’s configured paths, and documents you upload through the dashboard — PDF, Word, Excel, Markdown, CSV or plain text. Uploads are stored by RAGBuddy, never written into your repository.',
     source: 'src/ingestion/scanner.ts · src/ingestion/uploads.ts',
   },
   {
@@ -108,7 +108,7 @@ const AUTOSYNC: FlowStage[] = [
     title: 'post-commit hook',
     caption: 'fires automatically',
     detail:
-      'project-rag installs a marker-delimited block into .git/hooks/post-commit, coexisting with any hook already there. If the sync fails, it prints a warning — your commit is never blocked or rolled back.',
+      'RAGBuddy installs a marker-delimited block into .git/hooks/post-commit, coexisting with any hook already there. If the sync fails, it prints a warning — your commit is never blocked or rolled back.',
     source: 'src/git/hook-installer.ts',
   },
   {
@@ -137,7 +137,7 @@ export function RagFlow() {
       />
 
       <p className="mb-6 max-w-3xl text-sm text-muted-foreground">
-        project-rag turns each registered Git repository's documentation into a private, project-scoped knowledge base
+        RAGBuddy turns each registered Git repository's documentation into a private, project-scoped knowledge base
         that coding agents query over MCP — instead of re-reading the same files into their context every session. Click
         any step below to see what it does and where it lives in the code.
       </p>
@@ -171,7 +171,7 @@ export function RagFlow() {
         <div className="rounded-lg border p-4">
           <p className="text-sm font-medium">Uploads live beside the repo, not inside it</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Documents you upload are stored in project-rag's own data directory and tagged separately, so a full
+            Documents you upload are stored in RAGBuddy's own data directory and tagged separately, so a full
             re-ingest or a sync diff never deletes them — and your repository stays exactly as you left it. The
             original file is kept rather than just its text, so an agent always reads the current extraction.
           </p>

@@ -9,7 +9,7 @@ describe('indexProject', () => {
   let dir: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-indexer-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-indexer-'));
     execFileSync('git', ['init', '-b', 'main'], { cwd: dir });
     execFileSync('git', ['config', 'user.email', 'test@test.com'], { cwd: dir });
     execFileSync('git', ['config', 'user.name', 'Test'], { cwd: dir });
@@ -40,16 +40,16 @@ describe('indexProject', () => {
     const result = await indexProject(project, {
       qdrantClient,
       qdrantUrl: 'http://localhost:6333',
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
       embeddingProvider: embeddingProvider as any,
       onLog,
     });
 
     expect(result).toEqual({ filesIndexed: 1, chunksIndexed: 1 });
-    expect(qdrantClient.createCollection).toHaveBeenCalledWith('project_rag_documents', {
+    expect(qdrantClient.createCollection).toHaveBeenCalledWith('ragbuddy_documents', {
       vectors: { size: 2, distance: 'Cosine' },
     });
-    expect(qdrantClient.delete).toHaveBeenCalledWith('project_rag_documents', {
+    expect(qdrantClient.delete).toHaveBeenCalledWith('ragbuddy_documents', {
       wait: true,
       filter: {
         must: [{ key: 'project', match: { value: 'sample' } }],
@@ -57,7 +57,7 @@ describe('indexProject', () => {
       },
     });
     const upsertCall = qdrantClient.upsert.mock.calls[0];
-    expect(upsertCall[0]).toBe('project_rag_documents');
+    expect(upsertCall[0]).toBe('ragbuddy_documents');
     expect(upsertCall[1].points).toHaveLength(1);
     expect(upsertCall[1].points[0].payload).toMatchObject({
       project: 'sample',
@@ -97,7 +97,7 @@ describe('indexProject', () => {
     await indexProject(project, {
       qdrantClient,
       qdrantUrl: 'http://localhost:6333',
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
       embeddingProvider: embeddingProvider as any,
     });
 
@@ -113,7 +113,7 @@ describe('indexProject', () => {
     const project = { id: 'sample', name: 'sample', repository: dir, paths: ['docs'] };
     const embeddingProvider = { embedDocuments: vi.fn(), embedQuery: vi.fn() };
     const qdrantClient = {
-      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'project_rag_documents' }] }),
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'ragbuddy_documents' }] }),
       createCollection: vi.fn(),
       delete: vi.fn().mockResolvedValue(true),
       upsert: vi.fn(),
@@ -122,14 +122,14 @@ describe('indexProject', () => {
     const result = await indexProject(project, {
       qdrantClient,
       qdrantUrl: 'http://localhost:6333',
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
       embeddingProvider: embeddingProvider as any,
     });
 
     expect(result).toEqual({ filesIndexed: 0, chunksIndexed: 0 });
     expect(qdrantClient.createCollection).not.toHaveBeenCalled();
     expect(qdrantClient.upsert).not.toHaveBeenCalled();
-    expect(qdrantClient.delete).toHaveBeenCalledWith('project_rag_documents', {
+    expect(qdrantClient.delete).toHaveBeenCalledWith('ragbuddy_documents', {
       wait: true,
       filter: {
         must: [{ key: 'project', match: { value: 'sample' } }],
@@ -157,7 +157,7 @@ describe('indexProject', () => {
       indexProject(project, {
         qdrantClient,
         qdrantUrl: 'http://localhost:6333',
-        qdrantCollection: 'project_rag_documents',
+        qdrantCollection: 'ragbuddy_documents',
         embeddingProvider: embeddingProvider as any,
       }),
     ).rejects.toThrow();

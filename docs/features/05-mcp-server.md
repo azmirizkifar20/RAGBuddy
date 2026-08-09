@@ -4,7 +4,7 @@
 
 ## 1) What This Feature Is
 
-The single MCP server (`project-rag mcp`) that Claude Code, OpenCode, and Codex all connect to — the same implementation for every agent, no per-agent RAG logic (`init.md` §28).
+The single MCP server (`ragbuddy mcp`) that Claude Code, OpenCode, and Codex all connect to — the same implementation for every agent, no per-agent RAG logic (`init.md` §28).
 
 - Spec: [`../../init.md`](../../init.md) §14 (MCP Server), §15 (MCP Project Detection)
 - Implementation: `src/mcp/server.ts`, `src/mcp/tools/{get-project-context,search-project-docs,get-project-document,list-project-knowledge}.ts`, `src/mcp/tool-result.ts`, `src/mcp/document-reader.ts`, `src/context/project-context.ts`, `src/projects/project-resolver.ts`, `src/cli/{args,index}.ts` (extended for the `mcp` command)

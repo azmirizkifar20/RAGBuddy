@@ -4,14 +4,14 @@
 
 ## 1) What This Feature Is
 
-Vector similarity search over indexed documentation, always scoped to a single project. Backs `project-rag search` (CLI, implemented in this phase). It will also back `search_project_docs` (MCP tool) once Phase 5 wires up the MCP server — that tool doesn't exist yet, but it will call the same `searchProject` function this phase built, not a separate implementation.
+Vector similarity search over indexed documentation, always scoped to a single project. Backs `ragbuddy search` (CLI, implemented in this phase). It will also back `search_project_docs` (MCP tool) once Phase 5 wires up the MCP server — that tool doesn't exist yet, but it will call the same `searchProject` function this phase built, not a separate implementation.
 
 - Spec: [`../../init.md`](../../init.md) §16 (Retrieval), §17 (Future-Proof Retrieval Architecture)
 - Implementation: `src/retrieval/search.ts` (`searchProject`), `src/qdrant/qdrant-repository.ts` (`searchPoints`, extended in this phase), `src/cli/search-command.ts`, `src/cli/{args,index}.ts` (extended for the `search` command)
 
 ## 2) Flow / Behavior
 
-`project-rag search <project> "<query>"`:
+`ragbuddy search <project> "<query>"`:
 1. Resolve project via registry
 2. Embed the query (`EmbeddingProvider.embedQuery`)
 3. Query Qdrant with `project == "<id>"` filter, `topK` = `RAG_TOP_K` (default 5)
@@ -20,7 +20,7 @@ Vector similarity search over indexed documentation, always scoped to a single p
 ## 3) Domain & Data
 
 - Project filter is enforced at the retrieval layer itself, never left to the LLM/caller to apply (`init.md` §16, §21.7)
-- Collection: `project_rag_documents`, project isolation via payload metadata (`init.md` §6)
+- Collection: `ragbuddy_documents`, project isolation via payload metadata (`init.md` §6)
 - Designed so hybrid search, BM25, reranking, metadata filters, or per-project collections can be added later without a retrieval rewrite (`init.md` §17) — none of these are in v1
 
 ## 4) UI

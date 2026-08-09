@@ -20,7 +20,7 @@ export interface CreateMcpServerDeps {
 
 export function createMcpServer(deps: CreateMcpServerDeps): McpServer {
   const cwd = deps.cwd ?? (() => process.cwd());
-  const server = new McpServer({ name: 'project-rag', version: '0.1.0' });
+  const server = new McpServer({ name: 'ragbuddy', version: '0.1.0' });
 
   registerGetProjectContextTool(server, {
     registry: deps.registry,

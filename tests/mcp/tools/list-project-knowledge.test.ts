@@ -12,7 +12,7 @@ describe('list_project_knowledge tool', () => {
   let repo: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-mcp-listknow-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-mcp-listknow-'));
     repo = path.join(dir, 'repo');
     mkdirSync(path.join(repo, '.git'), { recursive: true });
   });
@@ -36,7 +36,7 @@ describe('list_project_knowledge tool', () => {
       find: vi.fn(),
     } as any;
     const qdrantClient = {
-      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'project_rag_documents' }] }),
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'ragbuddy_documents' }] }),
       scroll: vi.fn().mockResolvedValue({
         points: [
           { id: '1', payload: { file: 'docs/b.md', content_hash: 'h2' } },
@@ -48,7 +48,7 @@ describe('list_project_knowledge tool', () => {
     const client = await setup({
       registry,
       qdrantClient,
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
       cwd: () => repo,
     });
 
@@ -64,13 +64,13 @@ describe('list_project_knowledge tool', () => {
       find: vi.fn(),
     } as any;
     const qdrantClient = {
-      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'project_rag_documents' }] }),
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'ragbuddy_documents' }] }),
       scroll: vi.fn().mockResolvedValue({ points: [], next_page_offset: null }),
     } as any;
     const client = await setup({
       registry,
       qdrantClient,
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
       cwd: () => repo,
     });
 

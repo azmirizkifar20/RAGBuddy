@@ -3,7 +3,7 @@ import path from 'node:path';
 
 export type RunKind = 'ingest' | 'sync' | 'upload' | 'upload-remove';
 export type RunStatus = 'success' | 'error';
-/** Who triggered the run — the git hook shells out to the CLI, so it sets PROJECT_RAG_TRIGGER=hook. */
+/** Who triggered the run — the git hook shells out to the CLI, so it sets RAGBUDDY_TRIGGER=hook. */
 export type RunTrigger = 'cli' | 'web' | 'hook';
 
 export interface RunRecord {

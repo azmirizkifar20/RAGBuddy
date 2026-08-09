@@ -9,7 +9,7 @@ describe('SyncHistoryStore', () => {
   let store: SyncHistoryStore;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-history-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-history-'));
     store = new SyncHistoryStore(path.join(dir, 'nested', 'sync-history.json'));
   });
 
@@ -62,7 +62,7 @@ describe('recordRun', () => {
   let store: SyncHistoryStore;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-history-run-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-history-run-'));
     store = new SyncHistoryStore(path.join(dir, 'sync-history.json'));
   });
 

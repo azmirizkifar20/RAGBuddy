@@ -67,7 +67,7 @@ export function Dashboard() {
           <EmptyState
             icon={BoxesIcon}
             title="No projects registered yet"
-            description="Point project-rag at a Git repository and it will index that repo's docs into a searchable knowledge base your coding agents can query."
+            description="Point RAGBuddy at a Git repository and it will index that repo's docs into a searchable knowledge base your coding agents can query."
             action={<AddProjectModal onRegistered={() => refresh()} />}
           />
         ) : (

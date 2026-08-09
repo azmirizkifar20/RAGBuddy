@@ -51,7 +51,7 @@ export function DeleteConfirmModal({
         <AlertDialogHeader>
           <AlertDialogTitle>Remove "{projectName}"?</AlertDialogTitle>
           <AlertDialogDescription>
-            This only unregisters the project from project-rag. It does not delete any Qdrant vectors or the Git
+            This only unregisters the project from RAGBuddy. It does not delete any Qdrant vectors or the Git
             repository itself.
           </AlertDialogDescription>
         </AlertDialogHeader>

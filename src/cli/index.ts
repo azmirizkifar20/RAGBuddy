@@ -3,7 +3,7 @@ import path from 'node:path';
 import { config as loadDotenv } from 'dotenv';
 // Resolved against this file's own location, not process.cwd() — the git
 // post-commit hook invokes this script with cwd set to the TARGET repo
-// (e.g. the project being synced), not project-rag's own directory, so a
+// (e.g. the project being synced), not RAGBuddy's own directory, so a
 // cwd-relative .env lookup would silently find nothing there.
 loadDotenv({ path: path.resolve(__dirname, '../../.env') });
 import { loadConfig } from '../config/config';
@@ -29,7 +29,7 @@ async function main(): Promise<void> {
   const parsed = parseArgs(process.argv.slice(2));
   if (parsed.command === 'unknown') {
     console.error(
-      'Usage: project-rag <ingest|sync> <project>  |  project-rag search <project> "<query>"  |  project-rag mcp  |  project-rag hook <install|uninstall> <project>',
+      'Usage: ragbuddy <ingest|sync> <project>  |  ragbuddy search <project> "<query>"  |  ragbuddy mcp  |  ragbuddy hook <install|uninstall> <project>',
     );
     process.exitCode = 1;
     return;
@@ -40,7 +40,7 @@ async function main(): Promise<void> {
   const history = new SyncHistoryStore(path.join(config.dataDir, 'sync-history.json'));
   // The post-commit hook shells out to this same CLI; it sets this env var so
   // the history page can tell an automatic sync from one you typed yourself.
-  const trigger: RunTrigger = process.env.PROJECT_RAG_TRIGGER === 'hook' ? 'hook' : 'cli';
+  const trigger: RunTrigger = process.env.RAGBUDDY_TRIGGER === 'hook' ? 'hook' : 'cli';
   const qdrantClient = createQdrantClient(config.qdrantUrl);
   const embeddingProvider = createEmbeddingProvider({
     provider: config.embeddingProvider,
@@ -76,7 +76,7 @@ async function main(): Promise<void> {
       uninstall: uninstallHook,
     });
     console.log(
-      `[project-rag] ${result.action === 'install' ? 'Installed' : 'Uninstalled'} the post-commit hook for "${result.projectName}".`,
+      `[ragbuddy] ${result.action === 'install' ? 'Installed' : 'Uninstalled'} the post-commit hook for "${result.projectName}".`,
     );
     return;
   }
@@ -95,7 +95,7 @@ async function main(): Promise<void> {
     }
     if (parsed.action === 'remove') {
       runProjectRemove(registry, parsed.id);
-      console.log(`[project-rag] Removed project "${parsed.id}" from the registry.`);
+      console.log(`[ragbuddy] Removed project "${parsed.id}" from the registry.`);
       return;
     }
     const project = runProjectRegister(registry, {
@@ -104,7 +104,7 @@ async function main(): Promise<void> {
       name: parsed.name,
       paths: parsed.paths,
     });
-    console.log(`[project-rag] Registered project "${project.id}" (${project.repository}).`);
+    console.log(`[ragbuddy] Registered project "${project.id}" (${project.repository}).`);
     return;
   }
 
@@ -137,15 +137,15 @@ async function main(): Promise<void> {
     });
     const port = parsed.port ?? 4300;
     const server = app.listen(port, () => {
-      console.log(`[project-rag] Web UI running at http://localhost:${port}`);
+      console.log(`[ragbuddy] Web UI running at http://localhost:${port}`);
     });
     server.on('error', (error: NodeJS.ErrnoException) => {
       if (error.code === 'EADDRINUSE') {
         console.error(
-          `[project-rag] Port ${port} is already in use. Stop whatever is using it, or run with --port <other-port>.`,
+          `[ragbuddy] Port ${port} is already in use. Stop whatever is using it, or run with --port <other-port>.`,
         );
       } else {
-        console.error(`[project-rag] Failed to start the web server: ${error.message}`);
+        console.error(`[ragbuddy] Failed to start the web server: ${error.message}`);
       }
       process.exitCode = 1;
     });
@@ -261,6 +261,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error(`[project-rag] Error: ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`[ragbuddy] Error: ${error instanceof Error ? error.message : String(error)}`);
   process.exitCode = 1;
 });

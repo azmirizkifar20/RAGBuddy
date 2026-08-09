@@ -12,7 +12,7 @@ describe('get_project_context tool', () => {
   let repo: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-mcp-context-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-mcp-context-'));
     repo = path.join(dir, 'repo');
     mkdirSync(path.join(repo, '.git'), { recursive: true });
     mkdirSync(path.join(repo, 'docs', 'steering'), { recursive: true });
@@ -48,7 +48,7 @@ describe('get_project_context tool', () => {
     const client = await setup({
       registry,
       qdrantClient: qdrantStub(),
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
       cwd: () => repo,
     });
 
@@ -71,7 +71,7 @@ describe('get_project_context tool', () => {
     const client = await setup({
       registry,
       qdrantClient: qdrantStub(),
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
       cwd: () => '/somewhere/unrelated',
     });
 
@@ -87,7 +87,7 @@ describe('get_project_context tool', () => {
     const client = await setup({
       registry,
       qdrantClient: qdrantStub(),
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
       cwd: () => '/somewhere/unrelated',
     });
 

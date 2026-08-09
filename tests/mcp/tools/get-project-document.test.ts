@@ -12,7 +12,7 @@ describe('get_project_document tool', () => {
   let repo: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), 'project-rag-mcp-getdoc-'));
+    dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-mcp-getdoc-'));
     repo = path.join(dir, 'repo');
     mkdirSync(path.join(repo, 'docs'), { recursive: true });
     writeFileSync(path.join(repo, 'docs', 'architecture.md'), '# Architecture\n');

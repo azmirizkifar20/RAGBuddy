@@ -1,15 +1,15 @@
 ---
-name: project-rag-feature-flow
-description: Workflow for implementing, changing, extending, or refactoring features in project-rag. Covers current-state (and planned) documentation, runtime-path tracing, tests, verification, and documentation updates.
+name: ragbuddy-feature-flow
+description: Workflow for implementing, changing, extending, or refactoring features in RAGBuddy. Covers current-state (and planned) documentation, runtime-path tracing, tests, verification, and documentation updates.
 ---
 
-# project-rag Feature Flow
+# RAGBuddy Feature Flow
 
 Follow this flow for feature work in this repository.
 
 ## 0. Project status
 
-`project-rag` is currently pre-implementation — only [`init.md`](../../../init.md) (the full build spec) and the `docs/` scaffold exist. Every doc in `docs/features/` is marked **Planned**. When you implement a phase from `init.md` §26, flip that feature doc's status from Planned to Implemented and fill in its real file paths (see step 5).
+`RAGBuddy` is currently pre-implementation — only [`init.md`](../../../init.md) (the full build spec) and the `docs/` scaffold exist. Every doc in `docs/features/` is marked **Planned**. When you implement a phase from `init.md` §26, flip that feature doc's status from Planned to Implemented and fill in its real file paths (see step 5).
 
 ## 1. Read the current-state docs first
 

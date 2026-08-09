@@ -10,7 +10,7 @@ describe('createMcpServer', () => {
     const server = createMcpServer({
       registry,
       qdrantClient,
-      qdrantCollection: 'project_rag_documents',
+      qdrantCollection: 'ragbuddy_documents',
       search: vi.fn(),
     });
 

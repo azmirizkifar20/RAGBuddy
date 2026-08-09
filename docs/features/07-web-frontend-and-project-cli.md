@@ -4,7 +4,7 @@
 
 ## 1) What This Feature Is
 
-A visual layer over the exact same backend functions the CLI already uses (`ProjectRegistry`, `indexProject`, `syncProject`, `searchProject`, `installHook`/`uninstallHook`) — a small Express REST API plus a Vite/React SPA — served by a single new CLI command, `project-rag web`. Also fills the one gap left over from `init.md`: the `project register/list/remove` CLI subcommands.
+A visual layer over the exact same backend functions the CLI already uses (`ProjectRegistry`, `indexProject`, `syncProject`, `searchProject`, `installHook`/`uninstallHook`) — a small Express REST API plus a Vite/React SPA — served by a single new CLI command, `ragbuddy web`. Also fills the one gap left over from `init.md`: the `project register/list/remove` CLI subcommands.
 
 - Spec: `docs/superpowers/specs/2026-08-08-web-frontend-design.md`; `init.md` §18 (CLI `project` subcommands)
 - Implementation plans: `docs/superpowers/plans/2026-08-08-web-backend-api.md` (CLI subcommands + REST API), `docs/superpowers/plans/2026-08-08-web-frontend.md` (the `web/` SPA)
@@ -12,16 +12,16 @@ A visual layer over the exact same backend functions the CLI already uses (`Proj
 ## 2) Flow / Behavior
 
 ```
-project-rag project register/list/remove   → ProjectRegistry (same registry the rest of the CLI uses)
-project-rag web [--port 4300]              → Express app: /api/* routes + serves web/dist statically
+ragbuddy project register/list/remove   → ProjectRegistry (same registry the rest of the CLI uses)
+ragbuddy web [--port 4300]              → Express app: /api/* routes + serves web/dist statically
 Dashboard (/)                              → GET /api/projects → project cards, +Add Project modal
 Project Detail (/projects/:id)             → GET /api/projects/:id, /knowledge → file list, search, ingest/sync log stream, hook toggle, remove
 ```
 
 CLI subcommands (`src/cli/project-command.ts`, wired in `src/cli/index.ts`):
-- `project-rag project register <id> <repository> [--name <name>] [--paths <p1,p2>]`
-- `project-rag project list`
-- `project-rag project remove <id>`
+- `ragbuddy project register <id> <repository> [--name <name>] [--paths <p1,p2>]`
+- `ragbuddy project list`
+- `ragbuddy project remove <id>`
 
 REST API (`src/server/app.ts`, mounted at `/api/projects`):
 
@@ -58,7 +58,7 @@ No new persisted data — the API is a thin read/write layer over the existing `
 - The ingest/sync SSE endpoints are triggered by `POST`, so the browser's native `EventSource` (GET-only, no body) can't consume them — `api-client.ts`'s `streamRun` parses the `event:`/`data:` wire format directly off a streamed `fetch` response body instead.
 - Solo-user, localhost only — no authentication, matching the CLI's own trust model (`init.md` §27).
 - Nothing in `src/ingestion/`, `src/qdrant/`, `src/embedding/`, `src/retrieval/`, `src/mcp/`, or any existing CLI command (`ingest`/`sync`/`hook install`/`hook uninstall`/`search`/`mcp`) was modified by this feature — it only adds new callers on top of those, unchanged.
-- No automated frontend test suite in v1 (explicit YAGNI) — verified via `npm run build` (TypeScript + Vite build) at every step, `oxlint`, and a live manual check of the full stack (`project-rag web` serving both the built SPA and the API together — confirmed `GET /`, a hashed JS asset, the SPA client-route fallback, and `GET /api/projects` all respond correctly). A real interactive browser click-through (register → sync → search → toggle hook → remove) was not performed — no browser automation tool was available in the implementing session; do a quick manual pass via `npm run dev` before considering this fully done.
+- No automated frontend test suite in v1 (explicit YAGNI) — verified via `npm run build` (TypeScript + Vite build) at every step, `oxlint`, and a live manual check of the full stack (`ragbuddy web` serving both the built SPA and the API together — confirmed `GET /`, a hashed JS asset, the SPA client-route fallback, and `GET /api/projects` all respond correctly). A real interactive browser click-through (register → sync → search → toggle hook → remove) was not performed — no browser automation tool was available in the implementing session; do a quick manual pass via `npm run dev` before considering this fully done.
 
 ## Related Files
 

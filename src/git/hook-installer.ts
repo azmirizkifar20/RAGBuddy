@@ -1,8 +1,8 @@
 import { existsSync, readFileSync, writeFileSync, unlinkSync, chmodSync } from 'node:fs';
 import path from 'node:path';
 
-const MARKER_START = '# >>> project-rag hook start (do not edit this block manually) >>>';
-const MARKER_END = '# <<< project-rag hook end <<<';
+const MARKER_START = '# >>> ragbuddy hook start (do not edit this block manually) >>>';
+const MARKER_END = '# <<< ragbuddy hook end <<<';
 
 export interface InstallHookOptions {
   nodePath?: string;
@@ -65,12 +65,12 @@ export function isHookInstalled(repositoryPath: string): boolean {
 function buildHookBlock(projectId: string, nodePath: string, cliEntrypoint: string): string {
   return [
     MARKER_START,
-    '# Auto-sync installed by `project-rag hook install` — safe to remove via `project-rag hook uninstall`.',
+    '# Auto-sync installed by `ragbuddy hook install` — safe to remove via `ragbuddy hook uninstall`.',
     '# This never blocks the commit: any sync failure only prints a warning below.',
-    'echo "[project-rag] Sync started..."',
-    // PROJECT_RAG_TRIGGER lets the sync history distinguish this automatic run
-    // from a `project-rag sync` you typed yourself.
-    `PROJECT_RAG_TRIGGER=hook "${nodePath}" "${cliEntrypoint}" sync ${projectId} || echo "[project-rag] Warning: RAG sync failed. Git commit remains successful."`,
+    'echo "[ragbuddy] Sync started..."',
+    // RAGBUDDY_TRIGGER lets the sync history distinguish this automatic run
+    // from a `ragbuddy sync` you typed yourself.
+    `RAGBUDDY_TRIGGER=hook "${nodePath}" "${cliEntrypoint}" sync ${projectId} || echo "[ragbuddy] Warning: RAG sync failed. Git commit remains successful."`,
     MARKER_END,
   ].join('\n');
 }

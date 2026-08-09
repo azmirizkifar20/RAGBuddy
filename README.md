@@ -1,18 +1,18 @@
-# Code Context RAG
+# RAGBuddy
 
 A multi-project RAG (Retrieval-Augmented Generation) service that gives coding agents — **Claude Code**, **OpenCode**, **Codex**, or any other MCP-compatible agent — semantic search over your projects' documentation. Comes with a **CLI**, a **web dashboard**, and an **MCP server**, all sharing the exact same underlying code.
 
 ## What it is
 
-**Code Context RAG** indexes the `docs/` folder (configurable) of one or more registered Git repositories into [Qdrant](https://qdrant.tech), a vector database, and exposes that index three ways:
+**RAGBuddy** indexes the `docs/` folder (configurable) of one or more registered Git repositories into [Qdrant](https://qdrant.tech), a vector database, and exposes that index three ways:
 
-- **CLI** — `project-rag ingest/sync/search/hook/project/mcp/web`
+- **CLI** — `ragbuddy ingest/sync/search/hook/project/mcp/web`
 - **Web dashboard** — register projects, browse indexed files, upload extra documents, search, run ingest/sync with a live log, review sync history, toggle auto-sync, and copy per-project MCP config, all from a browser
 - **MCP server** — a coding agent working in your repo can call `get_project_context` for a quick orientation, then `search_project_docs` to find the architecture doc, feature spec, or issue writeup relevant to what it's doing right now, instead of relying on whatever happened to fit in its context window
 
 ## Why it exists
 
-Coding agents work best when they can find the *right* project documentation without a human pasting it in. **Code Context RAG** treats each registered repository's Git history as the single source of truth: the vector index in Qdrant is just a cache. If Qdrant is wiped, `project-rag ingest <project>` rebuilds the complete index from the files on disk — nothing is ever stored only in the vector database.
+Coding agents work best when they can find the *right* project documentation without a human pasting it in. **RAGBuddy** treats each registered repository's Git history as the single source of truth: the vector index in Qdrant is just a cache. If Qdrant is wiped, `ragbuddy ingest <project>` rebuilds the complete index from the files on disk — nothing is ever stored only in the vector database.
 
 ## Architecture
 
@@ -26,11 +26,11 @@ flowchart TD
         REG --> ING --> EMB
     end
 
-    QD[("Qdrant<br/>project_rag_documents<br/>filtered by project id")]
+    QD[("Qdrant<br/>ragbuddy_documents<br/>filtered by project id")]
     EMB --> QD --> RET
 
     CLI["CLI<br/>ingest / sync / search / hook / project / mcp / web"] --> CORE
-    WEB["Web Dashboard<br/>React SPA, served by project-rag web"] -->|"REST API + SSE"| API["Express API<br/>src/server"]
+    WEB["Web Dashboard<br/>React SPA, served by ragbuddy web"] -->|"REST API + SSE"| API["Express API<br/>src/server"]
     API --> CORE
     MCPS["MCP Server<br/>get_project_context, search_project_docs, get_project_document, list_project_knowledge"] --> CORE
 
@@ -41,11 +41,11 @@ flowchart TD
     CX["Codex"] --> MCPS
 ```
 
-Every project registered with **Code Context RAG** is isolated by a `project` field in Qdrant's payload metadata — a search against one project can never return another project's documents, enforced at the retrieval layer itself, not left to the LLM.
+Every project registered with **RAGBuddy** is isolated by a `project` field in Qdrant's payload metadata — a search against one project can never return another project's documents, enforced at the retrieval layer itself, not left to the LLM.
 
 A more detailed visual walkthrough — MCP tools, project resolution, the ingestion pipeline, and how agents are meant to use each tool:
 
-![Code Context RAG architecture and MCP tool flow](images/how-it-works.png)
+![RAGBuddy architecture and MCP tool flow](images/how-it-works.png)
 
 Full details: [`docs/steering/architecture.md`](docs/steering/architecture.md) (layers & components), [`docs/steering/system-flow.md`](docs/steering/system-flow.md) (request lifecycles), [`docs/features/`](docs/features/README.md) (what each feature does, traced to real code).
 
@@ -55,7 +55,7 @@ Prerequisites: Node.js 18+ (developed on Node 24), npm, Docker (for Qdrant), and
 
 ```bash
 git clone <this-repository>
-cd project-rag
+cd ragbuddy
 npm install
 npm run build
 cp .env.example .env
@@ -74,17 +74,17 @@ cd ..
 
 ## Qdrant setup
 
-**Code Context RAG** needs a running Qdrant instance. The included `docker-compose.yml` starts one on `localhost:6333`:
+**RAGBuddy** needs a running Qdrant instance. The included `docker-compose.yml` starts one on `localhost:6333`:
 
 ```bash
 docker compose up -d
 ```
 
-**Code Context RAG**'s Node.js process itself runs directly on the host (not containerized) — it needs filesystem access to every registered Git repository, which is simplest to guarantee by not putting it in a container. A future production deployment could containerize it too, by mounting each registered project's directory into the container.
+**RAGBuddy**'s Node.js process itself runs directly on the host (not containerized) — it needs filesystem access to every registered Git repository, which is simplest to guarantee by not putting it in a container. A future production deployment could containerize it too, by mounting each registered project's directory into the container.
 
 ## Embedding configuration
 
-**Code Context RAG** is embedding-provider-agnostic via a small `EmbeddingProvider` interface (`src/embedding/embedding-provider.ts`). Two providers ship today:
+**RAGBuddy** is embedding-provider-agnostic via a small `EmbeddingProvider` interface (`src/embedding/embedding-provider.ts`). Two providers ship today:
 
 **Local (Ollama)** — no data leaves your machine:
 
@@ -107,9 +107,9 @@ EMBEDDING_API_KEY=sk-...
 
 `EMBEDDING_BASE_URL` works with any such endpoint — omit `EMBEDDING_API_KEY` if it doesn't require one. Not every "OpenAI-compatible" API actually implements `/embeddings` (some chat-completion proxies only implement `/chat/completions`) — verify the endpoint responds to a plain `curl` before wiring it in here.
 
-**Code Context RAG** never assumes you want documentation sent to a cloud provider — Ollama is the default in `.env.example`.
+**RAGBuddy** never assumes you want documentation sent to a cloud provider — Ollama is the default in `.env.example`.
 
-`.env` is loaded automatically (via `dotenv`, resolved against **Code Context RAG**'s own install directory, not whatever directory happens to invoke the CLI — this matters because the git hook below invokes the CLI with its `cwd` set to the *target* repository, not this one).
+`.env` is loaded automatically (via `dotenv`, resolved against **RAGBuddy**'s own install directory, not whatever directory happens to invoke the CLI — this matters because the git hook below invokes the CLI with its `cwd` set to the *target* repository, not this one).
 
 ## Two ways to manage projects: Web or CLI
 
@@ -137,7 +137,7 @@ Open `http://localhost:4300`. The dashboard has a sidebar with these pages:
 
 Removing a project unregisters it only — it never touches Qdrant vectors or the Git repository itself.
 
-For frontend development with hot reload: `cd web && npm run dev` (proxies `/api` to `localhost:4300`, so `project-rag web` must also be running).
+For frontend development with hot reload: `cd web && npm run dev` (proxies `/api` to `localhost:4300`, so `ragbuddy web` must also be running).
 
 ### Uploading documents
 
@@ -146,7 +146,7 @@ Some knowledge doesn't belong in the repository — a meeting note, a vendor's A
 - **PDF, Word (.docx), Excel (.xlsx/.xlsm), Markdown, CSV, and plain text** (.txt, .log, .json, .yaml, .rst, .adoc, .tsv) are supported, up to ~20MB per file
 - Text is extracted server-side and shaped into Markdown, so a PDF is split by page, a Word file by its own headings, and a spreadsheet by sheet — search results cite `Page 3` or the sheet name rather than just the filename
 - Legacy `.doc`/`.xls` and PowerPoint are rejected with a hint (save as `.docx`/`.xlsx`, or export slides to PDF); a scanned PDF with no text layer is rejected with a request to OCR it first
-- Files are stored in Code Context RAG's own data directory (`PROJECT_RAG_DATA_DIR`, default `./data`) — **nothing is written into your Git repository**
+- Files are stored in RAGBuddy's own data directory (`RAGBUDDY_DATA_DIR`, default `./data`) — **nothing is written into your Git repository**
 - The original file is kept, not just the extracted text, and they become searchable through the same MCP tools, addressed as `uploads/<filename>`
 - A `sync` never reports them as deleted, and a full `ingest` never wipes them — repository documents and uploads are tracked separately in Qdrant
 - Re-uploading the same filename replaces it; deleting removes both the file and its vectors
@@ -154,9 +154,9 @@ Some knowledge doesn't belong in the repository — a meeting note, a vendor's A
 ### CLI
 
 ```bash
-project-rag project register <id> <repository> [--name <name>] [--paths <p1,p2>]
-project-rag project list
-project-rag project remove <id>
+ragbuddy project register <id> <repository> [--name <name>] [--paths <p1,p2>]
+ragbuddy project list
+ragbuddy project remove <id>
 ```
 
 `repository` must be an absolute path to a Git repository (a `.git` directory must exist inside it). `paths` defaults to `["docs"]` if omitted. Details: [`docs/features/01-project-registry-and-multi-project-support.md`](docs/features/01-project-registry-and-multi-project-support.md).
@@ -170,7 +170,7 @@ Full details: [`docs/features/07-web-frontend-and-project-cli.md`](docs/features
 Full rebuild of a project's index — always safe to re-run, always rebuilds from the files on disk:
 
 ```bash
-project-rag ingest bidubadu
+ragbuddy ingest bidubadu
 ```
 
 (Or click **Ingest** on the project's detail page in the web dashboard — same code path, live-streamed log.)
@@ -184,7 +184,7 @@ This scans the project's configured paths, chunks every markdown file (heading-a
 After the first `ingest`, use `sync` day-to-day — it only re-embeds what actually changed, by comparing content hashes already stored in Qdrant against the files on disk:
 
 ```bash
-project-rag sync bidubadu
+ragbuddy sync bidubadu
 ```
 
 (Or click **Sync** in the web dashboard.)
@@ -218,7 +218,7 @@ Details: [`docs/features/03-incremental-sync.md`](docs/features/03-incremental-s
 Wire `sync` to run automatically after every commit, so the index never drifts from what's actually on disk:
 
 ```bash
-project-rag hook install bidubadu
+ragbuddy hook install bidubadu
 ```
 
 (Or flip the **auto-sync** toggle on the project's detail page in the web dashboard.)
@@ -226,8 +226,8 @@ project-rag hook install bidubadu
 This installs (or safely chains onto an existing) `.git/hooks/post-commit` in the project's repository — it will not disturb an unrelated pre-existing hook (e.g. a linter or another tool's hook already installed there; each tool's block is marker-delimited and only that block is ever touched). **A sync failure never blocks your commit** — if Qdrant or the embedding provider is down, the hook prints a warning and your commit still succeeds:
 
 ```
-[project-rag] Sync started...
-[project-rag] Warning: RAG sync failed (fetch failed). Git commit remains successful.
+[ragbuddy] Sync started...
+[ragbuddy] Warning: RAG sync failed (fetch failed). Git commit remains successful.
 ```
 
 ```mermaid
@@ -235,7 +235,7 @@ sequenceDiagram
     participant Dev as You
     participant Git as git commit
     participant Hook as post-commit hook
-    participant Sync as project-rag sync
+    participant Sync as ragbuddy sync
     participant Q as Qdrant
 
     Dev->>Git: edit docs, commit
@@ -247,16 +247,16 @@ sequenceDiagram
     Hook-->>Git: always exits 0 — commit is never blocked
 ```
 
-Remove it with `project-rag hook uninstall bidubadu`. Details: [`docs/features/06-git-hook-auto-sync.md`](docs/features/06-git-hook-auto-sync.md).
+Remove it with `ragbuddy hook uninstall bidubadu`. Details: [`docs/features/06-git-hook-auto-sync.md`](docs/features/06-git-hook-auto-sync.md).
 
 ## MCP setup for Claude Code
 
 > The web dashboard generates all of the snippets below with your machine's real resolved paths already filled in — open any project and go to **MCP setup**. The rest of this section is the same thing, by hand.
 
-Add `project-rag` as an MCP server. From your terminal, in any registered project's directory (or anywhere, if you'll pass an explicit project id per call):
+Add `ragbuddy` as an MCP server. From your terminal, in any registered project's directory (or anywhere, if you'll pass an explicit project id per call):
 
 ```bash
-claude mcp add project-rag -- node /absolute/path/to/project-rag/dist/cli/index.js mcp
+claude mcp add ragbuddy -- node /absolute/path/to/ragbuddy/dist/cli/index.js mcp
 ```
 
 Or add it directly to your Claude Code MCP config:
@@ -264,14 +264,14 @@ Or add it directly to your Claude Code MCP config:
 ```json
 {
   "mcpServers": {
-    "project-rag": {
+    "ragbuddy": {
       "command": "node",
-      "args": ["/absolute/path/to/project-rag/dist/cli/index.js", "mcp"],
+      "args": ["/absolute/path/to/ragbuddy/dist/cli/index.js", "mcp"],
       "env": {
         "QDRANT_URL": "http://localhost:6333",
         "EMBEDDING_PROVIDER": "ollama",
         "EMBEDDING_MODEL": "bge-m3",
-        "PROJECT_REGISTRY_PATH": "/absolute/path/to/project-rag/config/projects.json"
+        "PROJECT_REGISTRY_PATH": "/absolute/path/to/ragbuddy/config/projects.json"
       }
     }
   }
@@ -282,15 +282,15 @@ Claude Code will then have `get_project_context`, `search_project_docs`, `get_pr
 
 ## MCP setup for OpenCode
 
-Same server, same four tools — **Code Context RAG** intentionally has one MCP implementation shared by every agent (`init.md` §28), not a separate integration per client. Add it to OpenCode's MCP server configuration the same way, pointing at the same `node .../dist/cli/index.js mcp` command as above:
+Same server, same four tools — **RAGBuddy** intentionally has one MCP implementation shared by every agent (`init.md` §28), not a separate integration per client. Add it to OpenCode's MCP server configuration the same way, pointing at the same `node .../dist/cli/index.js mcp` command as above:
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "project-rag": {
+    "ragbuddy": {
       "type": "local",
-      "command": ["node", "/absolute/path/to/project-rag/dist/cli/index.js", "mcp"],
+      "command": ["node", "/absolute/path/to/ragbuddy/dist/cli/index.js", "mcp"],
       "enabled": true
     }
   }
@@ -302,9 +302,9 @@ Same server, same four tools — **Code Context RAG** intentionally has one MCP 
 Same server again — add it to `~/.codex/config.toml`:
 
 ```toml
-[mcp_servers.project-rag]
+[mcp_servers.ragbuddy]
 command = "node"
-args = ["/absolute/path/to/project-rag/dist/cli/index.js", "mcp"]
+args = ["/absolute/path/to/ragbuddy/dist/cli/index.js", "mcp"]
 ```
 
 No `env` block is needed for any of these three: the server reads `.env` from its own install directory, not from the agent's working directory.
@@ -314,7 +314,7 @@ No `env` block is needed for any of these three: the server reads `.env` from it
 The four tools above are visible to your agent automatically once the MCP server connects — no extra config needed for that. But an agent only *reaches* for a tool it happens to think of; it won't necessarily call `get_project_context` before diving into a task just because the tool exists. Add this to the **registered project's** `AGENTS.md` / `CLAUDE.md` so your agent knows when to use each one:
 
 ```markdown
-## Knowledge Retrieval Strategy (code-context-rag MCP)
+## Knowledge Retrieval Strategy (ragbuddy MCP)
 
 Before implementing a non-trivial feature in this project:
   1. Use `get_project_context` first to understand the project (identity, Git status, tech stack/architecture summaries, doc inventory).
@@ -328,13 +328,13 @@ Don't force `get_project_context` for trivial tasks where it adds no value.
 
 ## Troubleshooting
 
-- **`[project-rag] Error: Project "<id>" is not registered`** — the project id doesn't exist in the registry at `PROJECT_REGISTRY_PATH`. Check via `project-rag project list` or the web dashboard.
+- **`[ragbuddy] Error: Project "<id>" is not registered`** — the project id doesn't exist in the registry at `PROJECT_REGISTRY_PATH`. Check via `ragbuddy project list` or the web dashboard.
 - **`Repository is not accessible or not a Git repository`** — the registered `repository` path moved, was deleted, or its `.git` folder is missing. `ingest`/`sync` refuse to run rather than silently treating "no files found" as "everything was deleted."
 - **`Failed to obtain server version. Unable to check client-server compatibility.`** — Qdrant isn't reachable at `QDRANT_URL`. Check `docker compose ps` / `docker compose up -d`. This warning is otherwise harmless.
-- **Embedding request errors (`fetch failed`, `404`, `401`)** — check `EMBEDDING_PROVIDER`/`EMBEDDING_BASE_URL`/`EMBEDDING_MODEL`/`EMBEDDING_API_KEY` and that the provider is actually running, has the model available, and its `/embeddings` endpoint is reachable from this machine (some providers restrict access by IP/network). Test directly with `curl` before assuming it's a **Code Context RAG** bug.
-- **`project-rag web` seems to exit immediately** — check for a clear `Port <n> is already in use` message; something else (often a previous, un-closed `project-rag web`) is already bound to that port. Stop it or pass `--port <other-port>`.
+- **Embedding request errors (`fetch failed`, `404`, `401`)** — check `EMBEDDING_PROVIDER`/`EMBEDDING_BASE_URL`/`EMBEDDING_MODEL`/`EMBEDDING_API_KEY` and that the provider is actually running, has the model available, and its `/embeddings` endpoint is reachable from this machine (some providers restrict access by IP/network). Test directly with `curl` before assuming it's a **RAGBuddy** bug.
+- **`ragbuddy web` seems to exit immediately** — check for a clear `Port <n> is already in use` message; something else (often a previous, un-closed `ragbuddy web`) is already bound to that port. Stop it or pass `--port <other-port>`.
 - **A registered project's `paths` isn't `docs`** — `ingest`/`sync`/`get_project_document` all scope correctly to whatever `paths` you registered, not just `docs/`; double-check `config/projects.json` (or the project's detail page) if search results look empty.
-- **Auto-sync doesn't seem to run after a commit** — confirm the hook is installed (`hookInstalled: true` on the project's detail page, or `cat .git/hooks/post-commit` in that repo) and that `.env` has real, working values — the hook runs with the *target* repo as its working directory, and both `.env` and the project registry are resolved relative to **Code Context RAG**'s own install directory regardless, so this should work out of the box, but a broken `.env` will fail the same way.
+- **Auto-sync doesn't seem to run after a commit** — confirm the hook is installed (`hookInstalled: true` on the project's detail page, or `cat .git/hooks/post-commit` in that repo) and that `.env` has real, working values — the hook runs with the *target* repo as its working directory, and both `.env` and the project registry are resolved relative to **RAGBuddy**'s own install directory regardless, so this should work out of the box, but a broken `.env` will fail the same way.
 - More: [`docs/steering/setup.md`](docs/steering/setup.md).
 
 ## Rebuilding Qdrant from Git
@@ -344,7 +344,7 @@ Qdrant is only a cache — the complete index is always reconstructable from the
 ```bash
 docker compose down -v   # wipes the qdrant_storage volume
 docker compose up -d
-project-rag ingest <project-id>   # repeat for every registered project
+ragbuddy ingest <project-id>   # repeat for every registered project
 ```
 
 ## Documentation map
@@ -369,7 +369,7 @@ Frontend (`web/`, separate toolchain):
 ```bash
 cd web
 npm run dev         # Vite dev server with hot reload, proxies /api to localhost:4300
-npm run build       # compiles to web/dist, served by `project-rag web`
+npm run build       # compiles to web/dist, served by `ragbuddy web`
 npx oxlint src      # lint
 ```
 
