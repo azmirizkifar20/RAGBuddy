@@ -11,6 +11,10 @@ export interface AppConfig {
   projectRegistryPath: string;
   /** Writable state that is not configuration: sync history + uploaded documents. */
   dataDir: string;
+  /** Chat model id used by the per-project chat endpoint. */
+  chatModel: string;
+  /** Max chat messages kept verbatim; older ones are auto-summarized. */
+  chatContextLimit: number;
 }
 
 const DEFAULT_EMBEDDING_BASE_URL: Record<string, string> = {
@@ -41,6 +45,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     projectRegistryPath: path.resolve(__dirname, '../../', env.PROJECT_REGISTRY_PATH ?? './config/projects.json'),
     // Same cwd-independence rule as the registry path above.
     dataDir: path.resolve(__dirname, '../../', env.PROJECT_RAG_DATA_DIR ?? './data'),
+    chatModel: embeddingProvider === 'openai' ? (env.CHAT_MODEL ?? 'gpt-4o-mini') : (env.CHAT_MODEL ?? 'llama3'),
+    chatContextLimit: env.CHAT_CONTEXT_LIMIT ? (Number.isNaN(Number(env.CHAT_CONTEXT_LIMIT)) ? 10 : Number(env.CHAT_CONTEXT_LIMIT)) : 10,
   };
 }
 
