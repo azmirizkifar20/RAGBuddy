@@ -54,7 +54,8 @@ Dependency direction: CLI and MCP are the two entry points; both call into proje
 | Qdrant Repository | Project-filtered vector CRUD + search | `src/qdrant/qdrant-repository.ts` |
 | Retrieval | topK search with mandatory project filter | `src/retrieval/search.ts` |
 | Document Reader | Path-traversal-safe, configured-path-scoped file read for MCP | `src/mcp/document-reader.ts` |
-| MCP Tools | `search_project_docs`, `get_project_document`, `list_project_knowledge` | `src/mcp/tools/*` |
+| MCP Tools | `get_project_context`, `search_project_docs`, `get_project_document`, `list_project_knowledge` | `src/mcp/tools/*` |
+| Project Context Aggregator | Orientation-only context assembly: README/steering summaries + Git status + doc inventory, no vector search | `src/context/project-context.ts` |
 | Hook Installer | Marker-delimited `post-commit` hook install/uninstall, safe chaining | `src/git/hook-installer.ts` |
 
 ## Cross-Module Communication

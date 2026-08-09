@@ -3,7 +3,7 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-09
-**Recent**: The repository root README is now always indexed and readable, even outside a project's configured `paths` — see [02-ingestion-full-index.md §3](./02-ingestion-full-index.md#3-domain--data) and [05-mcp-server.md §5](./05-mcp-server.md#5-edge-cases--rules).
+**Recent**: Added the `get_project_context` MCP tool — a compact orientation overview (identity, Git status, tech-stack/architecture/system-flow summaries, documentation inventory) meant to run before deeper exploration with `search_project_docs` — see [05-mcp-server.md §2](./05-mcp-server.md#2-flow--behavior).
 
 ## Index
 

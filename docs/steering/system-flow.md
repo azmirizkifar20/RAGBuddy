@@ -5,7 +5,7 @@ How the application boots, initializes, and routes requests at runtime. This is 
 ## Bootstrap & Entry Points
 
 - **CLI entry**: `src/cli/index.ts` — parses `process.argv` via `src/cli/args.ts`, constructs shared deps (config, registry, Qdrant client, embedding provider), dispatches to the matched command
-- **MCP server entry**: `src/mcp/server.ts`'s `createMcpServer` — assembles an `McpServer` and registers all three tools; `src/cli/index.ts`'s `mcp` branch connects it over `StdioServerTransport`
+- **MCP server entry**: `src/mcp/server.ts`'s `createMcpServer` — assembles an `McpServer` and registers all four tools; `src/cli/index.ts`'s `mcp` branch connects it over `StdioServerTransport`
 - **Config load**: `src/config/config.ts`'s `loadConfig` — reads and validates required env vars, applies defaults
 
 ## Request Lifecycle — `sync` / `ingest`
@@ -24,10 +24,11 @@ How the application boots, initializes, and routes requests at runtime. This is 
 
 1. Agent (Claude Code / OpenCode / Codex) calls an MCP tool → `src/mcp/tools/*`
 2. Resolve project from cwd or explicit `project` param → `src/projects/project-resolver.ts` (`init.md` §15) — ambiguous or unresolvable cwd is a hard error, never a guess
-3. `search_project_docs`: embed the query, retrieval query enforces `project` filter before returning results → `src/retrieval/search.ts` + `src/qdrant/qdrant-repository.ts`'s `searchPoints`
-4. `get_project_document`: read the file directly off disk, rejecting path traversal AND anything outside the project's configured doc paths → `src/mcp/document-reader.ts`
-5. `list_project_knowledge`: list the files currently indexed in Qdrant for the project → `src/qdrant/qdrant-repository.ts`'s `getIndexedFileHashes`
-6. Response returned with file/section/score/content — no unnecessary absolute paths (`init.md` §5, §21)
+3. `get_project_context`: orientation-only, no vector search — direct-reads a handful of well-known docs (`README.md`, `docs/steering/*.md`) plus Git branch/commit/dirty state and a documentation inventory (`src/qdrant/qdrant-repository.ts`'s `getIndexedFiles`) → `src/context/project-context.ts`'s `buildProjectContext`; a Qdrant outage degrades the inventory to zero counts rather than failing the whole call
+4. `search_project_docs`: embed the query, retrieval query enforces `project` filter before returning results → `src/retrieval/search.ts` + `src/qdrant/qdrant-repository.ts`'s `searchPoints`
+5. `get_project_document`: read the file directly off disk, rejecting path traversal AND anything outside the project's configured doc paths → `src/mcp/document-reader.ts`
+6. `list_project_knowledge`: list the files currently indexed in Qdrant for the project → `src/qdrant/qdrant-repository.ts`'s `getIndexedFileHashes`
+7. Response returned with file/section/score/content — no unnecessary absolute paths (`init.md` §5, §21)
 
 ## Background / Scheduled Flows
 

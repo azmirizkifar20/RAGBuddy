@@ -8,7 +8,7 @@ A multi-project RAG (Retrieval-Augmented Generation) service that gives coding a
 
 - **CLI** — `project-rag ingest/sync/search/hook/project/mcp/web`
 - **Web dashboard** — register projects, browse indexed files, upload extra documents, search, run ingest/sync with a live log, review sync history, toggle auto-sync, and copy per-project MCP config, all from a browser
-- **MCP server** — a coding agent working in your repo can call `search_project_docs` to find the architecture doc, feature spec, or issue writeup relevant to what it's doing right now, instead of relying on whatever happened to fit in its context window
+- **MCP server** — a coding agent working in your repo can call `get_project_context` for a quick orientation, then `search_project_docs` to find the architecture doc, feature spec, or issue writeup relevant to what it's doing right now, instead of relying on whatever happened to fit in its context window
 
 ## Why it exists
 
@@ -32,7 +32,7 @@ flowchart TD
     CLI["CLI<br/>ingest / sync / search / hook / project / mcp / web"] --> CORE
     WEB["Web Dashboard<br/>React SPA, served by project-rag web"] -->|"REST API + SSE"| API["Express API<br/>src/server"]
     API --> CORE
-    MCPS["MCP Server<br/>search_project_docs, get_project_document, list_project_knowledge"] --> CORE
+    MCPS["MCP Server<br/>get_project_context, search_project_docs, get_project_document, list_project_knowledge"] --> CORE
 
     GIT["git commit<br/>post-commit hook"] -.->|"auto-sync"| CLI
 
@@ -274,11 +274,11 @@ Or add it directly to your Claude Code MCP config:
 }
 ```
 
-Claude Code will then have `search_project_docs`, `get_project_document`, and `list_project_knowledge` available. Project resolution is automatic from Claude Code's working directory — pass an explicit `project` argument only if you need to query a different project than the one you're standing in.
+Claude Code will then have `get_project_context`, `search_project_docs`, `get_project_document`, and `list_project_knowledge` available. Project resolution is automatic from Claude Code's working directory — pass an explicit `project` argument only if you need to query a different project than the one you're standing in.
 
 ## MCP setup for OpenCode
 
-Same server, same three tools — `project-rag` intentionally has one MCP implementation shared by every agent (`init.md` §28), not a separate integration per client. Add it to OpenCode's MCP server configuration the same way, pointing at the same `node .../dist/cli/index.js mcp` command as above:
+Same server, same four tools — `project-rag` intentionally has one MCP implementation shared by every agent (`init.md` §28), not a separate integration per client. Add it to OpenCode's MCP server configuration the same way, pointing at the same `node .../dist/cli/index.js mcp` command as above:
 
 ```json
 {

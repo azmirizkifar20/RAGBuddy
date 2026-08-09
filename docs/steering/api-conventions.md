@@ -5,12 +5,13 @@
 ## MCP Tool Conventions (`src/mcp/tools/`)
 
 - Every tool's `inputSchema` is a real Zod shape — the MCP SDK validates parameters before the handler runs (`init.md` §21.10)
+- `get_project_context`: accepts `{ project? }` — returns identity, Git branch/commit/dirty state, README/steering-doc summaries (fixed well-known paths, truncated to ~800 chars each), and a documentation inventory; missing docs and an unavailable Qdrant/Git are omitted or flagged, never a thrown error — orientation only, never a substitute for `search_project_docs`
 - `search_project_docs`: accepts `{ query, project? }` — if `project` is omitted, resolved from the caller's cwd against the registry via `src/projects/project-resolver.ts`; ambiguous/unresolvable cwd → explicit error, never a guess (`init.md` §15)
 - `get_project_document`: accepts `{ file, project? }` — rejects path traversal (`../`) AND any path outside the project's configured `paths` (not just outside the repo — this is stricter than `init.md`'s literal wording, since a direct file read bypasses the ingestion scanner's own exclusion rules) (`init.md` §14, §21.3)
 - `list_project_knowledge`: returns the indexed document list (from Qdrant's stored payloads) for the resolved project only
 - Every tool wraps its handler in try/catch, returning `{ content: [...], isError: true }` on failure (`src/mcp/tool-result.ts`'s `toolError`) rather than throwing — a caught, protocol-valid error result, not a transport-level exception
 - Result shape for search: `{ file, section, score, content }` — concise, one bounded chunk per result, never a full document (`init.md` §14)
-- Do not expose unnecessary absolute filesystem paths in any MCP response (`init.md` §5, §21.9) — confirmed: none of the three tools' response shapes include `absolute_path`
+- Do not expose unnecessary absolute filesystem paths in any MCP response (`init.md` §5, §21.9) — confirmed: none of the four tools' response shapes include `absolute_path`; `get_project_context` reports `repository.name` (basename only), never the resolved absolute repository path
 
 ## Error Handling
 

@@ -6,6 +6,7 @@ import type { SearchResult } from '../retrieval/search';
 import { registerSearchProjectDocsTool } from './tools/search-project-docs';
 import { registerGetProjectDocumentTool } from './tools/get-project-document';
 import { registerListProjectKnowledgeTool } from './tools/list-project-knowledge';
+import { registerGetProjectContextTool } from './tools/get-project-context';
 
 export interface CreateMcpServerDeps {
   registry: ProjectRegistry;
@@ -21,6 +22,12 @@ export function createMcpServer(deps: CreateMcpServerDeps): McpServer {
   const cwd = deps.cwd ?? (() => process.cwd());
   const server = new McpServer({ name: 'project-rag', version: '0.1.0' });
 
+  registerGetProjectContextTool(server, {
+    registry: deps.registry,
+    qdrantClient: deps.qdrantClient,
+    qdrantCollection: deps.qdrantCollection,
+    cwd,
+  });
   registerSearchProjectDocsTool(server, { registry: deps.registry, search: deps.search, cwd });
   registerGetProjectDocumentTool(server, { registry: deps.registry, cwd, dataDir: deps.dataDir });
   registerListProjectKnowledgeTool(server, {

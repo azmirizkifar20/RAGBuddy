@@ -21,6 +21,7 @@
 
 | Tool | Purpose | Handler |
 |------|---------|---------|
+| `get_project_context` | Compact orientation overview (identity, Git status, tech-stack/architecture/system-flow summaries, doc inventory) — meant to run before deeper exploration | `src/mcp/tools/get-project-context.ts` |
 | `search_project_docs` | Semantic search over a project's indexed docs, filtered by `project` | `src/mcp/tools/search-project-docs.ts` |
 | `get_project_document` | Return a specific document's content, path-traversal-safe and scoped to the project's configured doc paths | `src/mcp/tools/get-project-document.ts` |
 | `list_project_knowledge` | List indexed documents for the current/target project | `src/mcp/tools/list-project-knowledge.ts` |
