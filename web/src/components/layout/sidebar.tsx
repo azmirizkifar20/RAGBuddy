@@ -46,7 +46,7 @@ export function Sidebar({
       >
         <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4">
           <span className="size-2 rounded-full bg-brand" />
-          <p className="flex-1 font-heading text-sm font-semibold">project-rag</p>
+          <p className="flex-1 font-heading text-sm font-semibold">Code Context RAG</p>
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={onClose} aria-label="Close menu">
             <XIcon className="size-4" />
           </Button>

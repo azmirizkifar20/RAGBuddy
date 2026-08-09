@@ -1,5 +1,5 @@
 {
-  "name": "project-rag",
+  "name": "code-context-rag",
   "version": "0.1.0",
   "private": true,
   "description": "Multi-project RAG + MCP server for coding agents",

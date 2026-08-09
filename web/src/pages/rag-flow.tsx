@@ -66,7 +66,7 @@ const RETRIEVAL: FlowStage[] = [
     title: 'MCP server',
     caption: 'one per agent',
     detail:
-      'A single stdio MCP server exposes three tools to every agent: search_project_docs, get_project_document and list_project_knowledge. Same server, same behaviour, whichever agent connects.',
+      'A single stdio MCP server exposes four tools to every agent: get_project_context, search_project_docs, get_project_document and list_project_knowledge. Same server, same behaviour, whichever agent connects.',
     source: 'src/mcp/server.ts',
   },
   {

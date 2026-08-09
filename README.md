@@ -1,10 +1,10 @@
-# project-rag
+# Code Context RAG
 
 A multi-project RAG (Retrieval-Augmented Generation) service that gives coding agents — **Claude Code**, **OpenCode**, **Codex**, or any other MCP-compatible agent — semantic search over your projects' documentation. Comes with a **CLI**, a **web dashboard**, and an **MCP server**, all sharing the exact same underlying code.
 
 ## What it is
 
-`project-rag` indexes the `docs/` folder (configurable) of one or more registered Git repositories into [Qdrant](https://qdrant.tech), a vector database, and exposes that index three ways:
+**Code Context RAG** indexes the `docs/` folder (configurable) of one or more registered Git repositories into [Qdrant](https://qdrant.tech), a vector database, and exposes that index three ways:
 
 - **CLI** — `project-rag ingest/sync/search/hook/project/mcp/web`
 - **Web dashboard** — register projects, browse indexed files, upload extra documents, search, run ingest/sync with a live log, review sync history, toggle auto-sync, and copy per-project MCP config, all from a browser
@@ -12,7 +12,7 @@ A multi-project RAG (Retrieval-Augmented Generation) service that gives coding a
 
 ## Why it exists
 
-Coding agents work best when they can find the *right* project documentation without a human pasting it in. `project-rag` treats each registered repository's Git history as the single source of truth: the vector index in Qdrant is just a cache. If Qdrant is wiped, `project-rag ingest <project>` rebuilds the complete index from the files on disk — nothing is ever stored only in the vector database.
+Coding agents work best when they can find the *right* project documentation without a human pasting it in. **Code Context RAG** treats each registered repository's Git history as the single source of truth: the vector index in Qdrant is just a cache. If Qdrant is wiped, `project-rag ingest <project>` rebuilds the complete index from the files on disk — nothing is ever stored only in the vector database.
 
 ## Architecture
 
@@ -41,7 +41,11 @@ flowchart TD
     CX["Codex"] --> MCPS
 ```
 
-Every project registered with `project-rag` is isolated by a `project` field in Qdrant's payload metadata — a search against one project can never return another project's documents, enforced at the retrieval layer itself, not left to the LLM.
+Every project registered with **Code Context RAG** is isolated by a `project` field in Qdrant's payload metadata — a search against one project can never return another project's documents, enforced at the retrieval layer itself, not left to the LLM.
+
+A more detailed visual walkthrough — MCP tools, project resolution, the ingestion pipeline, and how agents are meant to use each tool:
+
+![Code Context RAG architecture and MCP tool flow](images/how-it-works.png)
 
 Full details: [`docs/steering/architecture.md`](docs/steering/architecture.md) (layers & components), [`docs/steering/system-flow.md`](docs/steering/system-flow.md) (request lifecycles), [`docs/features/`](docs/features/README.md) (what each feature does, traced to real code).
 
@@ -70,17 +74,17 @@ cd ..
 
 ## Qdrant setup
 
-`project-rag` needs a running Qdrant instance. The included `docker-compose.yml` starts one on `localhost:6333`:
+**Code Context RAG** needs a running Qdrant instance. The included `docker-compose.yml` starts one on `localhost:6333`:
 
 ```bash
 docker compose up -d
 ```
 
-`project-rag`'s Node.js process itself runs directly on the host (not containerized) — it needs filesystem access to every registered Git repository, which is simplest to guarantee by not putting it in a container. A future production deployment could containerize it too, by mounting each registered project's directory into the container.
+**Code Context RAG**'s Node.js process itself runs directly on the host (not containerized) — it needs filesystem access to every registered Git repository, which is simplest to guarantee by not putting it in a container. A future production deployment could containerize it too, by mounting each registered project's directory into the container.
 
 ## Embedding configuration
 
-`project-rag` is embedding-provider-agnostic via a small `EmbeddingProvider` interface (`src/embedding/embedding-provider.ts`). Two providers ship today:
+**Code Context RAG** is embedding-provider-agnostic via a small `EmbeddingProvider` interface (`src/embedding/embedding-provider.ts`). Two providers ship today:
 
 **Local (Ollama)** — no data leaves your machine:
 
@@ -103,9 +107,9 @@ EMBEDDING_API_KEY=sk-...
 
 `EMBEDDING_BASE_URL` works with any such endpoint — omit `EMBEDDING_API_KEY` if it doesn't require one. Not every "OpenAI-compatible" API actually implements `/embeddings` (some chat-completion proxies only implement `/chat/completions`) — verify the endpoint responds to a plain `curl` before wiring it in here.
 
-`project-rag` never assumes you want documentation sent to a cloud provider — Ollama is the default in `.env.example`.
+**Code Context RAG** never assumes you want documentation sent to a cloud provider — Ollama is the default in `.env.example`.
 
-`.env` is loaded automatically (via `dotenv`, resolved against `project-rag`'s own install directory, not whatever directory happens to invoke the CLI — this matters because the git hook below invokes the CLI with its `cwd` set to the *target* repository, not this one).
+`.env` is loaded automatically (via `dotenv`, resolved against **Code Context RAG**'s own install directory, not whatever directory happens to invoke the CLI — this matters because the git hook below invokes the CLI with its `cwd` set to the *target* repository, not this one).
 
 ## Two ways to manage projects: Web or CLI
 
@@ -142,7 +146,7 @@ Some knowledge doesn't belong in the repository — a meeting note, a vendor's A
 - **PDF, Word (.docx), Excel (.xlsx/.xlsm), Markdown, CSV, and plain text** (.txt, .log, .json, .yaml, .rst, .adoc, .tsv) are supported, up to ~20MB per file
 - Text is extracted server-side and shaped into Markdown, so a PDF is split by page, a Word file by its own headings, and a spreadsheet by sheet — search results cite `Page 3` or the sheet name rather than just the filename
 - Legacy `.doc`/`.xls` and PowerPoint are rejected with a hint (save as `.docx`/`.xlsx`, or export slides to PDF); a scanned PDF with no text layer is rejected with a request to OCR it first
-- Files are stored in project-rag's own data directory (`PROJECT_RAG_DATA_DIR`, default `./data`) — **nothing is written into your Git repository**
+- Files are stored in Code Context RAG's own data directory (`PROJECT_RAG_DATA_DIR`, default `./data`) — **nothing is written into your Git repository**
 - The original file is kept, not just the extracted text, and they become searchable through the same MCP tools, addressed as `uploads/<filename>`
 - A `sync` never reports them as deleted, and a full `ingest` never wipes them — repository documents and uploads are tracked separately in Qdrant
 - Re-uploading the same filename replaces it; deleting removes both the file and its vectors
@@ -278,7 +282,7 @@ Claude Code will then have `get_project_context`, `search_project_docs`, `get_pr
 
 ## MCP setup for OpenCode
 
-Same server, same four tools — `project-rag` intentionally has one MCP implementation shared by every agent (`init.md` §28), not a separate integration per client. Add it to OpenCode's MCP server configuration the same way, pointing at the same `node .../dist/cli/index.js mcp` command as above:
+Same server, same four tools — **Code Context RAG** intentionally has one MCP implementation shared by every agent (`init.md` §28), not a separate integration per client. Add it to OpenCode's MCP server configuration the same way, pointing at the same `node .../dist/cli/index.js mcp` command as above:
 
 ```json
 {
@@ -310,10 +314,10 @@ No `env` block is needed for any of these three: the server reads `.env` from it
 - **`[project-rag] Error: Project "<id>" is not registered`** — the project id doesn't exist in the registry at `PROJECT_REGISTRY_PATH`. Check via `project-rag project list` or the web dashboard.
 - **`Repository is not accessible or not a Git repository`** — the registered `repository` path moved, was deleted, or its `.git` folder is missing. `ingest`/`sync` refuse to run rather than silently treating "no files found" as "everything was deleted."
 - **`Failed to obtain server version. Unable to check client-server compatibility.`** — Qdrant isn't reachable at `QDRANT_URL`. Check `docker compose ps` / `docker compose up -d`. This warning is otherwise harmless.
-- **Embedding request errors (`fetch failed`, `404`, `401`)** — check `EMBEDDING_PROVIDER`/`EMBEDDING_BASE_URL`/`EMBEDDING_MODEL`/`EMBEDDING_API_KEY` and that the provider is actually running, has the model available, and its `/embeddings` endpoint is reachable from this machine (some providers restrict access by IP/network). Test directly with `curl` before assuming it's a `project-rag` bug.
+- **Embedding request errors (`fetch failed`, `404`, `401`)** — check `EMBEDDING_PROVIDER`/`EMBEDDING_BASE_URL`/`EMBEDDING_MODEL`/`EMBEDDING_API_KEY` and that the provider is actually running, has the model available, and its `/embeddings` endpoint is reachable from this machine (some providers restrict access by IP/network). Test directly with `curl` before assuming it's a **Code Context RAG** bug.
 - **`project-rag web` seems to exit immediately** — check for a clear `Port <n> is already in use` message; something else (often a previous, un-closed `project-rag web`) is already bound to that port. Stop it or pass `--port <other-port>`.
 - **A registered project's `paths` isn't `docs`** — `ingest`/`sync`/`get_project_document` all scope correctly to whatever `paths` you registered, not just `docs/`; double-check `config/projects.json` (or the project's detail page) if search results look empty.
-- **Auto-sync doesn't seem to run after a commit** — confirm the hook is installed (`hookInstalled: true` on the project's detail page, or `cat .git/hooks/post-commit` in that repo) and that `.env` has real, working values — the hook runs with the *target* repo as its working directory, and both `.env` and the project registry are resolved relative to `project-rag`'s own install directory regardless, so this should work out of the box, but a broken `.env` will fail the same way.
+- **Auto-sync doesn't seem to run after a commit** — confirm the hook is installed (`hookInstalled: true` on the project's detail page, or `cat .git/hooks/post-commit` in that repo) and that `.env` has real, working values — the hook runs with the *target* repo as its working directory, and both `.env` and the project registry are resolved relative to **Code Context RAG**'s own install directory regardless, so this should work out of the box, but a broken `.env` will fail the same way.
 - More: [`docs/steering/setup.md`](docs/steering/setup.md).
 
 ## Rebuilding Qdrant from Git

@@ -12,6 +12,11 @@ function jsonPath(value: string): string {
 
 const TOOLS = [
   {
+    name: 'get_project_context',
+    description:
+      'Compact orientation overview — identity, Git status, tech-stack/architecture summaries, and a documentation inventory. Meant to run before deeper exploration.',
+  },
+  {
     name: 'search_project_docs',
     description: 'Semantic search across this project’s indexed docs. The tool an agent reaches for first.',
   },
@@ -108,7 +113,7 @@ args = ["${entry}", "mcp"]`
             <Step index={3} title="Verify it connected">
               <p className="text-sm text-muted-foreground">
                 Run <code className="font-mono">/mcp</code> inside Claude Code —{' '}
-                <code className="font-mono">project-rag</code> should be listed with three tools.
+                <code className="font-mono">project-rag</code> should be listed with four tools.
               </p>
             </Step>
           </TabsContent>
@@ -119,7 +124,7 @@ args = ["${entry}", "mcp"]`
             </Step>
             <Step index={2} title="Restart OpenCode">
               <p className="text-sm text-muted-foreground">
-                The three tools become available under the <code className="font-mono">project-rag</code> server.
+                The four tools become available under the <code className="font-mono">project-rag</code> server.
               </p>
             </Step>
           </TabsContent>
