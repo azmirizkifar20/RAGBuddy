@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { toast } from 'sonner'
-import { Paperclip, Pencil, Plus, Send, Square, Trash2, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { FileText, Paperclip, Pencil, Plus, Send, Square, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -21,6 +20,7 @@ interface StoredMsg {
   sources?: ChatSource[]
   images?: string[]
   attachments?: { name: string; text: string }[]
+  error?: boolean
 }
 
 interface ChatSession {
@@ -108,19 +108,74 @@ function ThinkingDots() {
   )
 }
 
+interface GroupedSource {
+  file: string
+  sections: string[]
+  maxScore: number
+}
+
+function groupSources(sources: ChatSource[]): GroupedSource[] {
+  const byFile = new Map<string, GroupedSource>()
+  for (const s of sources) {
+    const existing = byFile.get(s.file)
+    if (existing) {
+      if (s.section && !existing.sections.includes(s.section)) existing.sections.push(s.section)
+      existing.maxScore = Math.max(existing.maxScore, s.score)
+    } else {
+      byFile.set(s.file, {
+        file: s.file,
+        sections: s.section ? [s.section] : [],
+        maxScore: s.score,
+      })
+    }
+  }
+  return [...byFile.values()]
+}
+
 function SourcesList({ sources }: { sources: ChatSource[] }) {
+  const grouped = useMemo(() => groupSources(sources), [sources])
+  if (grouped.length === 0) return null
+
   return (
-    <div className="mt-2 flex flex-wrap gap-1.5 border-t border-border/60 pt-2">
-      {sources.map((s, i) => (
-        <button
-          key={i}
-          type="button"
-          title={`${s.file}${s.section ? ` — ${s.section}` : ''}`}
-          className="rounded bg-muted-foreground/10 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground hover:bg-muted-foreground/20 hover:text-foreground"
-        >
-          {s.file} ({s.score.toFixed(2)})
-        </button>
-      ))}
+    <div className="mt-3 border-t border-border/60 pt-3">
+      <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <FileText className="h-3.5 w-3.5" />
+        Related Documents
+        <span className="rounded-full bg-muted-foreground/10 px-1.5 py-px font-mono text-[10px] text-muted-foreground">
+          {grouped.length}
+        </span>
+      </div>
+      <ul className="flex flex-col gap-1.5">
+        {grouped.map((g) => (
+          <li
+            key={g.file}
+            title={g.sections.length ? g.sections.join(' — ') : g.file}
+            className="flex items-start gap-2 rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5 transition-colors hover:border-border hover:bg-muted/50"
+          >
+            <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="truncate font-mono text-[11px] text-foreground/90">{g.file}</span>
+                <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                  {Math.round(g.maxScore * 100)}% match
+                </span>
+              </div>
+              {g.sections.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {g.sections.map((sec) => (
+                    <span
+                      key={sec}
+                      className="rounded bg-muted-foreground/10 px-1.5 py-px text-[10px] text-muted-foreground"
+                    >
+                      {sec}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -170,12 +225,26 @@ export function ProjectChat() {
 
   const activeSession = sessions.find((s) => s.id === activeId)
 
-  function finalize(keepAssistant: boolean) {
+  function finalize(errMsg?: string) {
     // Read refs into locals BEFORE the setSessions updater runs (React defers
     // updater execution until render, by which point the refs are reset below).
     const text = streamTextRef.current
     const sources = streamSourcesRef.current
-    if (keepAssistant) {
+    if (errMsg) {
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === activeId
+            ? {
+                ...s,
+                messages: [
+                  ...s.messages,
+                  { role: 'assistant' as const, content: errMsg, error: true },
+                ],
+              }
+            : s,
+        ),
+      )
+    } else if (text) {
       setSessions((prev) =>
         prev.map((s) =>
           s.id === activeId
@@ -261,16 +330,14 @@ export function ProjectChat() {
           streamSourcesRef.current = src
         },
         onError: (msg) => {
-          toast.error(msg)
-          finalize(false)
+          finalize(msg)
         },
-        onDone: () => finalize(true),
+        onDone: () => finalize(),
       },
       controller.signal,
     ).catch((err) => {
       if (!controller.signal.aborted) {
-        toast.error(err instanceof Error ? err.message : String(err))
-        finalize(false)
+        finalize(err instanceof Error ? err.message : String(err))
       }
     })
   }
@@ -476,14 +543,22 @@ export function ProjectChat() {
                   <div
                     className={cn(
                       'max-w-[80%] rounded-lg px-3 py-2',
-                      msg.role === 'user'
-                        ? 'bg-brand text-brand-foreground'
-                        : 'bg-muted text-foreground',
+                      msg.error
+                        ? 'border border-destructive/40 bg-destructive/10 text-destructive'
+                        : msg.role === 'user'
+                          ? 'bg-brand text-brand-foreground'
+                          : 'bg-muted text-foreground',
                     )}
                   >
                     {msg.role === 'user' && renderUserExtras(msg)}
                     {msg.role === 'assistant' ? (
-                      <FormattedChatMessage text={msg.content} />
+                      msg.error ? (
+                        <p className="whitespace-pre-wrap text-sm">
+                          <span className="font-medium">Error:</span> {msg.content}
+                        </p>
+                      ) : (
+                        <FormattedChatMessage text={msg.content} />
+                      )
                     ) : (
                       <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
                     )}
