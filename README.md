@@ -7,7 +7,7 @@ A multi-project RAG (Retrieval-Augmented Generation) service that gives coding a
 **RAGBuddy** indexes the `docs/` folder (configurable) of one or more registered Git repositories into [Qdrant](https://qdrant.tech), a vector database, and exposes that index three ways:
 
 - **CLI** — `ragbuddy ingest/sync/search/hook/project/mcp/web`
-- **Web dashboard** — register projects, browse indexed files, upload extra documents, search, run ingest/sync with a live log, review sync history, toggle auto-sync, and copy per-project MCP config, all from a browser
+- **Web dashboard** — register projects, browse indexed files, upload extra documents, search, chat with a project's indexed docs, run ingest/sync with a live log, review sync history, toggle auto-sync, and copy per-project MCP config, all from a browser
 - **MCP server** — a coding agent working in your repo can call `get_project_context` for a quick orientation, then `search_project_docs` to find the architecture doc, feature spec, or issue writeup relevant to what it's doing right now, instead of relying on whatever happened to fit in its context window
 
 ## Why it exists
@@ -16,30 +16,7 @@ Coding agents work best when they can find the *right* project documentation wit
 
 ## Architecture
 
-```mermaid
-flowchart TD
-    subgraph CORE["Shared core (never duplicated per entry point)"]
-        REG["Project Registry<br/>config/projects.json"]
-        ING["Ingestion<br/>scanner to hasher to chunker"]
-        EMB["Embedding Provider<br/>Ollama or OpenAI-compatible"]
-        RET["Retrieval<br/>project-filtered similarity search"]
-        REG --> ING --> EMB
-    end
-
-    QD[("Qdrant<br/>ragbuddy_documents<br/>filtered by project id")]
-    EMB --> QD --> RET
-
-    CLI["CLI<br/>ingest / sync / search / hook / project / mcp / web"] --> CORE
-    WEB["Web Dashboard<br/>React SPA, served by ragbuddy web"] -->|"REST API + SSE"| API["Express API<br/>src/server"]
-    API --> CORE
-    MCPS["MCP Server<br/>get_project_context, search_project_docs, get_project_document, list_project_knowledge"] --> CORE
-
-    GIT["git commit<br/>post-commit hook"] -.->|"auto-sync"| CLI
-
-    CC["Claude Code"] --> MCPS
-    OC["OpenCode"] --> MCPS
-    CX["Codex"] --> MCPS
-```
+![RAGBuddy system architecture](images/system-architecture.png)
 
 Every project registered with **RAGBuddy** is isolated by a `project` field in Qdrant's payload metadata — a search against one project can never return another project's documents, enforced at the retrieval layer itself, not left to the LLM.
 
@@ -126,6 +103,7 @@ Open `http://localhost:4300`. The dashboard has a sidebar with these pages:
 | Page | What it does |
 |------|--------------|
 | **Dashboard** | Totals across every project, project cards, and a live feed of recent ingest/sync/upload runs |
+| **AI Chat** | Top-level page (`/chat`), not nested under a project. Pick a project first, then chat with its indexed docs — streaming replies, an optional RAG toggle, drag-and-drop file/image attachments, and multiple named sessions kept in the browser |
 | **Projects** | Filterable list of every registered repository. `+ Add project` registers a new one — project ID, absolute repo path (**Browse** opens a folder picker over the server's filesystem, so you never have to type or copy-paste it), optional display name, optional comma-separated doc paths (defaults to `docs`) |
 | **Project → Overview** | Stats, the ingest/sync console with a live streaming log, the auto-sync toggle, and the indexed paths |
 | **Project → Documents** | Browse every indexed file (filter by repository vs uploaded), and **upload your own** PDF / Word / Excel / Markdown / CSV / text documents by drag-and-drop |
@@ -134,6 +112,18 @@ Open `http://localhost:4300`. The dashboard has a sidebar with these pages:
 | **Project → MCP setup** | Copy-pasteable MCP config for Claude Code, OpenCode and Codex, with your machine's real resolved paths already filled in |
 | **How RAG works** | Three interactive diagrams — indexing pipeline, retrieval pipeline, auto-sync loop — each step linked to the file that implements it |
 | **Settings** | Read-only view of the running configuration (Qdrant, embedding model, resolved paths) |
+
+**Project → Overview** — stats, the ingest/sync console, and the auto-sync toggle:
+
+![Project overview](images/detail-project-overview.png)
+
+**Project → Documents** — every indexed file, filterable by repository vs uploaded:
+
+![Project documents](images/detail-project-document.png)
+
+**Project → Search** — the same retrieval path an agent hits over MCP:
+
+![Project search](images/detail-project-search.png)
 
 Removing a project unregisters it only — it never touches Qdrant vectors or the Git repository itself.
 
@@ -164,6 +154,19 @@ ragbuddy project remove <id>
 (The registry is a plain JSON file at `PROJECT_REGISTRY_PATH`, default `./config/projects.json`, shape shown in `config/projects.example.json` — editing it directly still works too, if you'd rather script it.)
 
 Full details: [`docs/features/07-web-frontend-and-project-cli.md`](docs/features/07-web-frontend-and-project-cli.md) and [`docs/features/08-dashboard-redesign-uploads-and-history.md`](docs/features/08-dashboard-redesign-uploads-and-history.md).
+
+## Chatting with a project
+
+**AI Chat** lives at its own top-level page (`/chat`), not nested under a project's detail tabs — but every chat is still scoped to one project: pick a project first (`/chat`), then ask questions grounded in that project's indexed documents (`/chat/:projectId`).
+
+![AI Chat](images/ai-chat.png)
+
+- Replies stream token-by-token over SSE, with a **Use RAG** toggle controlling whether the last message is routed through retrieval and injected as context
+- Keep any number of named sessions per project; nothing is stored on the server — every session lives in the browser's `localStorage`, so it survives reloads
+- Attach images and text-like files by picking or dragging them onto the conversation — multiple files at once, mixing images and documents, is fine
+- A Stop button aborts a reply mid-stream
+
+Details: [`docs/features/09-project-chat.md`](docs/features/09-project-chat.md).
 
 ## Initial ingestion
 
