@@ -10,9 +10,18 @@ export interface EmbeddingConfig {
   apiKey?: string;
 }
 
-// ponytail: fixed concurrency/timeout, make configurable via EmbeddingConfig if a real workload needs tuning
-export const EMBEDDING_CONCURRENCY = 5;
+// ponytail: fixed concurrency/timeout, make configurable via EmbeddingConfig if a real workload needs tuning.
+// Concurrency lowered from 5: a local Ollama instance serving 5 parallel /api/embeddings
+// calls for a heavier model (e.g. bge-m3) has been observed to run out of resources and
+// return 500s mid-batch — 2 is gentler on a single local server.
+export const EMBEDDING_CONCURRENCY = 2;
 export const EMBEDDING_TIMEOUT_MS = 30_000;
+const OLLAMA_MAX_RETRIES = 2;
+const OLLAMA_RETRY_BASE_DELAY_MS = 500;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function mapWithConcurrency<T, R>(
   items: T[],
@@ -43,12 +52,19 @@ class OllamaEmbeddingProvider implements EmbeddingProvider {
   }
 
   private async embedOne(text: string): Promise<number[]> {
-    const res = await fetch(`${this.config.baseUrl}/api/embeddings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: this.config.model, prompt: text }),
-      signal: AbortSignal.timeout(EMBEDDING_TIMEOUT_MS),
-    });
+    let res: Response;
+    for (let attempt = 0; ; attempt++) {
+      res = await fetch(`${this.config.baseUrl}/api/embeddings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: this.config.model, prompt: text }),
+        signal: AbortSignal.timeout(EMBEDDING_TIMEOUT_MS),
+      });
+      // Only retry 5xx — a genuinely transient server-side failure (Ollama running low on
+      // resources under load). A 4xx means the request itself is wrong; retrying won't help.
+      if (res.ok || res.status < 500 || attempt >= OLLAMA_MAX_RETRIES) break;
+      await sleep(OLLAMA_RETRY_BASE_DELAY_MS * 2 ** attempt);
+    }
     if (!res.ok) {
       throw new Error(`Ollama embedding request failed: ${res.status} ${res.statusText}`);
     }

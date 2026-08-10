@@ -8,7 +8,7 @@ Issue documentation follows the format: `YYYY-MM-DD_issue-name.md`
 
 ## Index
 
-No issues logged yet — the project has no implemented code to report bugs against.
+- [2026-08-10_ollama-embedding-500.md](./2026-08-10_ollama-embedding-500.md) — Ollama `/api/embeddings` returning `500` under concurrent load; fixed with lower concurrency + retry-with-backoff.
 
 ---
 

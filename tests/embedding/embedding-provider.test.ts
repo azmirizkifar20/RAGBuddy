@@ -56,11 +56,12 @@ describe('createEmbeddingProvider', () => {
     expect(result).toEqual([[1, 2], [3, 4]]);
   });
 
-  it('throws a descriptive error when the embedding request fails', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({ ok: false, status: 500, statusText: 'Internal Server Error' }),
-    );
+  it('throws a descriptive error when the embedding request fails after exhausting retries', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 500, statusText: 'Internal Server Error' });
+    vi.stubGlobal('fetch', fetchMock);
 
     const provider = createEmbeddingProvider({
       provider: 'ollama',
@@ -68,7 +69,49 @@ describe('createEmbeddingProvider', () => {
       model: 'bge-m3',
     });
 
-    await expect(provider.embedQuery('hello')).rejects.toThrow('500');
+    const pending = expect(provider.embedQuery('hello')).rejects.toThrow('500');
+    await vi.runAllTimersAsync();
+    await pending;
+    // 1 initial attempt + 2 retries.
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    vi.useRealTimers();
+  });
+
+  it('does not retry a 4xx (client/validation) failure', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 400, statusText: 'Bad Request' });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const provider = createEmbeddingProvider({
+      provider: 'ollama',
+      baseUrl: 'http://localhost:11434',
+      model: 'bge-m3',
+    });
+
+    await expect(provider.embedQuery('hello')).rejects.toThrow('400');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('recovers from a transient 500 on retry', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 500, statusText: 'Internal Server Error' })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ embedding: [0.1, 0.2] }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const provider = createEmbeddingProvider({
+      provider: 'ollama',
+      baseUrl: 'http://localhost:11434',
+      model: 'bge-m3',
+    });
+
+    const pending = provider.embedQuery('hello');
+    await vi.runAllTimersAsync();
+    await expect(pending).resolves.toEqual([0.1, 0.2]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
   });
 
   it('passes an AbortSignal timeout to fetch', async () => {
