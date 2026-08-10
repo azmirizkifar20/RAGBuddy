@@ -190,6 +190,25 @@ describe('POST /api/projects/:id/chat', () => {
     expect(systemContext.content).toContain('the secret');
   });
 
+  it('surfaces a ragError on the sources event when retrieval throws (e.g. embedding dimension mismatch), and still answers', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(ollamaStreamBody(['answered without context']), { status: 200, headers: { 'Content-Type': 'application/x-ndjson' } }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const qdrantClient = { query: vi.fn().mockRejectedValue(new Error('Bad Request')) };
+    const embeddingProvider = { embedQuery: vi.fn().mockResolvedValue([0.1, 0.2]), embedDocuments: vi.fn() };
+    const app = createApp(chatDeps({ qdrantClient, embeddingProvider }));
+
+    const res = await request(app).post('/api/projects/sample/chat').send({
+      messages: [{ role: 'user', content: 'what is the secret?' }],
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('event: sources\ndata: {"sources":[],"ragError":"Bad Request"}');
+    expect(res.text).toContain('event: token\ndata: {"text":"answered without context"}');
+    expect(res.text).toContain('event: done');
+  });
+
   it('auto-summarizes older messages when they exceed chatContextLimit', async () => {
     const fetchMock = summarizeThenStreamMock();
     vi.stubGlobal('fetch', fetchMock);
@@ -219,5 +238,68 @@ describe('POST /api/projects/:id/chat', () => {
     );
     expect(summaryMsg).toBeDefined();
     expect(summaryMsg.content).toContain('summarized context');
+  });
+});
+
+describe('POST /api/projects/:id/chat/title', () => {
+  it('returns 404 for an unregistered project', async () => {
+    const app = createApp(chatDeps({ registry: { list: vi.fn(), find: vi.fn().mockReturnValue(undefined) } }));
+
+    const res = await request(app).post('/api/projects/missing/chat/title').send({ userMessage: 'hi', assistantMessage: 'hello' });
+
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 400 when userMessage or assistantMessage is missing', async () => {
+    const app = createApp(chatDeps());
+
+    const res = await request(app).post('/api/projects/sample/chat/title').send({ userMessage: 'hi' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('generates a trimmed, unquoted title from a non-streaming completion', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ message: { content: '"Debugging the Auto-Sync Hook"' } }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const app = createApp(chatDeps());
+
+    const res = await request(app)
+      .post('/api/projects/sample/chat/title')
+      .send({ userMessage: 'why does auto-sync fail', assistantMessage: 'because the hook was not installed' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.title).toBe('Debugging the Auto-Sync Hook');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://localhost:11434/api/chat');
+    expect(JSON.parse(init.body).stream).toBe(false);
+  });
+
+  it('strips markdown emphasis/code markers the model adds despite being told not to', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: { content: '***Setup Ollama untuk AI Embedding***' } }), { status: 200 })),
+    );
+    const app = createApp(chatDeps());
+
+    const res = await request(app)
+      .post('/api/projects/sample/chat/title')
+      .send({ userMessage: 'how do I set up ollama', assistantMessage: 'pull the model then point EMBEDDING_BASE_URL at it' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.title).toBe('Setup Ollama untuk AI Embedding');
+  });
+
+  it('returns 500 when the upstream request fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('boom')));
+    const app = createApp(chatDeps());
+
+    const res = await request(app)
+      .post('/api/projects/sample/chat/title')
+      .send({ userMessage: 'hi', assistantMessage: 'hello' });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toContain('boom');
   });
 });

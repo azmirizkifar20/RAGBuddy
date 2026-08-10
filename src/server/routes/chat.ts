@@ -31,8 +31,11 @@ interface Source {
 }
 
 const RAG_SYSTEM_PROMPT =
-  'You are a helpful assistant. Answer the user using the provided project documents as context. ' +
-  'If the answer is not in the documents, say so clearly instead of guessing. ' +
+  'You are a helpful assistant. Project documents may be attached as extra context below — treat them as a ' +
+  'supplementary reference, not the only source you are allowed to answer from. Prefer them when they are ' +
+  "relevant, but if they don't cover the question, answer normally using your own general knowledge instead of " +
+  "refusing or saying the information isn't available. Only say you don't know when you genuinely have no " +
+  'answer to give, with or without the documents. ' +
   // Unquoted Mermaid labels break the parser the moment they contain punctuation,
   // numbering or brackets — quoting every label is the one rule that avoids
   // almost all of it, and the dashboard renders these diagrams inline.
@@ -71,28 +74,60 @@ function toProviderMessages(
   });
 }
 
-async function summarize(
+/** One blocking, non-streaming completion — shared by summarize() and the title generator below. */
+async function completeOnce(
+  systemPrompt: string,
   messages: ChatMsg[],
   settings: ChatSettings,
+  label: string,
+  timeoutMs: number,
 ): Promise<string> {
   const providerMessages = toProviderMessages(messages, settings.provider);
   const body = {
     model: settings.model,
-    messages: [
-      { role: 'system', content: 'Summarize the following conversation in a compact 1-2 sentence summary.' },
-      ...providerMessages,
-    ],
+    messages: [{ role: 'system', content: systemPrompt }, ...providerMessages],
     stream: false,
   };
   const url = settings.provider === 'openai' ? `${settings.baseUrl}/chat/completions` : `${settings.baseUrl}/api/chat`;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (settings.provider === 'openai' && settings.apiKey) headers.Authorization = `Bearer ${settings.apiKey}`;
-  // ponytail: fixed 30s timeout for the blocking summarize call; the streaming path below uses the client abort signal
-  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(30_000) });
-  if (!res.ok) throw new Error(`Summarize request failed: ${res.status} ${res.statusText}`);
+  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });
+  if (!res.ok) throw new Error(`${label} request failed: ${res.status} ${res.statusText}`);
   const json = (await res.json()) as { choices?: { message?: { content?: string } }[]; message?: { content?: string } };
   if (settings.provider === 'openai') return json.choices?.[0]?.message?.content ?? '';
   return json.message?.content ?? '';
+}
+
+async function summarize(messages: ChatMsg[], settings: ChatSettings): Promise<string> {
+  // ponytail: fixed 30s timeout for the blocking summarize call; the streaming path below uses the client abort signal
+  return completeOnce(
+    'Summarize the following conversation in a compact 1-2 sentence summary.',
+    messages,
+    settings,
+    'Summarize',
+    30_000,
+  );
+}
+
+async function generateTitle(userMessage: string, assistantMessage: string, settings: ChatSettings): Promise<string> {
+  const raw = await completeOnce(
+    'Generate a short, specific title (3-6 words) summarizing what this conversation is about. ' +
+      'Reply with the title as plain text only — no markdown, no bold/italics/backticks, no quotes, no trailing punctuation.',
+    [
+      { role: 'user', content: userMessage },
+      { role: 'assistant', content: assistantMessage },
+    ],
+    settings,
+    'Title',
+    20_000,
+  );
+  // Belt-and-suspenders: models don't reliably follow "no markdown" — strip
+  // emphasis/code markers and quotes wherever they land, not just the edges.
+  return raw
+    .replace(/[*_`]/g, '')
+    .trim()
+    .replace(/^["']+|["']+$/g, '')
+    .slice(0, 60);
 }
 
 async function streamOpenAI(
@@ -217,6 +252,12 @@ export function registerChatRoutes(router: Router, deps: AppDeps): void {
       }
 
       let sources: Source[] = [];
+      // Set only when retrieval itself throws (e.g. an embedding-model/vector-size
+      // mismatch) — never for "ran fine, found nothing relevant", which is a
+      // normal outcome and stays silent. Surfaced to the client below so a
+      // config problem shows up as a visible notice instead of a context-free
+      // answer that looks like RAG quietly found nothing.
+      let ragError: string | undefined;
       if (useRag) {
         const query = lastUserText(messages);
         if (query.trim()) {
@@ -234,11 +275,11 @@ export function registerChatRoutes(router: Router, deps: AppDeps): void {
                 .join('\n---\n');
               llmMessages.push({
                 role: 'system',
-                content: `Use these project documents to answer. If the answer is not in them say you don't know.\n---\n${context}\n---`,
+                content: `Relevant project documents (supplementary context — use your own knowledge too if these don't fully cover the question):\n---\n${context}\n---`,
               });
             }
-          } catch {
-            // RAG failed; continue answering without context
+          } catch (error) {
+            ragError = error instanceof Error ? error.message : String(error);
           }
         }
       }
@@ -250,7 +291,7 @@ export function registerChatRoutes(router: Router, deps: AppDeps): void {
         await streamOllama(res, settings, providerMessages, controller.signal);
       }
 
-      if (useRag) sendSseEvent(res, 'sources', { sources });
+      if (useRag) sendSseEvent(res, 'sources', { sources, ...(ragError ? { ragError } : {}) });
       sendSseEvent(res, 'done', {});
       res.end();
     } catch (error) {
@@ -263,6 +304,28 @@ export function registerChatRoutes(router: Router, deps: AppDeps): void {
           // client already gone
         }
       }
+    }
+  });
+
+  // Best-effort: the client calls this once, after the first exchange in a new
+  // session, to replace the "New chat" placeholder with something topical.
+  // Failure here is never fatal — the session just keeps its placeholder title.
+  router.post('/:id/chat/title', async (req, res) => {
+    const project = deps.registry.find(req.params.id);
+    if (!project) {
+      res.status(404).json({ error: `Project "${req.params.id}" is not registered` });
+      return;
+    }
+    const body = (req.body ?? {}) as { userMessage?: string; assistantMessage?: string };
+    if (!body.userMessage || !body.assistantMessage) {
+      res.status(400).json({ error: 'userMessage and assistantMessage are required' });
+      return;
+    }
+    try {
+      const title = await generateTitle(body.userMessage, body.assistantMessage, deps.chatSettings.get());
+      res.json({ title });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
     }
   });
 }

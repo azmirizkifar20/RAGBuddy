@@ -11,6 +11,7 @@ import {
   Plus,
   Square,
   Trash2,
+  TriangleAlert,
   X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -22,6 +23,7 @@ import { FormattedChatMessage } from '@/components/formatted-chat-message'
 import {
   getProject,
   streamProjectChat,
+  generateChatTitle,
   type ChatContentPart,
   type ChatMessage,
   type ChatSource,
@@ -35,6 +37,8 @@ interface StoredMsg {
   content: string
   useRag?: boolean
   sources?: ChatSource[]
+  /** Set only when RAG retrieval itself failed (not just "found nothing relevant") — shown as a visible notice. */
+  ragError?: string
   images?: string[]
   attachments?: { name: string; text: string }[]
   error?: boolean
@@ -44,6 +48,8 @@ interface ChatSession {
   id: string
   title: string
   createdAt: number
+  /** Bumped whenever a message is appended — drives the sidebar's most-recent-first sort. Older sessions predate this field, so callers fall back to createdAt. */
+  updatedAt?: number
   messages: StoredMsg[]
 }
 
@@ -96,7 +102,42 @@ function genId(): string {
 }
 
 function newSession(): ChatSession {
-  return { id: genId(), title: 'New chat', createdAt: Date.now(), messages: [] }
+  const now = Date.now()
+  return { id: genId(), title: 'New chat', createdAt: now, updatedAt: now, messages: [] }
+}
+
+function dayLabel(timestamp: number): string {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  const diffDays = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000)
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Yesterday'
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric',
+  })
+}
+
+interface SessionGroup {
+  label: string
+  sessions: ChatSession[]
+}
+
+/** `sorted` must already be most-recent-first — consecutive same-day entries fold into one group without a map. */
+function groupSessionsByDay(sorted: ChatSession[]): SessionGroup[] {
+  const groups: SessionGroup[] = []
+  for (const s of sorted) {
+    const label = dayLabel(s.updatedAt ?? s.createdAt)
+    const last = groups[groups.length - 1]
+    if (last && last.label === label) {
+      last.sessions.push(s)
+    } else {
+      groups.push({ label, sessions: [s] })
+    }
+  }
+  return groups
 }
 
 function buildChatContent(msg: StoredMsg): string | ChatContentPart[] {
@@ -286,6 +327,7 @@ function ChatWithProject({ project }: { project: Project }) {
   // stale closure captured at send() time; avoids saving an empty assistant reply.
   const streamTextRef = useRef('')
   const streamSourcesRef = useRef<ChatSource[]>([])
+  const streamRagErrorRef = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     if (sessions.length > 0) {
@@ -310,12 +352,19 @@ function ChatWithProject({ project }: { project: Project }) {
   }, [streamText, streaming, sessions])
 
   const activeSession = sessions.find((s) => s.id === activeId)
+  // Most-recent-activity-first, grouped by calendar day; `sessions` itself
+  // stays in insertion order so nothing else that iterates it needs to change.
+  const sessionGroups = useMemo(() => {
+    const sorted = [...sessions].sort((a, b) => (b.updatedAt ?? b.createdAt) - (a.updatedAt ?? a.createdAt))
+    return groupSessionsByDay(sorted)
+  }, [sessions])
 
   function finalize(errMsg?: string) {
     // Read refs into locals BEFORE the setSessions updater runs (React defers
     // updater execution until render, by which point the refs are reset below).
     const text = streamTextRef.current
     const sources = streamSourcesRef.current
+    const ragError = streamRagErrorRef.current
     if (errMsg) {
       setSessions((prev) =>
         prev.map((s) =>
@@ -326,6 +375,7 @@ function ChatWithProject({ project }: { project: Project }) {
                   ...s.messages,
                   { role: 'assistant' as const, content: errMsg, error: true },
                 ],
+                updatedAt: Date.now(),
               }
             : s,
         ),
@@ -342,8 +392,10 @@ function ChatWithProject({ project }: { project: Project }) {
                     role: 'assistant' as const,
                     content: text,
                     sources: sources.length ? sources : undefined,
+                    ragError,
                   },
                 ],
+                updatedAt: Date.now(),
               }
             : s,
         ),
@@ -353,7 +405,23 @@ function ChatWithProject({ project }: { project: Project }) {
     setStreamText('')
     streamTextRef.current = ''
     streamSourcesRef.current = []
+    streamRagErrorRef.current = undefined
     abortRef.current = null
+  }
+
+  // Best-effort: replaces the "New chat"/starter-text placeholder with an LLM-
+  // generated title once the first exchange finishes. Never blocks the UI, and
+  // never overwrites a title the user has since renamed by hand.
+  async function maybeGenerateTitle(sessionId: string, userText: string, assistantText: string) {
+    try {
+      const { title } = await generateChatTitle(project.id, userText, assistantText)
+      if (!title) return
+      setSessions((prev) =>
+        prev.map((s) => (s.id === sessionId && (s.title === 'New chat' || s.title === userText.slice(0, 40)) ? { ...s, title } : s)),
+      )
+    } catch {
+      // keep the placeholder title
+    }
   }
 
   function send(textOverride?: string) {
@@ -370,7 +438,7 @@ function ChatWithProject({ project }: { project: Project }) {
     }
 
     const updated = sessions.map((s) =>
-      s.id === activeId ? { ...s, messages: [...s.messages, userMsg] } : s,
+      s.id === activeId ? { ...s, messages: [...s.messages, userMsg], updatedAt: Date.now() } : s,
     )
     let active = updated.find((s) => s.id === activeId)
     if (!active) {
@@ -378,6 +446,9 @@ function ChatWithProject({ project }: { project: Project }) {
       updated.push(active)
       setActiveId(active.id)
     }
+    const isFirstExchange = active.messages.length === 1
+    const activeSessionId = active.id
+
     setSessions(updated)
     setInput('')
     setImages([])
@@ -403,6 +474,7 @@ function ChatWithProject({ project }: { project: Project }) {
     setStreamText('')
     streamTextRef.current = ''
     streamSourcesRef.current = []
+    streamRagErrorRef.current = undefined
 
     streamProjectChat(
       project.id,
@@ -412,13 +484,20 @@ function ChatWithProject({ project }: { project: Project }) {
           streamTextRef.current += t
           setStreamText((prev) => prev + t)
         },
-        onSources: (src) => {
+        onSources: (src, ragError) => {
           streamSourcesRef.current = src
+          streamRagErrorRef.current = ragError
         },
         onError: (msg) => {
           finalize(msg)
         },
-        onDone: () => finalize(),
+        onDone: () => {
+          const assistantText = streamTextRef.current
+          finalize()
+          if (isFirstExchange && assistantText.trim()) {
+            void maybeGenerateTitle(activeSessionId, text, assistantText)
+          }
+        },
       },
       controller.signal,
     ).catch((err) => {
@@ -434,6 +513,7 @@ function ChatWithProject({ project }: { project: Project }) {
     setStreamText('')
     streamTextRef.current = ''
     streamSourcesRef.current = []
+    streamRagErrorRef.current = undefined
     abortRef.current = null
   }
 
@@ -656,6 +736,15 @@ function ChatWithProject({ project }: { project: Project }) {
                 return (
                   <div key={i} className="text-foreground">
                     <FormattedChatMessage text={msg.content} />
+                    {msg.ragError && (
+                      <div className="mt-2 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
+                        <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+                        <p>
+                          <span className="font-medium">RAG lookup failed</span> — answered without project context.{' '}
+                          <span className="text-muted-foreground">{msg.ragError}</span>
+                        </p>
+                      </div>
+                    )}
                     {msg.sources && msg.sources.length > 0 && <SourcesList sources={msg.sources} />}
                   </div>
                 )
@@ -809,55 +898,61 @@ function ChatWithProject({ project }: { project: Project }) {
             New session
           </Button>
         </div>
-        <p className="px-3 pb-1.5 text-xs text-muted-foreground">Recent chats</p>
-        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 pb-2">
-          {sessions.map((s) => (
-            <div
-              key={s.id}
-              onClick={() => activate(s.id)}
-              className={cn(
-                'group flex cursor-pointer items-center gap-1 rounded px-2 py-1.5 text-sm',
-                s.id === activeId ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50',
-              )}
-            >
-              {editingId === s.id ? (
-                <input
-                  id={`rename-${s.id}`}
-                  defaultValue={s.title}
-                  autoFocus
-                  onBlur={saveRename}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') saveRename()
-                    if (e.key === 'Escape') setEditingId(null)
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="min-w-0 flex-1 bg-transparent text-sm outline-none"
-                />
-              ) : (
-                <span className="min-w-0 flex-1 truncate">{s.title}</span>
-              )}
-              <button
-                type="button"
-                title="Rename"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setEditingId(s.id)
-                }}
-                className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
-              >
-                <Pencil className="size-3.5" />
-              </button>
-              <button
-                type="button"
-                title="Delete"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  deleteSession(s.id)
-                }}
-                className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+          {sessionGroups.map((group) => (
+            <div key={group.label} className="mb-2">
+              <p className="px-1 pb-1.5 pt-1 text-xs text-muted-foreground">{group.label}</p>
+              <div className="space-y-1">
+                {group.sessions.map((s) => (
+                  <div
+                    key={s.id}
+                    onClick={() => activate(s.id)}
+                    className={cn(
+                      'group flex cursor-pointer items-center gap-1 rounded px-2 py-1.5 text-sm',
+                      s.id === activeId ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50',
+                    )}
+                  >
+                    {editingId === s.id ? (
+                      <input
+                        id={`rename-${s.id}`}
+                        defaultValue={s.title}
+                        autoFocus
+                        onBlur={saveRename}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveRename()
+                          if (e.key === 'Escape') setEditingId(null)
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+                      />
+                    ) : (
+                      <span className="min-w-0 flex-1 truncate">{s.title}</span>
+                    )}
+                    <button
+                      type="button"
+                      title="Rename"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditingId(s.id)
+                      }}
+                      className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      title="Delete"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        deleteSession(s.id)
+                      }}
+                      className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>

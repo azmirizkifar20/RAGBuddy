@@ -3,7 +3,7 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-10
-**Recent**: Split chat's provider/base URL/model/API key from the embedding provider's — now its own runtime-editable config in Settings with a "Test connection" check, no server restart needed — see [10-chat-provider-settings.md](./10-chat-provider-settings.md).
+**Recent**: AI Chat's "Recent chats" sidebar now sorts most-recent-activity-first (a new `updatedAt` bumped on every message, not on rename), RAG context is now explicitly framed as supplementary so questions outside the docs still get a real answer instead of a refusal, and sessions auto-title themselves from an LLM-generated summary of the first exchange — see [09-project-chat.md](./09-project-chat.md).
 
 ## Index
 

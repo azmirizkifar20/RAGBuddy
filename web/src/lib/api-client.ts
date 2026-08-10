@@ -316,7 +316,8 @@ export interface ChatSource {
 
 export interface ChatStreamHandlers {
   onToken: (text: string) => void
-  onSources: (sources: ChatSource[]) => void
+  /** `ragError` is set only when retrieval itself threw — never for "found nothing relevant". */
+  onSources: (sources: ChatSource[], ragError?: string) => void
   onError: (message: string) => void
   onDone: () => void
 }
@@ -367,7 +368,7 @@ export async function streamProjectChat(
         const data = JSON.parse(dataLine.slice('data: '.length))
 
         if (event === 'token') handlers.onToken(data.text)
-        else if (event === 'sources') handlers.onSources(data.sources)
+        else if (event === 'sources') handlers.onSources(data.sources, data.ragError)
         else if (event === 'error') handlers.onError(data.message)
         else if (event === 'done') handlers.onDone()
       }
@@ -377,4 +378,13 @@ export async function streamProjectChat(
     if (signal?.aborted) return
     throw err
   }
+}
+
+/** Best-effort — callers should swallow failures and keep the placeholder title. */
+export function generateChatTitle(projectId: string, userMessage: string, assistantMessage: string): Promise<{ title: string }> {
+  return fetch(`/api/projects/${projectId}/chat/title`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userMessage, assistantMessage }),
+  }).then(parseJsonResponse<{ title: string }>)
 }

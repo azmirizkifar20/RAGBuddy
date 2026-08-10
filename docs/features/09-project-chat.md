@@ -41,7 +41,7 @@ When the incoming `messages` array exceeds `CHAT_CONTEXT_LIMIT` (default `10`), 
 
 ### Conditional RAG
 
-`useRag` defaults to `true` (`body.useRag !== false`). When enabled, the server takes the last user message's text, embeds it, and runs `searchProject` with the project filter and `topK = RAG_TOP_K`. If any chunks come back, they are joined into a `system` message: `Use these project documents to answer. If the answer is not in them say you don't know.` When disabled, the message is sent without any retrieval. A RAG failure is caught and the conversation continues without context.
+`useRag` defaults to `true` (`body.useRag !== false`). When enabled, the server takes the last user message's text, embeds it, and runs `searchProject` with the project filter and `topK = RAG_TOP_K`. If any chunks come back, they are joined into a `system` message framed as **supplementary** context ("use your own knowledge too if these don't fully cover the question") — retrieved docs inform the answer, they don't gate it, so a question outside the project's docs still gets a real answer from the model's own knowledge instead of a refusal. When disabled, the message is sent without any retrieval. A RAG failure is caught and the conversation continues without context.
 
 ### Provider routing
 
@@ -52,6 +52,7 @@ The provider/base URL/model/API key come from `deps.chatSettings.get()` — **in
 | Route | Purpose |
 |-------|---------|
 | `POST /api/projects/:id/chat` | Streaming chat for one project. 404 if the project is not registered, 400 if `messages` is empty or not an array |
+| `POST /api/projects/:id/chat/title` | `{ userMessage, assistantMessage }` → `{ title }`, one non-streaming completion generating a short session title. 404/400 the same way as above; a provider failure is a 500, which the client treats as best-effort and ignores (session keeps its placeholder title) |
 
 ### Request body
 
@@ -102,6 +103,8 @@ The provider/base URL/model/API key come from `deps.chatSettings.get()` — **in
 
 - Persistence: `localStorage`, key `project-rag:chats:${projectId}` (unchanged since before the rename), value `{ sessions, activeId }`. Loaded on mount, written on every change. Corrupt storage is ignored and the UI starts fresh.
 - Sessions: `new` (random UUID id, title `New chat`), `rename`, `delete`, and `switch`. If no sessions exist, one is created automatically.
+- **Sort & grouping**: the session list is sorted most-recent-activity-first by `updatedAt` (falling back to `createdAt` for sessions predating that field), then grouped by calendar day — "Today", "Yesterday", then a formatted date (year included only if not the current year). `updatedAt` is bumped whenever a message is appended (user send or assistant reply/error) — not on rename or title generation, so tidying up a title doesn't bump a stale session back to the top or between groups. Sorting/grouping happens in a derived `sessionGroups` view (`groupSessionsByDay`); the underlying `sessions` state itself stays in insertion order.
+- **Auto-titling**: once the first exchange in a session finishes, the client calls `POST /api/projects/:id/chat/title` (`{ userMessage, assistantMessage }`) and, if it succeeds, replaces the placeholder title with the short LLM-generated one — best-effort, never blocks sending or the reply, and never overwrites a title the user already renamed by hand in the meantime. Starter-prompt sessions get an instant truncated-text title first (unchanged behavior), then get upgraded to the generated one once it resolves.
 - `MAX_SENT_MESSAGES = 30` caps the number of sent user messages kept per session.
 - Stop: an `AbortController` is held in a ref during streaming; the button aborts it, which ends the SSE read and discards the partial assistant message.
 - Attachments: text-like files (`text/*`, plus `.txt .md .markdown .csv .pdf`) are read and appended to the message as `[Attached File: name]` text; images (`image/png`, `image/jpeg`, `image/webp`) are stored as data URLs and sent as `image_url` parts. Attachments and images can be attached or removed before send.
@@ -114,6 +117,7 @@ interface ChatSession {
   id: string
   title: string
   createdAt: number
+  updatedAt?: number  // bumped on every appended message; drives the sidebar sort
   messages: StoredMsg[]
 }
 interface StoredMsg {
