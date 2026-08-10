@@ -4,7 +4,9 @@ import type { QdrantClient } from '@qdrant/js-client-rest';
 import type { ProjectRegistry } from '../projects/project-registry';
 import type { EmbeddingProvider } from '../embedding/embedding-provider';
 import type { SyncHistoryStore } from '../history/sync-history';
+import type { ChatSettingsStore } from '../config/chat-settings-store';
 import { registerProjectsRoutes } from './routes/projects';
+import { registerSettingsRoutes } from './routes/settings';
 import { registerKnowledgeRoutes } from './routes/knowledge';
 import { registerSearchRoutes } from './routes/search';
 import { registerChatRoutes } from './routes/chat';
@@ -35,7 +37,7 @@ export interface AppDeps {
   embeddingBaseUrl: string;
   embeddingApiKey?: string;
   ragTopK: number;
-  chatModel: string;
+  chatSettings: ChatSettingsStore;
   chatContextLimit: number;
   staticDir: string;
   dataDir: string;
@@ -66,12 +68,15 @@ export function createApp(deps: AppDeps): Express {
   registerFsRoutes(fsRouter);
   app.use('/api/fs', fsRouter);
 
+  const settingsRouter = express.Router();
+  registerSettingsRoutes(settingsRouter, deps);
+  app.use('/api/settings', settingsRouter);
+
   app.get('/api/config', (_req, res) => {
     res.json({
       qdrantUrl: deps.qdrantUrl,
       qdrantCollection: deps.qdrantCollection,
       ragTopK: deps.ragTopK,
-      chatModel: deps.chatModel,
       chatContextLimit: deps.chatContextLimit,
       dataDir: deps.dataDir,
       ...deps.runtime,

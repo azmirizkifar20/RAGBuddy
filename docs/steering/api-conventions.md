@@ -29,6 +29,7 @@
 - Chat auto-compaction: when `messages.length > CHAT_CONTEXT_LIMIT`, older messages are summarized via the chat provider and prepended as a system context message; the newest `CHAT_CONTEXT_LIMIT` are kept verbatim
 - Abort: the client may abort the stream; the server stops the upstream provider fetch via `res.on('close')` guarded by `!res.writableEnded` (`src/server/routes/chat.ts`)
 - Chat is per-project: the `project` filter is applied at the retrieval layer, consistent with the search/MCP isolation rule below
+- **Chat provider settings** (`GET`/`PUT /api/settings/chat`, `POST /api/settings/chat/test`) — not project-scoped, mounted at `/api/settings` separate from `/api/projects/:id/...`. Chat's provider/base URL/model/API key are independent of the embedding provider and live in `config/chat-settings.json`, re-read from disk on every request rather than cached at process start, so a save takes effect immediately with no server restart. API key convention: write-only — accepted in `PUT`/`.../test` bodies, never present in any `GET` response (`apiKeyConfigured: boolean` only, same pattern as the embedding API key's `embeddingApiKeyConfigured`); a blank/omitted key on save keeps whatever is already stored rather than clearing it. See [../features/10-chat-provider-settings.md](../features/10-chat-provider-settings.md).
 
 ## Naming & Routing
 

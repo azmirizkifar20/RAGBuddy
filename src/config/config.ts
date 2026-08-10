@@ -9,6 +9,8 @@ export interface AppConfig {
   embeddingApiKey?: string;
   ragTopK: number;
   projectRegistryPath: string;
+  /** Where the Settings page's editable chat provider/base URL/model/API key override lives. */
+  chatSettingsPath: string;
   /** Writable state that is not configuration: sync history + uploaded documents. */
   dataDir: string;
   /** Chat model id used by the per-project chat endpoint. */
@@ -43,6 +45,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     // different repo entirely, so a cwd-relative default would silently
     // point at the wrong (or a nonexistent) registry file there.
     projectRegistryPath: path.resolve(__dirname, '../../', env.PROJECT_REGISTRY_PATH ?? './config/projects.json'),
+    chatSettingsPath: path.resolve(__dirname, '../../', env.CHAT_SETTINGS_PATH ?? './config/chat-settings.json'),
     // Same cwd-independence rule as the registry path above.
     dataDir: path.resolve(__dirname, '../../', env.RAGBUDDY_DATA_DIR ?? './data'),
     chatModel: embeddingProvider === 'openai' ? (env.CHAT_MODEL ?? 'gpt-4o-mini') : (env.CHAT_MODEL ?? 'llama3'),

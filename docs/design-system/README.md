@@ -88,9 +88,10 @@ The sidebar can collapse to an icon-only rail (`collapsed` state in `AppShell`, 
 | `FlowDiagram` | `components/flow-diagram.tsx` | Reusable interactive pipeline diagram (dashed SVG connectors, click a stage for detail). |
 | `CopyButton` / `CodeBlock` | `components/copy-button.tsx` | Copy affordance used across the MCP setup and settings pages. |
 | `FormattedChatMessage` | `components/formatted-chat-message.tsx` | Custom markdown renderer for chat replies — paragraphs, lists, inline code badges, striped scrollable tables, collapsible code blocks (>20 lines) with a copy button. Body text is `text-sm`, matching user bubbles. |
+| `Settings` page | `pages/settings.tsx` | Mostly read-only `dl` groups (Vector store, Embeddings, Paths), plus one editable exception: the "Chat" section (provider `Select`, model/base-URL `Input`s, a password-type API-key `Input` that's write-only — its placeholder just says whether one is configured) with Save and Test connection buttons, the latter showing an inline success/error message rather than a toast, since the result needs to stay visible next to the fields it's about. |
 | `AiChat` page | `pages/ai-chat.tsx` | Top-level chat page at `/chat` and `/chat/:projectId`. No project in the URL → project-picker screen (centered heading, a card grid of registered projects with a `localStorage`-derived "N saved chat(s)" subtitle). A project chosen → the chat room: session sidebar, header (title + Use RAG `Switch`), message feed, input bar with file/image attachments. Sources render as clickable badges via the inline `SourcesList`. |
 
-Primitives added on top of the original shadcn set: `tabs`, `tooltip`, `separator`, `skeleton`, `table`, `textarea`, `switch`, `label`.
+Primitives added on top of the original shadcn set: `tabs`, `tooltip`, `separator`, `skeleton`, `table`, `textarea`, `switch`, `label`, `select` (a plain native `<select>` styled to match `Input` — no Radix primitive for a short, fixed option list, e.g. the Settings page's chat provider picker).
 
 **Tabular data goes in a `Table`**, not in a stack of cards — sync history, indexed documents, and any future list with more than two attributes per row.
 

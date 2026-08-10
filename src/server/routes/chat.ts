@@ -2,6 +2,7 @@ import type { Router } from 'express';
 import type { AppDeps } from '../app';
 import { startSse, sendSseEvent } from '../sse';
 import { searchProject } from '../../retrieval/search';
+import type { ChatSettings } from '../../config/chat-settings-store';
 
 export interface ContentPartText {
   type: 'text';
@@ -72,41 +73,40 @@ function toProviderMessages(
 
 async function summarize(
   messages: ChatMsg[],
-  deps: AppDeps,
-  provider: 'ollama' | 'openai',
+  settings: ChatSettings,
 ): Promise<string> {
-  const providerMessages = toProviderMessages(messages, provider);
+  const providerMessages = toProviderMessages(messages, settings.provider);
   const body = {
-    model: deps.chatModel,
+    model: settings.model,
     messages: [
       { role: 'system', content: 'Summarize the following conversation in a compact 1-2 sentence summary.' },
       ...providerMessages,
     ],
     stream: false,
   };
-  const url = provider === 'openai' ? `${deps.embeddingBaseUrl}/chat/completions` : `${deps.embeddingBaseUrl}/api/chat`;
+  const url = settings.provider === 'openai' ? `${settings.baseUrl}/chat/completions` : `${settings.baseUrl}/api/chat`;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (provider === 'openai' && deps.embeddingApiKey) headers.Authorization = `Bearer ${deps.embeddingApiKey}`;
+  if (settings.provider === 'openai' && settings.apiKey) headers.Authorization = `Bearer ${settings.apiKey}`;
   // ponytail: fixed 30s timeout for the blocking summarize call; the streaming path below uses the client abort signal
   const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(30_000) });
   if (!res.ok) throw new Error(`Summarize request failed: ${res.status} ${res.statusText}`);
   const json = (await res.json()) as { choices?: { message?: { content?: string } }[]; message?: { content?: string } };
-  if (provider === 'openai') return json.choices?.[0]?.message?.content ?? '';
+  if (settings.provider === 'openai') return json.choices?.[0]?.message?.content ?? '';
   return json.message?.content ?? '';
 }
 
 async function streamOpenAI(
   res: Parameters<typeof sendSseEvent>[0],
-  deps: AppDeps,
+  settings: ChatSettings,
   messages: Array<{ role: string; content: string | ContentPart[]; images?: string[] }>,
   signal: AbortSignal,
 ): Promise<void> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (deps.embeddingApiKey) headers.Authorization = `Bearer ${deps.embeddingApiKey}`;
-  const response = await fetch(`${deps.embeddingBaseUrl}/chat/completions`, {
+  if (settings.apiKey) headers.Authorization = `Bearer ${settings.apiKey}`;
+  const response = await fetch(`${settings.baseUrl}/chat/completions`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ model: deps.chatModel, messages, stream: true }),
+    body: JSON.stringify({ model: settings.model, messages, stream: true }),
     signal,
   });
   if (!response.ok || !response.body) {
@@ -139,14 +139,14 @@ async function streamOpenAI(
 
 async function streamOllama(
   res: Parameters<typeof sendSseEvent>[0],
-  deps: AppDeps,
+  settings: ChatSettings,
   messages: Array<{ role: string; content: string | ContentPart[]; images?: string[] }>,
   signal: AbortSignal,
 ): Promise<void> {
-  const response = await fetch(`${deps.embeddingBaseUrl}/api/chat`, {
+  const response = await fetch(`${settings.baseUrl}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: deps.chatModel, messages, stream: true }),
+    body: JSON.stringify({ model: settings.model, messages, stream: true }),
     signal,
   });
   if (!response.ok || !response.body) {
@@ -189,7 +189,7 @@ export function registerChatRoutes(router: Router, deps: AppDeps): void {
       return;
     }
     const useRag = body.useRag !== false;
-    const provider: 'ollama' | 'openai' = deps.runtime.embeddingProvider === 'openai' ? 'openai' : 'ollama';
+    const settings = deps.chatSettings.get();
 
     startSse(res);
     const controller = new AbortController();
@@ -205,7 +205,7 @@ export function registerChatRoutes(router: Router, deps: AppDeps): void {
         const keep = messages.slice(messages.length - deps.chatContextLimit);
         let summary = '';
         try {
-          summary = await summarize(pruned, deps, provider);
+          summary = await summarize(pruned, settings);
         } catch {
           // fall back to generic notice; never crash
         }
@@ -243,11 +243,11 @@ export function registerChatRoutes(router: Router, deps: AppDeps): void {
         }
       }
 
-      const providerMessages = toProviderMessages(llmMessages, provider);
-      if (provider === 'openai') {
-        await streamOpenAI(res, deps, providerMessages, controller.signal);
+      const providerMessages = toProviderMessages(llmMessages, settings.provider);
+      if (settings.provider === 'openai') {
+        await streamOpenAI(res, settings, providerMessages, controller.signal);
       } else {
-        await streamOllama(res, deps, providerMessages, controller.signal);
+        await streamOllama(res, settings, providerMessages, controller.signal);
       }
 
       if (useRag) sendSseEvent(res, 'sources', { sources });

@@ -174,6 +174,45 @@ export function getRuntimeConfig(): Promise<RuntimeConfig> {
   return fetch('/api/config').then(parseJsonResponse<RuntimeConfig>)
 }
 
+export type ChatProvider = 'ollama' | 'openai'
+
+export interface ChatSettings {
+  provider: ChatProvider
+  baseUrl: string
+  model: string
+  apiKeyConfigured: boolean
+}
+
+export interface ChatSettingsUpdate {
+  provider: ChatProvider
+  baseUrl: string
+  model: string
+  /** Blank/omitted keeps whatever key is already saved — this field is write-only. */
+  apiKey?: string
+}
+
+export type ChatConnectionTestResult = { ok: true; latencyMs: number } | { ok: false; error: string }
+
+export function getChatSettings(): Promise<ChatSettings> {
+  return fetch('/api/settings/chat').then(parseJsonResponse<ChatSettings>)
+}
+
+export function updateChatSettings(update: ChatSettingsUpdate): Promise<ChatSettings> {
+  return fetch('/api/settings/chat', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(update),
+  }).then(parseJsonResponse<ChatSettings>)
+}
+
+export function testChatConnection(update: ChatSettingsUpdate): Promise<ChatConnectionTestResult> {
+  return fetch('/api/settings/chat/test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(update),
+  }).then(parseJsonResponse<ChatConnectionTestResult>)
+}
+
 export interface FsEntry {
   name: string
   path: string

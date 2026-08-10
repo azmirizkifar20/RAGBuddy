@@ -8,14 +8,18 @@ const REGISTRY = () => ({
   find: vi.fn().mockReturnValue({ id: 'sample', name: 'Sample', repository: '/r', paths: ['docs'] }),
 });
 
-/** Base deps for chat tests: ollama provider by default (matches baseDeps runtime). */
+function chatSettingsDeps(settings: Record<string, unknown>) {
+  return {
+    get: vi.fn().mockReturnValue(settings),
+    getPublic: vi.fn(),
+    save: vi.fn(),
+  };
+}
+
+/** Base deps for chat tests: ollama provider by default (baseDeps' own chatSettings default). */
 function chatDeps(overrides: Record<string, unknown> = {}): any {
   return baseDeps({
     registry: REGISTRY(),
-    embeddingBaseUrl: 'http://localhost:11434',
-    embeddingApiKey: 'test-key',
-    chatModel: 'llama3',
-    chatContextLimit: 10,
     ...overrides,
   });
 }
@@ -113,7 +117,16 @@ describe('POST /api/projects/:id/chat', () => {
       }),
     );
     vi.stubGlobal('fetch', fetchMock);
-    const app = createApp(chatDeps({ runtime: { ...chatDeps().runtime, embeddingProvider: 'openai' } }));
+    const app = createApp(
+      chatDeps({
+        chatSettings: chatSettingsDeps({
+          provider: 'openai',
+          baseUrl: 'http://localhost:11434',
+          model: 'llama3',
+          apiKey: 'test-key',
+        }),
+      }),
+    );
 
     const res = await request(app).post('/api/projects/sample/chat').send({
       useRag: false,

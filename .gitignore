@@ -3,6 +3,7 @@ node_modules/
 dist/
 .env
 config/projects.json
+config/chat-settings.json
 data/
 opencode.jsonc
 .omo/

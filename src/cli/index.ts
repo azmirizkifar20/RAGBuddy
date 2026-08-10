@@ -13,6 +13,7 @@ import { createQdrantClient } from '../qdrant/qdrant-client';
 import { createEmbeddingProvider } from '../embedding/embedding-provider';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createMcpServer } from '../mcp/server';
+import { ChatSettingsStore } from '../config/chat-settings-store';
 import { installHook, uninstallHook } from '../git/hook-installer';
 import { runHookCommand } from './hook-command';
 import { runProjectRegister, runProjectList, runProjectRemove } from './project-command';
@@ -109,6 +110,15 @@ async function main(): Promise<void> {
   }
 
   if (parsed.command === 'web') {
+    // Chat's provider/base URL/model/API key default to mirroring the
+    // embedding config (the pre-existing behavior) until the Settings page
+    // saves its own override into chatSettingsPath.
+    const chatSettings = new ChatSettingsStore(config.chatSettingsPath, {
+      provider: config.embeddingProvider,
+      baseUrl: config.embeddingBaseUrl,
+      model: config.chatModel,
+      apiKey: config.embeddingApiKey,
+    });
     const app = createApp({
       registry,
       qdrantClient,
@@ -118,7 +128,7 @@ async function main(): Promise<void> {
       embeddingBaseUrl: config.embeddingBaseUrl,
       embeddingApiKey: config.embeddingApiKey,
       ragTopK: config.ragTopK,
-      chatModel: config.chatModel,
+      chatSettings,
       chatContextLimit: config.chatContextLimit,
       staticDir: path.resolve(__dirname, '../../web/dist'),
       dataDir: config.dataDir,

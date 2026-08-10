@@ -15,6 +15,14 @@ export function baseDeps(overrides: Record<string, unknown> = {}): any {
     qdrantCollection: 'ragbuddy_documents',
     embeddingProvider: { embedQuery: vi.fn(), embedDocuments: vi.fn() },
     ragTopK: 5,
+    chatSettings: {
+      get: vi.fn().mockReturnValue({ provider: 'ollama', baseUrl: 'http://localhost:11434', model: 'llama3' }),
+      getPublic: vi
+        .fn()
+        .mockReturnValue({ provider: 'ollama', baseUrl: 'http://localhost:11434', model: 'llama3', apiKeyConfigured: false }),
+      save: vi.fn(),
+    },
+    chatContextLimit: 10,
     staticDir: '/tmp/does-not-matter',
     dataDir: path.join(tmpdir(), 'ragbuddy-test-data-does-not-exist'),
     history: { append: vi.fn(), list: vi.fn().mockReturnValue([]) },

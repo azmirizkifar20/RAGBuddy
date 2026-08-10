@@ -3,7 +3,7 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-10
-**Recent**: Added a 14-day activity chart to the Dashboard (`components/activity-chart.tsx`, stacked ingest/sync/upload bars with a table-view toggle), rebranded the product to RAGBuddy with a blue-hued design token palette, and swapped the sidebar wordmark/favicon for the real logo assets — see [08-dashboard-redesign-uploads-and-history.md](./08-dashboard-redesign-uploads-and-history.md) and [../design-system/README.md](../design-system/README.md).
+**Recent**: Split chat's provider/base URL/model/API key from the embedding provider's — now its own runtime-editable config in Settings with a "Test connection" check, no server restart needed — see [10-chat-provider-settings.md](./10-chat-provider-settings.md).
 
 ## Index
 
@@ -16,6 +16,7 @@ This folder contains documentation for implemented features and current state.
 7. [Web Frontend & CLI Project Subcommands](./07-web-frontend-and-project-cli.md) — Implemented
 8. [Dashboard Redesign, Document Uploads & Sync History](./08-dashboard-redesign-uploads-and-history.md) — Implemented
 9. [Per-Project Chat](./09-project-chat.md) — Implemented
+10. [Chat Provider Settings](./10-chat-provider-settings.md) — Implemented
 
 ---
 
