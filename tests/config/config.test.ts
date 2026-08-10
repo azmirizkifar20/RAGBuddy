@@ -16,6 +16,7 @@ describe('loadConfig', () => {
     expect(config.ragTopK).toBe(5);
     expect(config.projectRegistryPath).toBe(path.resolve(__dirname, '../../config/projects.json'));
     expect(config.chatSettingsPath).toBe(path.resolve(__dirname, '../../config/chat-settings.json'));
+    expect(config.embeddingCredentialsPath).toBe(path.resolve(__dirname, '../../config/embedding-credentials.json'));
   });
 
   it('resolves a relative PROJECT_REGISTRY_PATH against the project root, not process.cwd()', () => {

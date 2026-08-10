@@ -3,7 +3,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CodeBlock, CopyButton } from '@/components/copy-button'
 import { useProjectContext } from '@/pages/project-layout'
-import { getRuntimeConfig, type RuntimeConfig } from '@/lib/api-client'
+import { getRuntimeConfig, getCredentials, type RuntimeConfig, type CredentialsList } from '@/lib/api-client'
 
 /** JSON/TOML both need the Windows backslashes escaped in string literals. */
 function jsonPath(value: string): string {
@@ -47,16 +47,22 @@ function Step({ index, title, children }: { index: number; title: string; childr
 export function ProjectMcp() {
   const { project } = useProjectContext()
   const [config, setConfig] = useState<RuntimeConfig | null>(null)
+  const [embeddingCredentials, setEmbeddingCredentials] = useState<CredentialsList | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    getRuntimeConfig()
-      .then(setConfig)
+    Promise.all([getRuntimeConfig(), getCredentials('embedding')])
+      .then(([runtimeConfig, credentials]) => {
+        setConfig(runtimeConfig)
+        setEmbeddingCredentials(credentials)
+      })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)))
   }, [])
 
   if (error) return <p className="text-sm text-destructive">{error}</p>
-  if (!config) return <Skeleton className="h-96" />
+  if (!config || !embeddingCredentials) return <Skeleton className="h-96" />
+
+  const activeEmbedding = embeddingCredentials.credentials.find((c) => c.id === embeddingCredentials.activeCredentialId)
 
   const entry = jsonPath(config.cliEntrypoint)
   const claudeCli = `claude mcp add ragbuddy -- node "${config.cliEntrypoint}" mcp`
@@ -193,9 +199,11 @@ args = ["${entry}", "mcp"]`
             <code className="font-mono">dist/</code>, not the TypeScript sources.
           </li>
           <li>
-            Embedding model in use: <code className="font-mono text-foreground">{config.embeddingModel}</code> via{' '}
-            <code className="font-mono text-foreground">{config.embeddingProvider}</code>. The agent's answers are only
-            as fresh as the last sync.
+            Embedding model in use:{' '}
+            <code className="font-mono text-foreground">{embeddingCredentials.activeModel ?? 'none configured'}</code> via{' '}
+            <code className="font-mono text-foreground">{activeEmbedding?.name ?? 'none configured'}</code> (
+            {activeEmbedding?.provider}) — configurable in Settings. The agent's answers are only as fresh as the last
+            sync.
           </li>
         </ul>
       </section>

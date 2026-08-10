@@ -1,5 +1,5 @@
 import type { Router } from 'express';
-import type { AppDeps } from '../app';
+import { type AppDeps, resolveEmbeddingProvider } from '../app';
 import { searchProject } from '../../retrieval/search';
 
 export function registerSearchRoutes(router: Router, deps: AppDeps): void {
@@ -18,7 +18,7 @@ export function registerSearchRoutes(router: Router, deps: AppDeps): void {
       const results = await searchProject(project.id, query, {
         qdrantClient: deps.qdrantClient,
         qdrantCollection: deps.qdrantCollection,
-        embeddingProvider: deps.embeddingProvider,
+        embeddingProvider: resolveEmbeddingProvider(deps),
         topK: deps.ragTopK,
       });
       res.json({ results });

@@ -1,5 +1,5 @@
 import type { Router } from 'express';
-import type { AppDeps } from '../app';
+import { type AppDeps, resolveEmbeddingProvider } from '../app';
 import { syncProject } from '../../ingestion/sync';
 import { recordRun } from '../../history/sync-history';
 import { startSse, sendSseEvent } from '../sse';
@@ -21,7 +21,7 @@ export function registerSyncRoutes(router: Router, deps: AppDeps): void {
             qdrantClient: deps.qdrantClient,
             qdrantUrl: deps.qdrantUrl,
             qdrantCollection: deps.qdrantCollection,
-            embeddingProvider: deps.embeddingProvider,
+            embeddingProvider: resolveEmbeddingProvider(deps),
             onLog: (message) => sendSseEvent(res, 'log', message),
           }),
         (r) => ({

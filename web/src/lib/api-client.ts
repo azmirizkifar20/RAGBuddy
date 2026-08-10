@@ -65,10 +65,6 @@ export interface RuntimeConfig {
   dataDir: string
   nodePath: string
   cliEntrypoint: string
-  embeddingProvider: string
-  embeddingModel: string
-  embeddingBaseUrl: string
-  embeddingApiKeyConfigured: boolean
   projectRegistryPath: string
 }
 
@@ -174,43 +170,108 @@ export function getRuntimeConfig(): Promise<RuntimeConfig> {
   return fetch('/api/config').then(parseJsonResponse<RuntimeConfig>)
 }
 
-export type ChatProvider = 'ollama' | 'openai'
+export type CredentialProvider = 'ollama' | 'openai'
 
-export interface ChatSettings {
-  provider: ChatProvider
+export interface Credential {
+  id: string
+  name: string
+  provider: CredentialProvider
   baseUrl: string
-  model: string
   apiKeyConfigured: boolean
+  models: string[]
 }
 
-export interface ChatSettingsUpdate {
-  provider: ChatProvider
+export interface CredentialsList {
+  credentials: Credential[]
+  activeCredentialId: string | null
+  activeModel: string | null
+}
+
+export interface CredentialInput {
+  name: string
+  provider: CredentialProvider
+  baseUrl: string
+  /** Blank/omitted on update keeps whatever key is already saved — write-only in the UI. */
+  apiKey?: string
+  models: string[]
+}
+
+export interface ConnectionTestInput {
+  /** Test an already-saved credential's key without retyping it. */
+  id?: string
+  provider: CredentialProvider
   baseUrl: string
   model: string
-  /** Blank/omitted keeps whatever key is already saved — this field is write-only. */
   apiKey?: string
 }
 
-export type ChatConnectionTestResult = { ok: true; latencyMs: number } | { ok: false; error: string }
+export type ConnectionTestResult = { ok: true; latencyMs: number } | { ok: false; error: string }
 
-export function getChatSettings(): Promise<ChatSettings> {
-  return fetch('/api/settings/chat').then(parseJsonResponse<ChatSettings>)
+/** Both embedding and chat credentials use the same shape — `kind` picks which list. */
+function credentialsBasePath(kind: 'embedding' | 'chat'): string {
+  return `/api/settings/${kind}`
 }
 
-export function updateChatSettings(update: ChatSettingsUpdate): Promise<ChatSettings> {
-  return fetch('/api/settings/chat', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(update),
-  }).then(parseJsonResponse<ChatSettings>)
+export function getCredentials(kind: 'embedding' | 'chat'): Promise<CredentialsList> {
+  return fetch(credentialsBasePath(kind)).then(parseJsonResponse<CredentialsList>)
 }
 
-export function testChatConnection(update: ChatSettingsUpdate): Promise<ChatConnectionTestResult> {
-  return fetch('/api/settings/chat/test', {
+export function addCredential(kind: 'embedding' | 'chat', input: CredentialInput): Promise<Credential> {
+  return fetch(credentialsBasePath(kind), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(update),
-  }).then(parseJsonResponse<ChatConnectionTestResult>)
+    body: JSON.stringify(input),
+  }).then(parseJsonResponse<Credential>)
+}
+
+export function updateCredential(kind: 'embedding' | 'chat', id: string, input: Partial<CredentialInput>): Promise<Credential> {
+  return fetch(`${credentialsBasePath(kind)}/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  }).then(parseJsonResponse<Credential>)
+}
+
+export function removeCredential(kind: 'embedding' | 'chat', id: string): Promise<void> {
+  return fetch(`${credentialsBasePath(kind)}/${id}`, { method: 'DELETE' }).then(expectNoContent)
+}
+
+export function activateCredential(kind: 'embedding' | 'chat', id: string, model: string): Promise<CredentialsList> {
+  return fetch(`${credentialsBasePath(kind)}/${id}/activate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model }),
+  }).then(parseJsonResponse<CredentialsList>)
+}
+
+export function testCredentialConnection(kind: 'embedding' | 'chat', input: ConnectionTestInput): Promise<ConnectionTestResult> {
+  return fetch(`${credentialsBasePath(kind)}/test`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  }).then(parseJsonResponse<ConnectionTestResult>)
+}
+
+export interface QdrantCollectionInfo {
+  collection: string
+  exists: boolean
+  vectorSize?: number
+  pointsCount?: number
+  /** Every registered project — the collection is shared, not per-project. */
+  affectedProjectIds: string[]
+}
+
+export function getQdrantInfo(): Promise<QdrantCollectionInfo> {
+  return fetch('/api/settings/qdrant').then(parseJsonResponse<QdrantCollectionInfo>)
+}
+
+/** Destructive across every registered project — the collection is shared. */
+export function dropQdrantCollection(): Promise<{ dropped: boolean; affectedProjectIds: string[] }> {
+  return fetch('/api/settings/qdrant/drop-collection', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: true }),
+  }).then(parseJsonResponse<{ dropped: boolean; affectedProjectIds: string[] }>)
 }
 
 export interface FsEntry {

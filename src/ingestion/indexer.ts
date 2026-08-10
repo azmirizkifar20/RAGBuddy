@@ -9,7 +9,12 @@ import { hashContent } from './hasher';
 import { chunkMarkdown } from './chunker';
 import { getCurrentCommit } from '../git/git-status';
 import { ensureCollection } from '../qdrant/qdrant-client';
-import { upsertChunks, deleteProjectVectors, type DocumentPoint } from '../qdrant/qdrant-repository';
+import {
+  upsertChunks,
+  deleteFileVectors,
+  getIndexedFileHashes,
+  type DocumentPoint,
+} from '../qdrant/qdrant-repository';
 import { deriveCategory, composeEmbedText } from './payload-builder';
 
 export interface IndexProjectDeps {
@@ -36,71 +41,83 @@ export async function indexProject(
   const files = scanDocuments(project.repository, project.paths);
   log(`Scanned ${files.length} file(s)`);
   const gitCommit = getCurrentCommit(project.repository);
-  const points: DocumentPoint[] = [];
+  const currentPaths = new Set(files.map((f) => f.relativePath));
+  // 'repository' scope only — uploaded documents have no file on disk to re-scan, so an
+  // unscoped read here would list every one of them as "no longer present" and delete it below.
+  const existingFiles = await getIndexedFileHashes(
+    deps.qdrantClient,
+    deps.qdrantCollection,
+    project.id,
+    'repository',
+  );
+  // Deleting from a collection that doesn't exist yet (e.g. right after `qdrant drop-collection`,
+  // before anything has been re-ingested) 404s — there's nothing to delete in that case anyway,
+  // so skip the per-file delete entirely rather than erroring on the very first file.
+  const collectionExists = (await deps.qdrantClient.getCollections()).collections.some(
+    (c) => c.name === deps.qdrantCollection,
+  );
 
+  let chunksIndexed = 0;
+  let collectionEnsured = false;
+
+  // ponytail: delete-then-upsert PER FILE (mirrors sync.ts), not delete-everything-then-upsert-
+  // everything at the end — a failure partway through (embedding error, Qdrant hiccup, dimension
+  // mismatch) then only leaves the file being processed gone-but-not-replaced, not every file
+  // already embedded this run. Files that finish stay indexed; re-running `sync` afterward picks
+  // up only what's left, since it skips anything whose content_hash already matches.
   for (const file of files) {
     const content = readFileSync(file.absolutePath, 'utf8');
     const contentHash = hashContent(content);
     const chunks = chunkMarkdown(content);
+
+    if (collectionExists) {
+      log(`Removing old vectors for ${file.relativePath}`);
+      await deleteFileVectors(deps.qdrantClient, deps.qdrantCollection, project.id, file.relativePath);
+    }
     if (chunks.length === 0) continue;
 
     const texts = chunks.map(composeEmbedText);
     log(`Embedding ${file.relativePath} (${chunks.length} chunk(s))`);
     const vectors = await deps.embeddingProvider.embedDocuments(texts);
 
-    for (let i = 0; i < chunks.length; i++) {
-      points.push({
-        id: randomUUID(),
-        vector: vectors[i],
-        payload: {
-          project: project.id,
-          file: file.relativePath,
-          absolute_path: file.absolutePath,
-          document_type: 'markdown',
-          category: deriveCategory(file.relativePath, project.paths),
-          content_hash: contentHash,
-          git_commit: gitCommit,
-          chunk_index: chunks[i].chunkIndex,
-          title: chunks[i].title,
-          section: chunks[i].section,
-          content: chunks[i].content,
-          source: 'repository',
-        },
+    const filePoints: DocumentPoint[] = chunks.map((chunk, i) => ({
+      id: randomUUID(),
+      vector: vectors[i],
+      payload: {
+        project: project.id,
+        file: file.relativePath,
+        absolute_path: file.absolutePath,
+        document_type: 'markdown',
+        category: deriveCategory(file.relativePath, project.paths),
+        content_hash: contentHash,
+        git_commit: gitCommit,
+        chunk_index: chunk.chunkIndex,
+        title: chunk.title,
+        section: chunk.section,
+        content: chunk.content,
+        source: 'repository',
+      },
+    }));
+
+    if (!collectionEnsured) {
+      await ensureCollection(deps.qdrantClient, {
+        url: deps.qdrantUrl,
+        collectionName: deps.qdrantCollection,
+        vectorSize: filePoints[0].vector.length,
       });
+      collectionEnsured = true;
+    }
+    await upsertChunks(deps.qdrantClient, deps.qdrantCollection, filePoints);
+    log(`Upserted ${filePoints.length} chunk(s) for ${file.relativePath}`);
+    chunksIndexed += filePoints.length;
+  }
+
+  for (const file of existingFiles.keys()) {
+    if (!currentPaths.has(file)) {
+      log(`Removing vectors for deleted file ${file}`);
+      await deleteFileVectors(deps.qdrantClient, deps.qdrantCollection, project.id, file);
     }
   }
 
-  // ponytail: delete-then-upsert means a failed upsert leaves the project
-  // unindexed rather than stale (not silently wrong) — deliberate for now.
-  // A true atomic swap needs points tagged with a run/version id so delete
-  // could target "project X, version != new" instead of "project X"
-  // outright; naive upsert-then-delete-by-project-only would wipe the fresh
-  // points too. Revisit if/when a future phase needs per-file atomic replace.
-  if (points.length > 0) {
-    const vectorSize = points[0].vector.length;
-    await ensureCollection(deps.qdrantClient, {
-      url: deps.qdrantUrl,
-      collectionName: deps.qdrantCollection,
-      vectorSize,
-    });
-    // 'repository' scope only — a full re-index must not wipe documents the
-    // user uploaded through the dashboard, which have no file on disk to
-    // re-scan and would be unrecoverable.
-    await deleteProjectVectors(deps.qdrantClient, deps.qdrantCollection, project.id, 'repository');
-    await upsertChunks(deps.qdrantClient, deps.qdrantCollection, points);
-    log(`Upserted ${points.length} chunk(s) to Qdrant`);
-  } else {
-    log('No documents found to index');
-    const collections = await deps.qdrantClient.getCollections();
-    const exists = collections.collections.some((c) => c.name === deps.qdrantCollection);
-    if (exists) {
-      // 'repository' scope only — a full re-index must not wipe documents the
-    // user uploaded through the dashboard, which have no file on disk to
-    // re-scan and would be unrecoverable.
-    await deleteProjectVectors(deps.qdrantClient, deps.qdrantCollection, project.id, 'repository');
-      log('Cleared existing project vectors');
-    }
-  }
-
-  return { filesIndexed: files.length, chunksIndexed: points.length };
+  return { filesIndexed: files.length, chunksIndexed };
 }

@@ -8,6 +8,7 @@ export type ParsedArgs =
   | { command: 'project'; action: 'remove'; id: string }
   | { command: 'project'; action: 'register'; id: string; repository: string; name?: string; paths?: string[] }
   | { command: 'web'; port?: number }
+  | { command: 'qdrant'; action: 'drop-collection'; confirmed: boolean }
   | { command: 'unknown' };
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -43,6 +44,14 @@ export function parseArgs(argv: string[]): ParsedArgs {
       const [id, repository, ...flags] = projectArgs;
       const { name, paths } = parseProjectFlags(flags);
       return { command: 'project', action: 'register', id, repository, name, paths };
+    }
+    return { command: 'unknown' };
+  }
+
+  if (command === 'qdrant') {
+    const [action, ...flags] = restArgs;
+    if (action === 'drop-collection') {
+      return { command: 'qdrant', action: 'drop-collection', confirmed: flags.includes('--yes') };
     }
     return { command: 'unknown' };
   }

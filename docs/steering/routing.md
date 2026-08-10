@@ -14,6 +14,7 @@
 | `ragbuddy hook install <project>` | Install the Git post-commit sync hook | `src/cli/hook-command.ts` → `src/git/hook-installer.ts` |
 | `ragbuddy hook uninstall <project>` | Remove the Git post-commit sync hook | `src/cli/hook-command.ts` → `src/git/hook-installer.ts` |
 | `ragbuddy mcp` | Start the MCP server (stdio transport) | `src/cli/index.ts` → `src/mcp/server.ts` |
+| `ragbuddy qdrant drop-collection [--yes]` | Delete the shared Qdrant collection so it can be recreated at a new embedding dimension — prints every registered project that will need re-ingesting; without `--yes`, previews the list and exits without dropping anything | `src/cli/qdrant-command.ts` → `src/qdrant/qdrant-client.ts` |
 
 `ragbuddy search` accepts a multi-word query with or without shell quoting (`src/cli/args.ts` joins all trailing argv entries). There is no `project register`/`project list`/`project remove` CLI command yet — projects are registered by editing `config/projects.json` directly (`src/projects/project-registry.ts` provides the underlying `register`/`list`/`remove`/`find` API, used internally and by tests, but isn't yet exposed as its own CLI subcommand).
 

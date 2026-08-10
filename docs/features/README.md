@@ -3,7 +3,7 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-10
-**Recent**: AI Chat's "Recent chats" sidebar now sorts most-recent-activity-first (a new `updatedAt` bumped on every message, not on rename), RAG context is now explicitly framed as supplementary so questions outside the docs still get a real answer instead of a refusal, and sessions auto-title themselves from an LLM-generated summary of the first exchange — see [09-project-chat.md](./09-project-chat.md).
+**Recent**: Fixed a regression where `ragbuddy ingest` 404'd on the very first file right after `qdrant drop-collection` — the per-file delete now checks once whether the collection exists at all before attempting any delete — see [02-ingestion-full-index.md](./02-ingestion-full-index.md).
 
 ## Index
 
@@ -16,7 +16,7 @@ This folder contains documentation for implemented features and current state.
 7. [Web Frontend & CLI Project Subcommands](./07-web-frontend-and-project-cli.md) — Implemented
 8. [Dashboard Redesign, Document Uploads & Sync History](./08-dashboard-redesign-uploads-and-history.md) — Implemented
 9. [Per-Project Chat](./09-project-chat.md) — Implemented
-10. [Chat Provider Settings](./10-chat-provider-settings.md) — Implemented
+10. [Provider Credentials (Embedding & Chat)](./10-chat-provider-settings.md) — Implemented
 
 ---
 

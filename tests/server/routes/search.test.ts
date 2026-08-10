@@ -1,7 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../../src/server/app';
 import { baseDeps } from '../test-deps';
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('POST /api/projects/:id/search', () => {
   it('returns 404 for an unregistered project', async () => {
@@ -22,6 +26,7 @@ describe('POST /api/projects/:id/search', () => {
   });
 
   it('returns search results for a registered project', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ embedding: [0.1, 0.2] }) }));
     const registry = { list: vi.fn(), find: vi.fn().mockReturnValue({ id: 'sample', name: 'Sample', repository: '/r', paths: ['docs'] }) };
     const qdrantClient = {
       query: vi.fn().mockResolvedValue({

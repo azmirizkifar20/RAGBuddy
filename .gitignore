@@ -4,6 +4,7 @@ dist/
 .env
 config/projects.json
 config/chat-settings.json
+config/embedding-credentials.json
 data/
 opencode.jsonc
 .omo/

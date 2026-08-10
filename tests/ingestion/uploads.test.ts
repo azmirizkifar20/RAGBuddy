@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
@@ -15,6 +15,9 @@ const project = { id: 'sample', name: 'Sample', repository: '/repo', paths: ['do
 function qdrantStub() {
   return {
     getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'ragbuddy_documents' }] }),
+    // No `size` — these tests don't exercise the dimension guard, so ensureCollection's
+    // mismatch check is a no-op here (matches the real code's `existingSize !== undefined` guard).
+    getCollection: vi.fn().mockResolvedValue({ config: { params: { vectors: {} } } }),
     createCollection: vi.fn().mockResolvedValue(true),
     delete: vi.fn().mockResolvedValue(true),
     upsert: vi.fn().mockResolvedValue(true),
@@ -320,6 +323,25 @@ describe('listUploads / removeUpload', () => {
 
     expect(existsSync(path.join(uploadsDirFor(dataDir, 'sample'), name))).toBe(false);
     expect(listUploads(dataDir, 'sample')).toEqual([]);
+  });
+
+  it('removes the file without erroring when the Qdrant collection is missing (e.g. dropped since upload)', async () => {
+    const dir = uploadsDirFor(dataDir, 'sample');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, 'notes.md'), '# Notes\n');
+    const qdrantClient = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [] }),
+      delete: vi.fn().mockRejectedValue(new Error('Not Found')),
+    };
+
+    await removeUpload(project, 'notes.md', {
+      qdrantClient: qdrantClient as any,
+      qdrantCollection: 'ragbuddy_documents',
+      dataDir,
+    });
+
+    expect(qdrantClient.delete).not.toHaveBeenCalled();
+    expect(existsSync(path.join(dir, 'notes.md'))).toBe(false);
   });
 
   it('throws for a document that was never uploaded', async () => {

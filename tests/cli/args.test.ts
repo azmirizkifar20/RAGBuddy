@@ -129,4 +129,24 @@ describe('parseArgs', () => {
   it('parses the web command with an explicit port', () => {
     expect(parseArgs(['web', '--port', '5000'])).toEqual({ command: 'web', port: 5000 });
   });
+
+  it('parses qdrant drop-collection without --yes as unconfirmed', () => {
+    expect(parseArgs(['qdrant', 'drop-collection'])).toEqual({
+      command: 'qdrant',
+      action: 'drop-collection',
+      confirmed: false,
+    });
+  });
+
+  it('parses qdrant drop-collection --yes as confirmed', () => {
+    expect(parseArgs(['qdrant', 'drop-collection', '--yes'])).toEqual({
+      command: 'qdrant',
+      action: 'drop-collection',
+      confirmed: true,
+    });
+  });
+
+  it('returns unknown for an unrecognized qdrant action', () => {
+    expect(parseArgs(['qdrant', 'bogus'])).toEqual({ command: 'unknown' });
+  });
 });

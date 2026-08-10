@@ -9,11 +9,11 @@ loadDotenv({ path: path.resolve(__dirname, '../../.env') });
 import { loadConfig } from '../config/config';
 import { ProjectRegistry } from '../projects/project-registry';
 import { SyncHistoryStore, recordRun, type RunTrigger } from '../history/sync-history';
-import { createQdrantClient } from '../qdrant/qdrant-client';
-import { createEmbeddingProvider } from '../embedding/embedding-provider';
+import { createQdrantClient, dropCollection } from '../qdrant/qdrant-client';
+import { createEmbeddingProvider, type EmbeddingProvider } from '../embedding/embedding-provider';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createMcpServer } from '../mcp/server';
-import { ChatSettingsStore } from '../config/chat-settings-store';
+import { CredentialsStore } from '../config/credentials-store';
 import { installHook, uninstallHook } from '../git/hook-installer';
 import { runHookCommand } from './hook-command';
 import { runProjectRegister, runProjectList, runProjectRemove } from './project-command';
@@ -25,12 +25,14 @@ import { parseArgs } from './args';
 import { runIngestCommand } from './ingest-command';
 import { runSyncCommand } from './sync-command';
 import { runSearchCommand } from './search-command';
+import { runQdrantDropCollection } from './qdrant-command';
 
 async function main(): Promise<void> {
   const parsed = parseArgs(process.argv.slice(2));
   if (parsed.command === 'unknown') {
     console.error(
-      'Usage: ragbuddy <ingest|sync> <project>  |  ragbuddy search <project> "<query>"  |  ragbuddy mcp  |  ragbuddy hook <install|uninstall> <project>',
+      'Usage: ragbuddy <ingest|sync> <project>  |  ragbuddy search <project> "<query>"  |  ragbuddy mcp  |  ' +
+        'ragbuddy hook <install|uninstall> <project>  |  ragbuddy qdrant drop-collection --yes',
     );
     process.exitCode = 1;
     return;
@@ -43,12 +45,25 @@ async function main(): Promise<void> {
   // the history page can tell an automatic sync from one you typed yourself.
   const trigger: RunTrigger = process.env.RAGBUDDY_TRIGGER === 'hook' ? 'hook' : 'cli';
   const qdrantClient = createQdrantClient(config.qdrantUrl);
-  const embeddingProvider = createEmbeddingProvider({
+  // Both stores are seeded from .env on first read and never written to disk until the Settings
+  // page (or `ragbuddy qdrant`-style CLI actions) actually saves something — see
+  // src/config/credentials-store.ts. Resolved fresh per command below, never captured once, so a
+  // Settings change takes effect without restarting a long-running `ragbuddy web`/`ragbuddy mcp`.
+  const embeddingCredentials = new CredentialsStore(config.embeddingCredentialsPath, {
+    name: 'Default (.env)',
     provider: config.embeddingProvider,
     baseUrl: config.embeddingBaseUrl,
-    model: config.embeddingModel,
     apiKey: config.embeddingApiKey,
+    models: [config.embeddingModel],
   });
+  const chatCredentials = new CredentialsStore(config.chatSettingsPath, {
+    name: 'Default (.env)',
+    provider: config.embeddingProvider,
+    baseUrl: config.embeddingBaseUrl,
+    apiKey: config.embeddingApiKey,
+    models: [config.chatModel],
+  });
+  const resolveEmbeddingProvider = (): EmbeddingProvider => createEmbeddingProvider(embeddingCredentials.get());
   const onLog = (message: string) => console.log(`[INFO] ${message}`);
 
   if (parsed.command === 'mcp') {
@@ -61,7 +76,7 @@ async function main(): Promise<void> {
         searchProject(project.id, query, {
           qdrantClient,
           qdrantCollection: config.qdrantCollection,
-          embeddingProvider,
+          embeddingProvider: resolveEmbeddingProvider(),
           topK: config.ragTopK,
         }),
     });
@@ -110,25 +125,14 @@ async function main(): Promise<void> {
   }
 
   if (parsed.command === 'web') {
-    // Chat's provider/base URL/model/API key default to mirroring the
-    // embedding config (the pre-existing behavior) until the Settings page
-    // saves its own override into chatSettingsPath.
-    const chatSettings = new ChatSettingsStore(config.chatSettingsPath, {
-      provider: config.embeddingProvider,
-      baseUrl: config.embeddingBaseUrl,
-      model: config.chatModel,
-      apiKey: config.embeddingApiKey,
-    });
     const app = createApp({
       registry,
       qdrantClient,
       qdrantUrl: config.qdrantUrl,
       qdrantCollection: config.qdrantCollection,
-      embeddingProvider,
-      embeddingBaseUrl: config.embeddingBaseUrl,
-      embeddingApiKey: config.embeddingApiKey,
+      embeddingCredentials,
       ragTopK: config.ragTopK,
-      chatSettings,
+      chatCredentials,
       chatContextLimit: config.chatContextLimit,
       staticDir: path.resolve(__dirname, '../../web/dist'),
       dataDir: config.dataDir,
@@ -138,10 +142,6 @@ async function main(): Promise<void> {
         // Same entrypoint the git hook installer writes into post-commit, so
         // the MCP setup page shows the exact path that already works here.
         cliEntrypoint: path.resolve(__dirname, './index.js'),
-        embeddingProvider: config.embeddingProvider,
-        embeddingModel: config.embeddingModel,
-        embeddingBaseUrl: config.embeddingBaseUrl,
-        embeddingApiKeyConfigured: Boolean(config.embeddingApiKey),
         projectRegistryPath: config.projectRegistryPath,
       },
     });
@@ -175,7 +175,7 @@ async function main(): Promise<void> {
               qdrantClient,
               qdrantUrl: config.qdrantUrl,
               qdrantCollection: config.qdrantCollection,
-              embeddingProvider,
+              embeddingProvider: resolveEmbeddingProvider(),
               onLog,
             }),
           (r) => ({ filesIndexed: r.filesIndexed, chunksIndexed: r.chunksIndexed }),
@@ -204,7 +204,7 @@ async function main(): Promise<void> {
               qdrantClient,
               qdrantUrl: config.qdrantUrl,
               qdrantCollection: config.qdrantCollection,
-              embeddingProvider,
+              embeddingProvider: resolveEmbeddingProvider(),
               onLog,
             }),
           (r) => ({
@@ -247,13 +247,33 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (parsed.command === 'qdrant') {
+    const result = await runQdrantDropCollection(parsed.confirmed, {
+      registry,
+      drop: () => dropCollection(qdrantClient, config.qdrantCollection),
+    });
+    console.log(`This will permanently delete the Qdrant collection "${config.qdrantCollection}".`);
+    if (result.affectedProjectIds.length > 0) {
+      console.log('Every registered project below loses its index and must be re-ingested:');
+      for (const id of result.affectedProjectIds) console.log(`  - ${id}`);
+    }
+    if (!result.dropped) {
+      console.log('\nRe-run with --yes to actually drop it: ragbuddy qdrant drop-collection --yes');
+      process.exitCode = 1;
+      return;
+    }
+    console.log(`\n[ragbuddy] Dropped collection "${config.qdrantCollection}".`);
+    console.log('Run "ragbuddy ingest <project>" for each project above to rebuild it at the new dimension.');
+    return;
+  }
+
   const result = await runSearchCommand(parsed.projectId, parsed.query, {
     registry,
     search: (project, query) =>
       searchProject(project.id, query, {
         qdrantClient,
         qdrantCollection: config.qdrantCollection,
-        embeddingProvider,
+        embeddingProvider: resolveEmbeddingProvider(),
         topK: config.ragTopK,
       }),
   });

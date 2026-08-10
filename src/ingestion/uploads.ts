@@ -201,12 +201,17 @@ export async function removeUpload(
   // Vectors first: a leftover file that isn't indexed is harmless and fixes
   // itself on re-upload, whereas a leftover index entry would keep serving an
   // agent content for a document that no longer exists.
-  await deleteFileVectors(
-    deps.qdrantClient,
-    deps.qdrantCollection,
-    project.id,
-    `${UPLOAD_PREFIX}${name}`,
-  );
+  // A missing collection (e.g. right after `qdrant drop-collection`) has nothing to delete —
+  // skip the call rather than letting Qdrant 404 on it.
+  const collections = await deps.qdrantClient.getCollections();
+  if (collections.collections.some((c) => c.name === deps.qdrantCollection)) {
+    await deleteFileVectors(
+      deps.qdrantClient,
+      deps.qdrantCollection,
+      project.id,
+      `${UPLOAD_PREFIX}${name}`,
+    );
+  }
   // unlinkSync, not rmSync: on Windows `fs.rmSync` returns without error and
   // without deleting anything when the filename contains non-ASCII characters
   // (verified on Node 24 — `Ringkasan Proyék.xlsx` survived every call).

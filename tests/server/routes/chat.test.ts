@@ -8,15 +8,19 @@ const REGISTRY = () => ({
   find: vi.fn().mockReturnValue({ id: 'sample', name: 'Sample', repository: '/r', paths: ['docs'] }),
 });
 
-function chatSettingsDeps(settings: Record<string, unknown>) {
+function chatCredentialsDeps(connection: Record<string, unknown>) {
   return {
-    get: vi.fn().mockReturnValue(settings),
-    getPublic: vi.fn(),
-    save: vi.fn(),
+    get: vi.fn().mockReturnValue(connection),
+    list: vi.fn(),
+    getRawApiKey: vi.fn(),
+    add: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+    setActive: vi.fn(),
   };
 }
 
-/** Base deps for chat tests: ollama provider by default (baseDeps' own chatSettings default). */
+/** Base deps for chat tests: ollama provider by default (baseDeps' own chatCredentials default). */
 function chatDeps(overrides: Record<string, unknown> = {}): any {
   return baseDeps({
     registry: REGISTRY(),
@@ -119,7 +123,7 @@ describe('POST /api/projects/:id/chat', () => {
     vi.stubGlobal('fetch', fetchMock);
     const app = createApp(
       chatDeps({
-        chatSettings: chatSettingsDeps({
+        chatCredentials: chatCredentialsDeps({
           provider: 'openai',
           baseUrl: 'http://localhost:11434',
           model: 'llama3',
@@ -158,7 +162,12 @@ describe('POST /api/projects/:id/chat', () => {
   });
 
   it('emits sources and passes the retrieved context when useRag is true', async () => {
-    const fetchMock = vi.fn(async (_url: string, init: any) => {
+    // The embedding call now goes through the same fetch as the chat completion (both resolve
+    // through resolveEmbeddingProvider/chatCredentials.get(), not an injectable object anymore).
+    const fetchMock = vi.fn(async (url: string, init?: any) => {
+      if (url.endsWith('/api/embeddings')) {
+        return new Response(JSON.stringify({ embedding: [0.1, 0.2] }), { status: 200 });
+      }
       return new Response(ollamaStreamBody(['answer']), {
         status: 200,
         headers: { 'Content-Type': 'application/x-ndjson' },
@@ -170,8 +179,7 @@ describe('POST /api/projects/:id/chat', () => {
         points: [{ id: '1', score: 0.9, payload: { file: 'docs/a.md', section: 'Intro', content: 'the secret' } }],
       }),
     };
-    const embeddingProvider = { embedQuery: vi.fn().mockResolvedValue([0.1, 0.2]), embedDocuments: vi.fn() };
-    const app = createApp(chatDeps({ qdrantClient, embeddingProvider }));
+    const app = createApp(chatDeps({ qdrantClient }));
 
     const res = await request(app).post('/api/projects/sample/chat').send({
       messages: [{ role: 'user', content: 'what is the secret?' }],
@@ -180,9 +188,10 @@ describe('POST /api/projects/:id/chat', () => {
     expect(res.status).toBe(200);
     expect(res.text).toContain('event: sources\ndata: {"sources":[{"file":"docs/a.md","section":"Intro","score":0.9}]}');
     expect(res.text).toContain('event: done');
-    expect(embeddingProvider.embedQuery).toHaveBeenCalledWith('what is the secret?');
-    const [, init] = fetchMock.mock.calls[0];
-    const payload = JSON.parse(init.body);
+    const embedCall = fetchMock.mock.calls.find((call: any[]) => call[0].endsWith('/api/embeddings'));
+    expect(embedCall?.[1].body).toContain('what is the secret?');
+    const chatCall = fetchMock.mock.calls.find((call: any[]) => call[0].endsWith('/api/chat'));
+    const payload = JSON.parse(chatCall![1].body);
     const systemContext = payload.messages.find(
       (m: any) => typeof m.content === 'string' && m.content.includes('File: docs/a.md'),
     );
@@ -191,13 +200,15 @@ describe('POST /api/projects/:id/chat', () => {
   });
 
   it('surfaces a ragError on the sources event when retrieval throws (e.g. embedding dimension mismatch), and still answers', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(ollamaStreamBody(['answered without context']), { status: 200, headers: { 'Content-Type': 'application/x-ndjson' } }),
-    );
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith('/api/embeddings')) {
+        return new Response(JSON.stringify({ embedding: [0.1, 0.2] }), { status: 200 });
+      }
+      return new Response(ollamaStreamBody(['answered without context']), { status: 200, headers: { 'Content-Type': 'application/x-ndjson' } });
+    });
     vi.stubGlobal('fetch', fetchMock);
     const qdrantClient = { query: vi.fn().mockRejectedValue(new Error('Bad Request')) };
-    const embeddingProvider = { embedQuery: vi.fn().mockResolvedValue([0.1, 0.2]), embedDocuments: vi.fn() };
-    const app = createApp(chatDeps({ qdrantClient, embeddingProvider }));
+    const app = createApp(chatDeps({ qdrantClient }));
 
     const res = await request(app).post('/api/projects/sample/chat').send({
       messages: [{ role: 'user', content: 'what is the secret?' }],

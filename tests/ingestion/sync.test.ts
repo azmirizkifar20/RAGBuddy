@@ -45,6 +45,7 @@ describe('syncProject', () => {
         next_page_offset: null,
       }),
       getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'ragbuddy_documents' }] }),
+      getCollection: vi.fn().mockResolvedValue({ config: { params: { vectors: { size: 2 } } } }),
       createCollection: vi.fn().mockResolvedValue(true),
       delete: vi.fn().mockResolvedValue(true),
       upsert: vi.fn().mockResolvedValue(true),

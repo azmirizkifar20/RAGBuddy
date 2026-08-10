@@ -14,10 +14,14 @@ describe('project upload routes', () => {
 
   beforeEach(() => {
     dataDir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-upload-routes-'));
+    // Uploads embed via resolveEmbeddingProvider now — a real Ollama provider hitting fetch,
+    // matching baseDeps' default embeddingCredentials (ollama, bge-m3).
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ embedding: [0.1, 0.2] }) }));
   });
 
   afterEach(() => {
     rmSync(dataDir, { recursive: true, force: true });
+    vi.unstubAllGlobals();
   });
 
   function appWithProject(overrides: Record<string, unknown> = {}) {
@@ -26,13 +30,10 @@ describe('project upload routes', () => {
         registry: { list: vi.fn(), find: vi.fn().mockReturnValue(sample) },
         qdrantClient: {
           getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'ragbuddy_documents' }] }),
+          getCollection: vi.fn().mockResolvedValue({ config: { params: { vectors: { size: 2 } } } }),
           createCollection: vi.fn().mockResolvedValue(true),
           delete: vi.fn().mockResolvedValue(true),
           upsert: vi.fn().mockResolvedValue(true),
-        },
-        embeddingProvider: {
-          embedDocuments: vi.fn().mockResolvedValue([[0.1, 0.2]]),
-          embedQuery: vi.fn(),
         },
         dataDir,
         ...overrides,
@@ -113,16 +114,16 @@ describe('GET /api/projects/:id/history', () => {
 });
 
 describe('GET /api/config', () => {
-  it('exposes runtime settings but never the embedding API key', async () => {
-    const res = await request(createApp(baseDeps({ embeddingApiKey: 'sk-secret' }))).get('/api/config');
+  it('exposes runtime/vector-store settings — embedding credentials live under /api/settings/embedding now', async () => {
+    const res = await request(createApp(baseDeps())).get('/api/config');
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
       qdrantCollection: 'ragbuddy_documents',
-      embeddingModel: 'bge-m3',
-      embeddingApiKeyConfigured: false,
+      projectRegistryPath: '/opt/ragbuddy/config/projects.json',
     });
-    expect(JSON.stringify(res.body)).not.toContain('sk-secret');
+    expect(res.body).not.toHaveProperty('embeddingApiKey');
+    expect(res.body).not.toHaveProperty('embeddingProvider');
   });
 });
 

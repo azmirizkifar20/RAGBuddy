@@ -2,11 +2,11 @@ import express, { type Express } from 'express';
 import path from 'node:path';
 import type { QdrantClient } from '@qdrant/js-client-rest';
 import type { ProjectRegistry } from '../projects/project-registry';
-import type { EmbeddingProvider } from '../embedding/embedding-provider';
+import { createEmbeddingProvider, type EmbeddingProvider } from '../embedding/embedding-provider';
 import type { SyncHistoryStore } from '../history/sync-history';
-import type { ChatSettingsStore } from '../config/chat-settings-store';
+import type { CredentialsStore } from '../config/credentials-store';
 import { registerProjectsRoutes } from './routes/projects';
-import { registerSettingsRoutes } from './routes/settings';
+import { registerSettingsRoutes, registerCredentialsRoutes, testChatConnection, testEmbeddingConnection } from './routes/settings';
 import { registerKnowledgeRoutes } from './routes/knowledge';
 import { registerSearchRoutes } from './routes/search';
 import { registerChatRoutes } from './routes/chat';
@@ -21,10 +21,6 @@ import { registerFsRoutes } from './routes/fs';
 export interface RuntimeInfo {
   nodePath: string;
   cliEntrypoint: string;
-  embeddingProvider: string;
-  embeddingModel: string;
-  embeddingBaseUrl: string;
-  embeddingApiKeyConfigured: boolean;
   projectRegistryPath: string;
 }
 
@@ -33,16 +29,22 @@ export interface AppDeps {
   qdrantClient: QdrantClient;
   qdrantUrl: string;
   qdrantCollection: string;
-  embeddingProvider: EmbeddingProvider;
-  embeddingBaseUrl: string;
-  embeddingApiKey?: string;
+  /** The embedding provider is resolved fresh per use via `resolveEmbeddingProvider(deps)` —
+   *  never captured once, since the active credential/model can change without a restart. */
+  embeddingCredentials: CredentialsStore;
   ragTopK: number;
-  chatSettings: ChatSettingsStore;
+  chatCredentials: CredentialsStore;
   chatContextLimit: number;
   staticDir: string;
   dataDir: string;
   history: SyncHistoryStore;
   runtime: RuntimeInfo;
+}
+
+/** Resolves the currently active embedding credential + model into a ready-to-use provider —
+ *  called fresh at the start of each operation so a Settings change never needs a restart. */
+export function resolveEmbeddingProvider(deps: AppDeps): EmbeddingProvider {
+  return createEmbeddingProvider(deps.embeddingCredentials.get());
 }
 
 export function createApp(deps: AppDeps): Express {
@@ -71,6 +73,14 @@ export function createApp(deps: AppDeps): Express {
   const settingsRouter = express.Router();
   registerSettingsRoutes(settingsRouter, deps);
   app.use('/api/settings', settingsRouter);
+
+  const embeddingCredsRouter = express.Router();
+  registerCredentialsRoutes(embeddingCredsRouter, { store: deps.embeddingCredentials, testConnection: testEmbeddingConnection });
+  app.use('/api/settings/embedding', embeddingCredsRouter);
+
+  const chatCredsRouter = express.Router();
+  registerCredentialsRoutes(chatCredsRouter, { store: deps.chatCredentials, testConnection: testChatConnection });
+  app.use('/api/settings/chat', chatCredsRouter);
 
   app.get('/api/config', (_req, res) => {
     res.json({

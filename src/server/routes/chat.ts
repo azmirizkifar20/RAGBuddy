@@ -1,8 +1,8 @@
 import type { Router } from 'express';
-import type { AppDeps } from '../app';
+import { type AppDeps, resolveEmbeddingProvider } from '../app';
 import { startSse, sendSseEvent } from '../sse';
 import { searchProject } from '../../retrieval/search';
-import type { ChatSettings } from '../../config/chat-settings-store';
+import type { ActiveConnection as ChatSettings } from '../../config/credentials-store';
 
 export interface ContentPartText {
   type: 'text';
@@ -224,7 +224,7 @@ export function registerChatRoutes(router: Router, deps: AppDeps): void {
       return;
     }
     const useRag = body.useRag !== false;
-    const settings = deps.chatSettings.get();
+    const settings = deps.chatCredentials.get();
 
     startSse(res);
     const controller = new AbortController();
@@ -265,7 +265,7 @@ export function registerChatRoutes(router: Router, deps: AppDeps): void {
             const results = await searchProject(project.id, query, {
               qdrantClient: deps.qdrantClient,
               qdrantCollection: deps.qdrantCollection,
-              embeddingProvider: deps.embeddingProvider,
+              embeddingProvider: resolveEmbeddingProvider(deps),
               topK: deps.ragTopK,
             });
             sources = results.map((r) => ({ file: r.file, section: r.section, score: r.score }));
@@ -322,7 +322,7 @@ export function registerChatRoutes(router: Router, deps: AppDeps): void {
       return;
     }
     try {
-      const title = await generateTitle(body.userMessage, body.assistantMessage, deps.chatSettings.get());
+      const title = await generateTitle(body.userMessage, body.assistantMessage, deps.chatCredentials.get());
       res.json({ title });
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : String(error) });

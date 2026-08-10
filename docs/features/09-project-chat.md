@@ -45,7 +45,7 @@ When the incoming `messages` array exceeds `CHAT_CONTEXT_LIMIT` (default `10`), 
 
 ### Provider routing
 
-The provider/base URL/model/API key come from `deps.chatSettings.get()` — **independent of the embedding provider** used for RAG retrieval above (see [10-chat-provider-settings.md](./10-chat-provider-settings.md)), editable at runtime from **Settings** with no restart. OpenAI hits `${baseUrl}/chat/completions` with `Authorization: Bearer ${apiKey}`; Ollama hits `${baseUrl}/api/chat`. Images ride the request as `image_url` parts for OpenAI and as an `images` array for Ollama.
+The provider/base URL/model/API key come from `deps.chatCredentials.get()` (resolving the active credential+model from a list you can add to and switch between) — **independent of the embedding provider** used for RAG retrieval above (see [10-chat-provider-settings.md](./10-chat-provider-settings.md)), editable at runtime from **Settings** with no restart. OpenAI hits `${baseUrl}/chat/completions` with `Authorization: Bearer ${apiKey}`; Ollama hits `${baseUrl}/api/chat`. Images ride the request as `image_url` parts for OpenAI and as an `images` array for Ollama.
 
 ## 3) Routes
 
@@ -85,9 +85,9 @@ The provider/base URL/model/API key come from `deps.chatSettings.get()` — **in
 
 ## 4) Domain
 
-- **`src/server/routes/chat.ts`** — `registerChatRoutes`; the endpoint, auto-compaction, RAG injection, provider routing, and the OpenAI/Ollama streaming paths. Helpers `flattenContent`, `lastUserText`, `toProviderMessages`, `summarize`. Provider/base URL/model/API key come from `deps.chatSettings.get()` — see [10-chat-provider-settings.md](./10-chat-provider-settings.md) — not from the embedding config.
-- **`src/server/app.ts`** — mounts the chat router at `/api/projects`, threads `chatSettings` (a `ChatSettingsStore`) / `chatContextLimit` through `AppDeps` and mounts `/api/settings`.
-- **`src/config/config.ts`** — `chatModel` (default `gpt-4o-mini` for OpenAI, `llama3` for Ollama) and `chatContextLimit` (default `10`), validated against `CHAT_MODEL` / `CHAT_CONTEXT_LIMIT`; `chatModel` (plus the embedding provider/base URL/API key) only seeds `ChatSettingsStore`'s defaults now — the values actually used per request come from that store, not straight from `AppConfig`.
+- **`src/server/routes/chat.ts`** — `registerChatRoutes`; the endpoint, auto-compaction, RAG injection, provider routing, and the OpenAI/Ollama streaming paths. Helpers `flattenContent`, `lastUserText`, `toProviderMessages`, `summarize`. Provider/base URL/model/API key come from `deps.chatCredentials.get()` — see [10-chat-provider-settings.md](./10-chat-provider-settings.md) — not from the embedding config.
+- **`src/server/app.ts`** — mounts the chat router at `/api/projects`, threads `chatCredentials`/`embeddingCredentials` (both `CredentialsStore`) / `chatContextLimit` through `AppDeps` and mounts the generic credential routes twice at `/api/settings/{embedding,chat}`.
+- **`src/config/config.ts`** — `chatModel` (default `gpt-4o-mini` for OpenAI, `llama3` for Ollama) and `chatContextLimit` (default `10`), validated against `CHAT_MODEL` / `CHAT_CONTEXT_LIMIT`; `chatModel` (plus the embedding provider/base URL/API key) only seeds `chatCredentials`' first (`"Default (.env)"`) credential now — the values actually used per request come from whichever credential+model is active in that store, not straight from `AppConfig`.
 - **`src/retrieval/search.ts`** — the same project-filtered topK search an agent hits; reused for RAG grounding.
 
 ## 5) UI

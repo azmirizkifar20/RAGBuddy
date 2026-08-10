@@ -1,5 +1,5 @@
 import type { Router } from 'express';
-import type { AppDeps } from '../app';
+import { type AppDeps, resolveEmbeddingProvider } from '../app';
 import { listUploads, uploadDocument, removeUpload } from '../../ingestion/uploads';
 import { recordRun } from '../../history/sync-history';
 
@@ -39,7 +39,7 @@ export function registerUploadRoutes(router: Router, deps: AppDeps): void {
               qdrantClient: deps.qdrantClient,
               qdrantUrl: deps.qdrantUrl,
               qdrantCollection: deps.qdrantCollection,
-              embeddingProvider: deps.embeddingProvider,
+              embeddingProvider: resolveEmbeddingProvider(deps),
               dataDir: deps.dataDir,
             },
           ),

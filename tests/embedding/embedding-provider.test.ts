@@ -56,11 +56,125 @@ describe('createEmbeddingProvider', () => {
     expect(result).toEqual([[1, 2], [3, 4]]);
   });
 
-  it('throws a descriptive error when the embedding request fails after exhausting retries', async () => {
+  it('splits a large batch into requests of at most 100 items (Gemini BatchEmbedContentsRequest cap)', async () => {
+    const fetchMock = vi.fn().mockImplementation(async (_url: string, init: any) => {
+      const { input } = JSON.parse(init.body);
+      return {
+        ok: true,
+        json: async () => ({ data: input.map((text: string) => ({ embedding: [text.length] })) }),
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const provider = createEmbeddingProvider({
+      provider: 'openai',
+      baseUrl: 'http://proxy.local/v1',
+      model: 'gemini/gemini-embedding-2-preview',
+      apiKey: 'sk-test',
+    });
+    const texts = Array.from({ length: 207 }, (_, i) => `chunk-${i}`);
+    const result = await provider.embedDocuments(texts);
+
+    expect(result).toHaveLength(207);
+    expect(fetchMock).toHaveBeenCalledTimes(3); // 100 + 100 + 7
+    const batchSizes = fetchMock.mock.calls.map(([, init]: any) => JSON.parse(init.body).input.length);
+    expect(batchSizes).toEqual([100, 100, 7]);
+  });
+
+  it('retries a 429 (rate limit) with backoff, then succeeds', async () => {
     vi.useFakeTimers();
     const fetchMock = vi
       .fn()
-      .mockResolvedValue({ ok: false, status: 500, statusText: 'Internal Server Error' });
+      .mockResolvedValueOnce({ ok: false, status: 429, statusText: 'Too Many Requests', headers: { get: () => null } })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ embedding: [1, 2] }] }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const provider = createEmbeddingProvider({
+      provider: 'openai',
+      baseUrl: 'http://proxy.local/v1',
+      model: 'gemini/gemini-embedding-2-preview',
+      apiKey: 'sk-test',
+    });
+
+    const pending = provider.embedQuery('hello');
+    await vi.runAllTimersAsync();
+    await expect(pending).resolves.toEqual([1, 2]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  it('honors a numeric Retry-After header on a 429 instead of the default backoff', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        statusText: 'Too Many Requests',
+        headers: { get: (name: string) => (name === 'retry-after' ? '3' : null) },
+      })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ embedding: [1, 2] }] }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const provider = createEmbeddingProvider({
+      provider: 'openai',
+      baseUrl: 'http://proxy.local/v1',
+      model: 'gemini/gemini-embedding-2-preview',
+      apiKey: 'sk-test',
+    });
+
+    const pending = provider.embedQuery('hello');
+    await vi.advanceTimersByTimeAsync(3000);
+    await expect(pending).resolves.toEqual([1, 2]);
+    vi.useRealTimers();
+  });
+
+  it('retries a transient 5xx from the embeddings proxy, then throws once exhausted', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      statusText: 'Service Unavailable',
+      headers: { get: () => null },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const provider = createEmbeddingProvider({
+      provider: 'openai',
+      baseUrl: 'http://proxy.local/v1',
+      model: 'gemini/gemini-embedding-2-preview',
+      apiKey: 'sk-test',
+    });
+
+    const pending = expect(provider.embedQuery('hello')).rejects.toThrow('503');
+    await vi.runAllTimersAsync();
+    await pending;
+    expect(fetchMock).toHaveBeenCalledTimes(5); // 1 initial + 4 retries
+    vi.useRealTimers();
+  });
+
+  it('does not retry a non-429 4xx (e.g. a real bad request)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, statusText: 'Bad Request' });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const provider = createEmbeddingProvider({
+      provider: 'openai',
+      baseUrl: 'http://proxy.local/v1',
+      model: 'gemini/gemini-embedding-2-preview',
+      apiKey: 'sk-test',
+    });
+
+    await expect(provider.embedQuery('hello')).rejects.toThrow('400');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws a descriptive error when the embedding request fails after exhausting retries', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const provider = createEmbeddingProvider({
@@ -111,6 +225,51 @@ describe('createEmbeddingProvider', () => {
     await vi.runAllTimersAsync();
     await expect(pending).resolves.toEqual([0.1, 0.2]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  it('splits and mean-pools a large input on 500, without needing to parse the error body', async () => {
+    // Over OLLAMA_SPLIT_THRESHOLD_CHARS (800); each half (450 chars) is under it, so it
+    // succeeds after exactly one split — no reliance on Ollama's error wording at all.
+    const longText = 'a'.repeat(450) + 'b'.repeat(450);
+    const fetchMock = vi.fn().mockImplementation(async (_url: string, init: any) => {
+      const { prompt } = JSON.parse(init.body);
+      if (prompt === longText) {
+        return { ok: false, status: 500, statusText: 'Internal Server Error' };
+      }
+      // Each half gets embedded successfully.
+      return { ok: true, json: async () => ({ embedding: prompt === longText.slice(0, 450) ? [1, 1] : [3, 3] }) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const provider = createEmbeddingProvider({
+      provider: 'ollama',
+      baseUrl: 'http://localhost:11434',
+      model: 'bge-m3',
+    });
+
+    const result = await provider.embedQuery(longText);
+
+    expect(result).toEqual([2, 2]);
+    expect(fetchMock).toHaveBeenCalledTimes(3); // original + 2 halves
+  });
+
+  it('gives up splitting past OLLAMA_MAX_SPLIT_DEPTH and falls back to retry-then-throw', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500, statusText: 'Internal Server Error' });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const provider = createEmbeddingProvider({
+      provider: 'ollama',
+      baseUrl: 'http://localhost:11434',
+      model: 'bge-m3',
+    });
+
+    // Every attempt at every split depth fails, so this proves the recursion terminates
+    // (bounded by OLLAMA_MAX_SPLIT_DEPTH) instead of splitting forever.
+    const pending = expect(provider.embedQuery('y'.repeat(5000))).rejects.toThrow('500');
+    await vi.runAllTimersAsync();
+    await pending;
     vi.useRealTimers();
   });
 

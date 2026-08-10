@@ -6,6 +6,11 @@ import { tmpdir } from 'node:os';
  * Shared `AppDeps` stub for the route tests — every route file needs the full
  * dependency object even when it only exercises one endpoint, so it lives in
  * one place instead of being copy-pasted per file.
+ *
+ * `embeddingCredentials`/`chatCredentials` default to a plain `get()`-only stub (ollama,
+ * localhost:11434, model `bge-m3`/`llama3`) — routes resolve a REAL `EmbeddingProvider` via
+ * `resolveEmbeddingProvider(deps)`/a real chat completion fetch from whatever `get()` returns, so
+ * any test that reaches those code paths must stub `global.fetch` to match.
  */
 export function baseDeps(overrides: Record<string, unknown> = {}): any {
   return {
@@ -13,14 +18,32 @@ export function baseDeps(overrides: Record<string, unknown> = {}): any {
     qdrantClient: {},
     qdrantUrl: 'http://localhost:6333',
     qdrantCollection: 'ragbuddy_documents',
-    embeddingProvider: { embedQuery: vi.fn(), embedDocuments: vi.fn() },
+    embeddingCredentials: {
+      get: vi.fn().mockReturnValue({ provider: 'ollama', baseUrl: 'http://localhost:11434', model: 'bge-m3' }),
+      list: vi.fn(),
+      getRawApiKey: vi.fn(),
+      add: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+      setActive: vi.fn(),
+    },
     ragTopK: 5,
-    chatSettings: {
+    chatCredentials: {
       get: vi.fn().mockReturnValue({ provider: 'ollama', baseUrl: 'http://localhost:11434', model: 'llama3' }),
-      getPublic: vi
+      list: vi
         .fn()
-        .mockReturnValue({ provider: 'ollama', baseUrl: 'http://localhost:11434', model: 'llama3', apiKeyConfigured: false }),
-      save: vi.fn(),
+        .mockReturnValue({
+          credentials: [
+            { id: 'default', name: 'Default', provider: 'ollama', baseUrl: 'http://localhost:11434', apiKeyConfigured: false, models: ['llama3'] },
+          ],
+          activeCredentialId: 'default',
+          activeModel: 'llama3',
+        }),
+      getRawApiKey: vi.fn(),
+      add: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+      setActive: vi.fn(),
     },
     chatContextLimit: 10,
     staticDir: '/tmp/does-not-matter',
@@ -29,10 +52,6 @@ export function baseDeps(overrides: Record<string, unknown> = {}): any {
     runtime: {
       nodePath: '/usr/bin/node',
       cliEntrypoint: '/opt/ragbuddy/dist/cli/index.js',
-      embeddingProvider: 'ollama',
-      embeddingModel: 'bge-m3',
-      embeddingBaseUrl: 'http://localhost:11434',
-      embeddingApiKeyConfigured: false,
       projectRegistryPath: '/opt/ragbuddy/config/projects.json',
     },
     ...overrides,
