@@ -23,9 +23,10 @@ All colours are OKLCH CSS variables defined twice — once on `:root` (light) an
 
 | Token | Tailwind class | Used for |
 |-------|----------------|----------|
-| `--brand` | `bg-brand` / `text-brand` | Accent hue (violet). Active tab underline, focus ring, primary buttons, inline links. Used sparingly. |
+| `--brand` | `bg-brand` / `text-brand` | Accent hue (blue, matching the RAGBuddy logo). Active tab underline, focus ring, primary buttons, inline links. Used sparingly. |
 | `--success` / `--destructive` | `text-success`, `bg-destructive` | Run status dots and error text only. |
 | `--warning` / `--info` / `--accent-cyan` | — | Defined for future use; currently unused by any component. |
+| `--chart-1` / `--chart-2` / `--chart-4` | `bg-chart-1` etc. | Categorical trio for `ActivityChart` (ingest/sync/upload). Light values mirror `--brand`/`--accent-cyan`/`--warning`; dark values are tuned separately to a tighter lightness band (~0.48-0.67) so chart marks read clearly against the dark surface — validated with the `dataviz` skill's `validate_palette.js` (all-pairs CVD + normal-vision ΔE ≥ 15). `--chart-3`/`--chart-5` stay reserved for status (success/destructive), never repurposed as a categorical hue. |
 | `--card`, `--muted`, `--border`, `--sidebar*` | standard shadcn tokens | Surfaces and chrome. |
 
 ### Typography
@@ -82,6 +83,7 @@ The sidebar can collapse to an icon-only rail (`collapsed` state in `AppShell`, 
 | `RunTable` | `components/run-table.tsx` | Sync-history table — when, project, action, trigger, result, details, duration. |
 | `EmptyState` | `components/empty-state.tsx` | Dashed panel with a muted icon; every list renders this instead of bare text. |
 | `LogStream` | `components/log-stream.tsx` | Ingest/sync console with SSE lines, auto-scroll, blinking caret. |
+| `ActivityChart` | `components/activity-chart.tsx` | Dashboard's 7-day ingest/sync/upload frequency, stacked bars in fixed categorical order (upload/sync/ingest, top to bottom), per-day hover/focus tooltip, legend, and a "View as table" toggle to the same data as a `Table` (accessibility twin, per the `dataviz` skill). |
 | `UploadPanel` | `components/upload-panel.tsx` | Drag-and-drop uploader plus the uploaded-document list. |
 | `FlowDiagram` | `components/flow-diagram.tsx` | Reusable interactive pipeline diagram (dashed SVG connectors, click a stage for detail). |
 | `CopyButton` / `CodeBlock` | `components/copy-button.tsx` | Copy affordance used across the MCP setup and settings pages. |

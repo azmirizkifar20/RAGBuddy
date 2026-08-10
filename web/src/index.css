@@ -73,7 +73,7 @@
     --card-foreground: oklch(0.19 0.02 285);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.19 0.02 285);
-    --primary: oklch(0.51 0.21 283);
+    --primary: oklch(0.51 0.21 258);
     --primary-foreground: oklch(0.99 0.005 285);
     --secondary: oklch(0.96 0.008 285);
     --secondary-foreground: oklch(0.26 0.03 285);
@@ -84,17 +84,17 @@
     --destructive: oklch(0.58 0.23 27);
     --border: oklch(0.91 0.008 285);
     --input: oklch(0.91 0.008 285);
-    --ring: oklch(0.51 0.21 283);
+    --ring: oklch(0.51 0.21 258);
 
-    --brand: oklch(0.51 0.21 283);
-    --brand-soft: oklch(0.94 0.04 283);
+    --brand: oklch(0.51 0.21 258);
+    --brand-soft: oklch(0.94 0.04 258);
     --brand-foreground: oklch(0.99 0.005 285);
     --accent-cyan: oklch(0.6 0.13 210);
     --success: oklch(0.57 0.15 150);
     --warning: oklch(0.68 0.15 70);
     --info: oklch(0.58 0.15 245);
 
-    --chart-1: oklch(0.51 0.21 283);
+    --chart-1: oklch(0.51 0.21 258);
     --chart-2: oklch(0.6 0.13 210);
     --chart-3: oklch(0.57 0.15 150);
     --chart-4: oklch(0.68 0.15 70);
@@ -103,12 +103,12 @@
 
     --sidebar: oklch(0.975 0.006 285);
     --sidebar-foreground: oklch(0.25 0.02 285);
-    --sidebar-primary: oklch(0.51 0.21 283);
+    --sidebar-primary: oklch(0.51 0.21 258);
     --sidebar-primary-foreground: oklch(0.99 0.005 285);
     --sidebar-accent: oklch(0.94 0.02 285);
     --sidebar-accent-foreground: oklch(0.28 0.06 285);
     --sidebar-border: oklch(0.91 0.008 285);
-    --sidebar-ring: oklch(0.51 0.21 283);
+    --sidebar-ring: oklch(0.51 0.21 258);
 }
 
 .dark {
@@ -118,7 +118,7 @@
     --card-foreground: oklch(0.96 0.005 285);
     --popover: oklch(0.21 0.015 285);
     --popover-foreground: oklch(0.96 0.005 285);
-    --primary: oklch(0.68 0.17 285);
+    --primary: oklch(0.68 0.17 258);
     --primary-foreground: oklch(0.16 0.012 285);
     --secondary: oklch(0.26 0.017 285);
     --secondary-foreground: oklch(0.96 0.005 285);
@@ -129,30 +129,35 @@
     --destructive: oklch(0.68 0.19 25);
     --border: oklch(1 0 0 / 11%);
     --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.68 0.17 285);
+    --ring: oklch(0.68 0.17 258);
 
-    --brand: oklch(0.68 0.17 285);
-    --brand-soft: oklch(0.3 0.06 285);
+    --brand: oklch(0.68 0.17 258);
+    --brand-soft: oklch(0.3 0.06 258);
     --brand-foreground: oklch(0.16 0.012 285);
     --accent-cyan: oklch(0.75 0.13 205);
     --success: oklch(0.72 0.16 152);
     --warning: oklch(0.79 0.15 72);
     --info: oklch(0.7 0.14 245);
 
-    --chart-1: oklch(0.68 0.17 285);
-    --chart-2: oklch(0.75 0.13 205);
+    /* chart-1/2/4 are tuned separately from --brand/--accent-cyan/--warning: a
+       categorical trio for chart marks needs to sit in a tighter, mutually-
+       distinct lightness band (~0.48-0.67) against the dark surface, validated
+       via dataviz's validate_palette.js — those other tokens serve UI chrome
+       (buttons/rings/toasts) with different contrast needs and stay untouched. */
+    --chart-1: oklch(0.55 0.19 258);
+    --chart-2: oklch(0.66 0.13 205);
     --chart-3: oklch(0.72 0.16 152);
-    --chart-4: oklch(0.79 0.15 72);
+    --chart-4: oklch(0.6 0.16 70);
     --chart-5: oklch(0.68 0.19 25);
 
     --sidebar: oklch(0.185 0.014 285);
     --sidebar-foreground: oklch(0.92 0.006 285);
-    --sidebar-primary: oklch(0.68 0.17 285);
+    --sidebar-primary: oklch(0.68 0.17 258);
     --sidebar-primary-foreground: oklch(0.16 0.012 285);
     --sidebar-accent: oklch(0.27 0.03 285);
     --sidebar-accent-foreground: oklch(0.96 0.005 285);
     --sidebar-border: oklch(1 0 0 / 9%);
-    --sidebar-ring: oklch(0.68 0.17 285);
+    --sidebar-ring: oklch(0.68 0.17 258);
 }
 
 @keyframes fade-up {

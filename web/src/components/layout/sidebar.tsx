@@ -68,10 +68,11 @@ export function Sidebar({
             collapsed && 'lg:justify-center lg:px-2',
           )}
         >
-          <span className={cn('size-2 shrink-0 rounded-full bg-brand', collapsed && 'lg:hidden')} />
-          <p className={cn('flex-1 truncate font-heading text-sm font-semibold', collapsed && 'lg:hidden')}>
-            RAGBuddy
-          </p>
+          <img
+            src="/logo-sidebar.png"
+            alt="RAGBuddy"
+            className={cn('h-7 w-auto flex-1 object-contain object-left', collapsed && 'lg:hidden')}
+          />
           <Button
             variant="ghost"
             size="icon"

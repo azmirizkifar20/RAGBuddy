@@ -1,5 +1,7 @@
 # RAGBuddy
 
+![RAGBuddy](images/image-sidebar.png)
+
 A multi-project RAG (Retrieval-Augmented Generation) platform for **coding agents and developers**. RAGBuddy provides project-aware access to documentation and knowledge through a **web dashboard with AI chat**, **CLI**, and **MCP server** — all powered by the same underlying core.
 
 ## What it is

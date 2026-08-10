@@ -17,7 +17,7 @@ Four things, one release:
 
 | Route | Page | Purpose |
 |-------|------|---------|
-| `/` | `pages/dashboard.tsx` | Totals row, project grid, then a cross-project **recent activity table** below it |
+| `/` | `pages/dashboard.tsx` | Totals row, project grid (first 3 projects, "View all N projects →" to `/projects` beyond that), a 7-day **activity chart** (`components/activity-chart.tsx`, stacked by run kind, with a table-view toggle), then the cross-project **recent activity table** below it |
 | `/projects` | `pages/projects.tsx` | Filterable project list |
 | `/projects/:id` | `pages/project-layout.tsx` → `project-overview.tsx` | Stats, ingest/sync console, hook toggle, indexed paths |
 | `/projects/:id/documents` | `project-documents.tsx` | Indexed-file browser (filter by source) + upload tab |

@@ -2,8 +2,8 @@
 
 This folder contains documentation for implemented features and current state.
 
-**Updated**: 2026-08-09
-**Recent**: Moved chat to its own top-level sidebar page (`/chat` project picker, `/chat/:projectId` chat room) instead of a project detail tab, and added a collapsible sidebar rail with the theme toggle moved into its footer — see [09-project-chat.md](./09-project-chat.md) and [../design-system/README.md](../design-system/README.md).
+**Updated**: 2026-08-10
+**Recent**: Added a 14-day activity chart to the Dashboard (`components/activity-chart.tsx`, stacked ingest/sync/upload bars with a table-view toggle), rebranded the product to RAGBuddy with a blue-hued design token palette, and swapped the sidebar wordmark/favicon for the real logo assets — see [08-dashboard-redesign-uploads-and-history.md](./08-dashboard-redesign-uploads-and-history.md) and [../design-system/README.md](../design-system/README.md).
 
 ## Index
 

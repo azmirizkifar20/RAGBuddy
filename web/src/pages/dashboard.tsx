@@ -6,11 +6,14 @@ import { StatRow } from '@/components/stat-row'
 import { ProjectCard } from '@/components/project-card'
 import { EmptyState } from '@/components/empty-state'
 import { RunTable } from '@/components/run-table'
+import { ActivityChart } from '@/components/activity-chart'
 import { AddProjectModal } from '@/components/add-project-modal'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProjects } from '@/lib/projects-context'
 import { getActivity, type RunRecord } from '@/lib/api-client'
+
+const VISIBLE_PROJECTS = 3
 
 export function Dashboard() {
   const { projects, loading, error, refresh } = useProjects()
@@ -56,7 +59,14 @@ export function Dashboard() {
       />
 
       <section className="mb-8">
-        <h2 className="mb-3 text-sm font-medium">Projects</h2>
+        <div className="mb-3 flex items-baseline justify-between gap-2">
+          <h2 className="text-sm font-medium">Projects</h2>
+          {!loading && projects.length > VISIBLE_PROJECTS && (
+            <Link to="/projects" className="text-xs text-muted-foreground transition-colors hover:text-foreground">
+              View all {projects.length} projects →
+            </Link>
+          )}
+        </div>
         {loading ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {[0, 1, 2].map((i) => (
@@ -72,7 +82,7 @@ export function Dashboard() {
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {projects.map((project) => (
+            {projects.slice(0, VISIBLE_PROJECTS).map((project) => (
               <ProjectCard key={project.id} project={project} onSynced={refresh} />
             ))}
           </div>
@@ -91,7 +101,10 @@ export function Dashboard() {
             Nothing has run yet. Ingests, syncs and uploads all show up here.
           </p>
         ) : (
-          <RunTable runs={activity} showProject />
+          <div className="flex flex-col gap-4">
+            <ActivityChart runs={activity} />
+            <RunTable runs={activity} showProject />
+          </div>
         )}
       </section>
     </div>
