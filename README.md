@@ -139,21 +139,34 @@ RAGBuddy uses the Git repository as the source of truth. Qdrant acts as a rebuil
 
 RAGBuddy includes a web dashboard for managing projects, documents, RAG search, AI chat, ingestion, synchronization, and MCP configuration.
 
+### Dashboard
+
+![Dashboard](images/dashboard.png)
+
 ### Project Overview
 
-![Project overview](images/detail-project-overview.png)
+![Project overview](images/project-detail.png)
 
 ### Project Documents
 
-![Project documents](images/detail-project-document.png)
+![Project documents](images/project-detail-document.png)
 
 ### Project Search
 
-![Project search](images/detail-project-search.png)
+![Project search](images/project-detail-search.png)
+
+### Sync History
+
+![Sync history](images/project-detail-history.png)
+
+### MCP Setup
+
+![MCP setup](images/project-detail-mcp.png)
 
 ### AI Chat
 
-![AI Chat](images/ai-chat.png)
+![AI Chat overview](images/ai-chat-1.png)
+![AI Chat with related documents](images/ai-chat-2.png)
 
 Start the dashboard:
 
