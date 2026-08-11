@@ -50,6 +50,47 @@ describe('GET /api/projects', () => {
     expect(res.status).toBe(500);
     expect(res.body).toEqual({ error: 'fetch failed' });
   });
+
+  it('serves cached stats without touching Qdrant when the cache already has an entry', async () => {
+    const registry = {
+      list: vi.fn().mockReturnValue([{ id: 'sample', name: 'Sample', repository: '/r', paths: ['docs'] }]),
+      find: vi.fn(),
+    };
+    const qdrantClient = { getCollections: vi.fn(), scroll: vi.fn() };
+    const statsStore = {
+      get: vi.fn().mockReturnValue({ indexedFileCount: 5, chunkCount: 50, uploadCount: 2, updatedAt: 'x' }),
+      set: vi.fn(),
+      remove: vi.fn(),
+    };
+    const app = createApp(baseDeps({ registry, qdrantClient, statsStore }));
+
+    const res = await request(app).get('/api/projects');
+
+    expect(res.status).toBe(200);
+    expect(res.body[0]).toMatchObject({ indexedFileCount: 5, chunkCount: 50, uploadCount: 2 });
+    expect(qdrantClient.getCollections).not.toHaveBeenCalled();
+    expect(qdrantClient.scroll).not.toHaveBeenCalled();
+    expect(statsStore.set).not.toHaveBeenCalled();
+  });
+
+  it('computes and caches stats on a miss, so only the first request per project pays for the Qdrant scroll', async () => {
+    const registry = {
+      list: vi.fn().mockReturnValue([{ id: 'sample', name: 'Sample', repository: '/r', paths: ['docs'] }]),
+      find: vi.fn(),
+    };
+    const qdrantClient = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'ragbuddy_documents' }] }),
+      scroll: vi.fn().mockResolvedValue({ points: [{ id: '1', payload: { file: 'docs/a.md' } }], next_page_offset: null }),
+    };
+    const statsStore = { get: vi.fn().mockReturnValue(undefined), set: vi.fn(), remove: vi.fn() };
+    const app = createApp(baseDeps({ registry, qdrantClient, statsStore }));
+
+    const res = await request(app).get('/api/projects');
+
+    expect(res.status).toBe(200);
+    expect(res.body[0]).toMatchObject({ indexedFileCount: 1, chunkCount: 1, uploadCount: 0 });
+    expect(statsStore.set).toHaveBeenCalledWith('sample', expect.objectContaining({ indexedFileCount: 1, chunkCount: 1 }));
+  });
 });
 
 describe('GET /api/projects/:id', () => {

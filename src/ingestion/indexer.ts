@@ -16,6 +16,7 @@ import {
   type DocumentPoint,
 } from '../qdrant/qdrant-repository';
 import { deriveCategory, composeEmbedText } from './payload-builder';
+import { refreshProjectStats, type ProjectStatsStore } from '../projects/project-stats';
 
 export interface IndexProjectDeps {
   qdrantClient: QdrantClient;
@@ -23,6 +24,9 @@ export interface IndexProjectDeps {
   qdrantCollection: string;
   embeddingProvider: EmbeddingProvider;
   onLog?: (message: string) => void;
+  /** Optional — when provided, the dashboard's cached file/chunk/upload counts are refreshed
+   *  after this full rebuild finishes. Omitted in unit tests that don't care about the cache. */
+  statsStore?: ProjectStatsStore;
 }
 
 export interface IndexProjectResult {
@@ -117,6 +121,11 @@ export async function indexProject(
       log(`Removing vectors for deleted file ${file}`);
       await deleteFileVectors(deps.qdrantClient, deps.qdrantCollection, project.id, file);
     }
+  }
+
+  // A full rebuild always changes something worth re-caching, unlike sync's conditional refresh.
+  if (deps.statsStore) {
+    await refreshProjectStats(deps.statsStore, deps.qdrantClient, deps.qdrantCollection, project.id, deps.onLog);
   }
 
   return { filesIndexed: files.length, chunksIndexed };

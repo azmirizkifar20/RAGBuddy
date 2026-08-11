@@ -3,7 +3,7 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-11
-**Recent**: Git auto-sync now fires on `post-merge` (covers `git pull`) and `post-checkout` (branch switches), not just `post-commit` — see [06-git-hook-auto-sync.md](./06-git-hook-auto-sync.md).
+**Recent**: `GET /api/projects`/`GET /api/projects/:id` no longer scroll every chunk of every project out of Qdrant on every request — counts are now cached in `data/project-stats.json`, refreshed by ingest/sync/upload — see [2026-08-11_dashboard-slow-project-list.md](../issue/2026-08-11_dashboard-slow-project-list.md).
 
 ## Index
 

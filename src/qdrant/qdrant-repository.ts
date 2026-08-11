@@ -150,6 +150,27 @@ export async function getIndexedFiles(
   return [...byFile.values()].sort((a, b) => a.file.localeCompare(b.file));
 }
 
+export interface ProjectDataStats {
+  indexedFileCount: number;
+  chunkCount: number;
+  uploadCount: number;
+}
+
+/** Same source as `getIndexedFiles` — the caller (`src/projects/project-stats.ts`) caches this so
+ *  the underlying full-collection scroll only runs after a mutation, not on every page load. */
+export async function computeProjectDataStats(
+  client: QdrantClient,
+  collectionName: string,
+  project: string,
+): Promise<ProjectDataStats> {
+  const documents = await getIndexedFiles(client, collectionName, project);
+  return {
+    indexedFileCount: documents.length,
+    chunkCount: documents.reduce((total, d) => total + d.chunkCount, 0),
+    uploadCount: documents.filter((d) => d.source === 'upload').length,
+  };
+}
+
 export async function deleteFileVectors(
   client: QdrantClient,
   collectionName: string,

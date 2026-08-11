@@ -1,9 +1,23 @@
 import type { Router } from 'express';
 import type { AppDeps } from '../app';
-import { getIndexedFiles } from '../../qdrant/qdrant-repository';
-import { listUploads } from '../../ingestion/uploads';
+import { computeProjectDataStats } from '../../qdrant/qdrant-repository';
+import type { ProjectStats } from '../../projects/project-stats';
 import { isHookInstalled } from '../../git/hook-installer';
 import { runProjectRegister, runProjectList, runProjectRemove } from '../../cli/project-command';
+
+/** Cache-first: a project that has never been ingested/synced/uploaded to since this cache was
+ *  introduced has no entry yet, so this falls back to computing (and caching) it once — every
+ *  read after that is a local JSON lookup instead of a full Qdrant collection scroll. */
+async function getProjectStats(deps: AppDeps, projectId: string): Promise<ProjectStats> {
+  const cached = deps.statsStore.get(projectId);
+  if (cached) return cached;
+  const stats: ProjectStats = {
+    ...(await computeProjectDataStats(deps.qdrantClient, deps.qdrantCollection, projectId)),
+    updatedAt: new Date().toISOString(),
+  };
+  deps.statsStore.set(projectId, stats);
+  return stats;
+}
 
 export function registerProjectsRoutes(router: Router, deps: AppDeps): void {
   router.get('/', async (_req, res) => {
@@ -11,15 +25,15 @@ export function registerProjectsRoutes(router: Router, deps: AppDeps): void {
       const projects = runProjectList(deps.registry);
       const result = await Promise.all(
         projects.map(async (p) => {
-          const documents = await getIndexedFiles(deps.qdrantClient, deps.qdrantCollection, p.id);
+          const stats = await getProjectStats(deps, p.id);
           return {
             id: p.id,
             name: p.name,
             repository: p.repository,
             paths: p.paths,
-            indexedFileCount: documents.length,
-            chunkCount: documents.reduce((total, d) => total + d.chunkCount, 0),
-            uploadCount: documents.filter((d) => d.source === 'upload').length,
+            indexedFileCount: stats.indexedFileCount,
+            chunkCount: stats.chunkCount,
+            uploadCount: stats.uploadCount,
             hookInstalled: isHookInstalled(p.repository),
             lastRunAt: deps.history.list({ project: p.id, limit: 1 })[0]?.startedAt ?? null,
           };
@@ -38,15 +52,15 @@ export function registerProjectsRoutes(router: Router, deps: AppDeps): void {
       return;
     }
     try {
-      const documents = await getIndexedFiles(deps.qdrantClient, deps.qdrantCollection, project.id);
+      const stats = await getProjectStats(deps, project.id);
       res.json({
         id: project.id,
         name: project.name,
         repository: project.repository,
         paths: project.paths,
-        indexedFileCount: documents.length,
-        chunkCount: documents.reduce((total, d) => total + d.chunkCount, 0),
-        uploadCount: listUploads(deps.dataDir, project.id).length,
+        indexedFileCount: stats.indexedFileCount,
+        chunkCount: stats.chunkCount,
+        uploadCount: stats.uploadCount,
         hookInstalled: isHookInstalled(project.repository),
         lastRunAt: deps.history.list({ project: project.id, limit: 1 })[0]?.startedAt ?? null,
       });

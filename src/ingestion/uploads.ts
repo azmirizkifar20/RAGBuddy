@@ -16,6 +16,7 @@ import { chunkMarkdown } from './chunker';
 import { composeEmbedText } from './payload-builder';
 import { ensureCollection } from '../qdrant/qdrant-client';
 import { upsertChunks, deleteFileVectors, type DocumentPoint } from '../qdrant/qdrant-repository';
+import { refreshProjectStats, type ProjectStatsStore } from '../projects/project-stats';
 
 /**
  * Uploaded documents live outside the Git repository (nothing is written into
@@ -43,6 +44,9 @@ export interface UploadDeps {
   /** Structured tick during the embedding stage, alongside the human-readable log line — lets a
    *  UI render a real percentage instead of parsing log text. */
   onProgress?: (done: number, total: number) => void;
+  /** Optional — when provided, the dashboard's cached file/chunk/upload counts are refreshed
+   *  after this upload/removal finishes. Omitted in unit tests that don't care about the cache. */
+  statsStore?: ProjectStatsStore;
 }
 
 export function uploadsDirFor(dataDir: string, projectId: string): string {
@@ -187,6 +191,10 @@ export async function uploadDocument(
   await upsertChunks(deps.qdrantClient, deps.qdrantCollection, points);
   log(`Upserted ${points.length} chunk(s) for ${file}`);
 
+  if (deps.statsStore) {
+    await refreshProjectStats(deps.statsStore, deps.qdrantClient, deps.qdrantCollection, project.id, deps.onLog);
+  }
+
   return {
     file,
     name,
@@ -200,7 +208,7 @@ export async function uploadDocument(
 export async function removeUpload(
   project: ProjectConfig,
   filename: string,
-  deps: Pick<UploadDeps, 'qdrantClient' | 'qdrantCollection' | 'dataDir'>,
+  deps: Pick<UploadDeps, 'qdrantClient' | 'qdrantCollection' | 'dataDir' | 'statsStore' | 'onLog'>,
 ): Promise<void> {
   const name = assertSafeUploadName(filename);
   const absolutePath = path.join(uploadsDirFor(deps.dataDir, project.id), name);
@@ -232,5 +240,9 @@ export async function removeUpload(
     throw new Error(
       `Removed "${name}" from the index, but the file itself could not be deleted — it may be open in another program. Close it and try again.`,
     );
+  }
+
+  if (deps.statsStore) {
+    await refreshProjectStats(deps.statsStore, deps.qdrantClient, deps.qdrantCollection, project.id, deps.onLog);
   }
 }

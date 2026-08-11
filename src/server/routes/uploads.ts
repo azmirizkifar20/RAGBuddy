@@ -45,6 +45,7 @@ export function registerUploadRoutes(router: Router, deps: AppDeps): void {
               dataDir: deps.dataDir,
               onLog: (message) => sendSseEvent(res, 'log', message),
               onProgress: (done, total) => sendSseEvent(res, 'progress', { done, total }),
+              statsStore: deps.statsStore,
             },
           ),
         (r) => ({
@@ -84,6 +85,7 @@ export function registerUploadRoutes(router: Router, deps: AppDeps): void {
             qdrantClient: deps.qdrantClient,
             qdrantCollection: deps.qdrantCollection,
             dataDir: deps.dataDir,
+            statsStore: deps.statsStore,
           });
           return { file: req.params.filename };
         },

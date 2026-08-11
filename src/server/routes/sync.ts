@@ -23,6 +23,7 @@ export function registerSyncRoutes(router: Router, deps: AppDeps): void {
             qdrantCollection: deps.qdrantCollection,
             embeddingProvider: resolveEmbeddingProvider(deps),
             onLog: (message) => sendSseEvent(res, 'log', message),
+            statsStore: deps.statsStore,
           }),
         (r) => ({
           added: r.added.length,

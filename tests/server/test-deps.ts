@@ -49,6 +49,7 @@ export function baseDeps(overrides: Record<string, unknown> = {}): any {
     staticDir: '/tmp/does-not-matter',
     dataDir: path.join(tmpdir(), 'ragbuddy-test-data-does-not-exist'),
     history: { append: vi.fn(), list: vi.fn().mockReturnValue([]) },
+    statsStore: { get: vi.fn().mockReturnValue(undefined), set: vi.fn(), remove: vi.fn() },
     runtime: {
       nodePath: '/usr/bin/node',
       cliEntrypoint: '/opt/ragbuddy/dist/cli/index.js',

@@ -1,8 +1,12 @@
 import type { ProjectRegistry } from '../projects/project-registry';
+import type { ProjectStatsStore } from '../projects/project-stats';
 
 export interface RunQdrantDropCollectionDeps {
   registry: ProjectRegistry;
   drop: () => Promise<void>;
+  /** Optional — when provided, every affected project's cached dashboard stats are cleared so
+   *  the next page load doesn't keep showing counts from the collection that was just dropped. */
+  statsStore?: ProjectStatsStore;
 }
 
 export interface RunQdrantDropCollectionResult {
@@ -21,5 +25,6 @@ export async function runQdrantDropCollection(
     return { affectedProjectIds, dropped: false };
   }
   await deps.drop();
+  for (const id of affectedProjectIds) deps.statsStore?.remove(id);
   return { affectedProjectIds, dropped: true };
 }

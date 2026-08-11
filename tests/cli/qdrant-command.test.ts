@@ -21,4 +21,22 @@ describe('runQdrantDropCollection', () => {
     expect(result).toEqual({ affectedProjectIds: ['a'], dropped: true });
     expect(drop).toHaveBeenCalledTimes(1);
   });
+
+  it('clears cached dashboard stats for every affected project once dropped', async () => {
+    const drop = vi.fn().mockResolvedValue(undefined);
+    const statsStore = { get: vi.fn(), set: vi.fn(), remove: vi.fn() } as any;
+
+    await runQdrantDropCollection(true, { registry: registryStub(['a', 'b']), drop, statsStore });
+
+    expect(statsStore.remove).toHaveBeenCalledWith('a');
+    expect(statsStore.remove).toHaveBeenCalledWith('b');
+  });
+
+  it('does not touch a statsStore that was never provided', async () => {
+    const drop = vi.fn().mockResolvedValue(undefined);
+    await expect(runQdrantDropCollection(true, { registry: registryStub(['a']), drop })).resolves.toEqual({
+      affectedProjectIds: ['a'],
+      dropped: true,
+    });
+  });
 });

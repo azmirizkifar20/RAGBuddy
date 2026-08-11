@@ -16,6 +16,7 @@ import {
   type DocumentPoint,
 } from '../qdrant/qdrant-repository';
 import { deriveCategory, composeEmbedText } from './payload-builder';
+import { refreshProjectStats, type ProjectStatsStore } from '../projects/project-stats';
 
 export interface SyncProjectDeps {
   qdrantClient: QdrantClient;
@@ -23,6 +24,10 @@ export interface SyncProjectDeps {
   qdrantCollection: string;
   embeddingProvider: EmbeddingProvider;
   onLog?: (message: string) => void;
+  /** Optional — when provided, the dashboard's cached file/chunk/upload counts are refreshed
+   *  after this sync finishes, but only if something actually changed (this runs on every
+   *  post-commit/post-merge/post-checkout hook, most of which find nothing to do). */
+  statsStore?: ProjectStatsStore;
 }
 
 export interface SyncResult {
@@ -124,6 +129,11 @@ export async function syncProject(
   for (const file of deleted) {
     log(`Removing vectors for deleted file ${file}`);
     await deleteFileVectors(deps.qdrantClient, deps.qdrantCollection, project.id, file);
+  }
+
+  const changed = added.length > 0 || modified.length > 0 || deleted.length > 0;
+  if (deps.statsStore && changed) {
+    await refreshProjectStats(deps.statsStore, deps.qdrantClient, deps.qdrantCollection, project.id, deps.onLog);
   }
 
   return { added, modified, deleted, unchanged };

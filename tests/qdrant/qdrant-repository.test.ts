@@ -4,6 +4,7 @@ import {
   deleteProjectVectors,
   getIndexedFileHashes,
   getIndexedFiles,
+  computeProjectDataStats,
   deleteFileVectors,
   searchPoints,
 } from '../../src/qdrant/qdrant-repository';
@@ -200,6 +201,40 @@ describe('getIndexedFiles', () => {
     } as any;
 
     expect(await getIndexedFiles(client, 'docs', 'sample')).toEqual([]);
+    expect(client.scroll).not.toHaveBeenCalled();
+  });
+});
+
+describe('computeProjectDataStats', () => {
+  it('aggregates file/chunk/upload counts from the same source as getIndexedFiles', async () => {
+    const client = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'docs' }] }),
+      scroll: vi.fn().mockResolvedValue({
+        points: [
+          { id: '1', payload: { file: 'docs/a.md' } },
+          { id: '2', payload: { file: 'docs/a.md' } },
+          { id: '3', payload: { file: 'docs/b.md' } },
+          { id: '4', payload: { file: 'uploads/n.md', source: 'upload' } },
+        ],
+        next_page_offset: null,
+      }),
+    } as any;
+
+    expect(await computeProjectDataStats(client, 'docs', 'sample')).toEqual({
+      indexedFileCount: 3,
+      chunkCount: 4,
+      uploadCount: 1,
+    });
+  });
+
+  it('returns all zeros when the collection does not exist yet', async () => {
+    const client = { getCollections: vi.fn().mockResolvedValue({ collections: [] }), scroll: vi.fn() } as any;
+
+    expect(await computeProjectDataStats(client, 'docs', 'sample')).toEqual({
+      indexedFileCount: 0,
+      chunkCount: 0,
+      uploadCount: 0,
+    });
     expect(client.scroll).not.toHaveBeenCalled();
   });
 });

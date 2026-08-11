@@ -265,6 +265,26 @@ describe('uploadDocument', () => {
     expect(existsSync(path.join(uploadsDirFor(dataDir, 'sample'), 'scan.pdf'))).toBe(false);
   });
 
+  it('refreshes cached dashboard stats when a statsStore is provided', async () => {
+    const qdrantClient = { ...qdrantStub(), scroll: vi.fn().mockResolvedValue({ points: [], next_page_offset: null }) };
+    const statsStore = { get: vi.fn(), set: vi.fn(), remove: vi.fn() } as any;
+
+    await uploadDocument(
+      project,
+      { filename: 'notes.md', content: '# Notes\n' },
+      { ...deps(qdrantClient), statsStore },
+    );
+
+    expect(statsStore.set).toHaveBeenCalledTimes(1);
+    expect(statsStore.set.mock.calls[0][0]).toBe('sample');
+  });
+
+  it('does not touch a statsStore that was never provided', async () => {
+    await expect(
+      uploadDocument(project, { filename: 'notes.md', content: '# Notes\n' }, deps(qdrantStub())),
+    ).resolves.toBeDefined();
+  });
+
   it('writes nothing to disk when embedding fails', async () => {
     const failing = {
       ...deps(qdrantStub()),
@@ -322,6 +342,32 @@ describe('listUploads / removeUpload', () => {
 
     expect(listUploads(dataDir, 'sample')).toEqual([]);
     expect(existsSync(path.join(uploadsDirFor(dataDir, 'sample'), 'notes.md'))).toBe(false);
+  });
+
+  it('refreshes cached dashboard stats after removing an upload, when a statsStore is provided', async () => {
+    const qdrantClient = { ...qdrantStub(), scroll: vi.fn().mockResolvedValue({ points: [], next_page_offset: null }) };
+    await uploadDocument(
+      project,
+      { filename: 'notes.md', content: '# Notes\n' },
+      {
+        qdrantClient,
+        qdrantUrl: 'http://localhost:6333',
+        qdrantCollection: 'ragbuddy_documents',
+        embeddingProvider: { embedDocuments: vi.fn().mockResolvedValue([[0.1]]), embedQuery: vi.fn() } as any,
+        dataDir,
+      },
+    );
+
+    const statsStore = { get: vi.fn(), set: vi.fn(), remove: vi.fn() } as any;
+    await removeUpload(project, 'notes.md', {
+      qdrantClient,
+      qdrantCollection: 'ragbuddy_documents',
+      dataDir,
+      statsStore,
+    });
+
+    expect(statsStore.set).toHaveBeenCalledTimes(1);
+    expect(statsStore.set.mock.calls[0][0]).toBe('sample');
   });
 
   it('actually deletes a file whose name contains non-ASCII characters', async () => {

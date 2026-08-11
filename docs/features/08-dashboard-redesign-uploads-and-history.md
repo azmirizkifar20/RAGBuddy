@@ -88,6 +88,7 @@ Two new pieces of persisted state, both under `config.dataDir` (default `<instal
 
 - `data/sync-history.json` — newest-first array of `RunRecord`, capped at 500 entries, rewritten whole on append. A corrupt file is treated as empty.
 - `data/uploads/<projectId>/<filename>` — the uploaded documents themselves.
+- `data/project-stats.json` — `{ [projectId]: { indexedFileCount, chunkCount, uploadCount, updatedAt } }`, one entry per project. Refreshed by `indexProject`/`syncProject` (only when something actually changed)/`uploadDocument`/`removeUpload`; cleared per-project by `qdrant drop-collection`. `GET /api/projects`/`GET /api/projects/:id` read this cache-first, falling back to a live compute-and-cache on a miss.
 
 ### `source` payload field
 
@@ -98,7 +99,7 @@ Qdrant points now carry `source: 'repository' | 'upload'`. This is what keeps up
 
 **`'repository'` is expressed as `must_not source=upload`, not `must source=repository`** — points written before this feature existed have no `source` field at all, and a positive match would orphan every one of them (never diffed, never deleted, never cleaned up).
 
-New `getIndexedFiles()` returns one row per file (`file`, `source`, `documentType`, `chunkCount`, `title`) off a single scroll, which the document browser and the project counts both use. `document_type` now carries the real format (`pdf`/`docx`/`xlsx`/…) instead of always saying `markdown`.
+New `getIndexedFiles()` returns one row per file (`file`, `source`, `documentType`, `chunkCount`, `title`) off a single scroll, which the document browser uses directly. The project-list counts (`indexedFileCount`/`chunkCount`/`uploadCount`) go through a cache instead — see `src/projects/project-stats.ts` — since scrolling every chunk of every project on every dashboard page load stopped scaling once real projects reached thousands of chunks (2026-08-11, [2026-08-11_dashboard-slow-project-list.md](../issue/2026-08-11_dashboard-slow-project-list.md)). `document_type` now carries the real format (`pdf`/`docx`/`xlsx`/…) instead of always saying `markdown`.
 
 ### New API surface
 
@@ -111,7 +112,7 @@ New `getIndexedFiles()` returns one row per file (`file`, `source`, `documentTyp
 | `GET` | `/api/activity?limit=` | Cross-project run feed |
 | `GET` | `/api/config` | Runtime settings for the MCP/settings pages |
 
-`GET /api/projects` and `/api/projects/:id` gained `chunkCount`, `uploadCount` and `lastRunAt`. `/api/projects/:id/knowledge` gained `documents` and `chunkCount` alongside the original `files`.
+`GET /api/projects` and `/api/projects/:id` gained `chunkCount`, `uploadCount` and `lastRunAt`. `/api/projects/:id/knowledge` gained `documents` and `chunkCount` alongside the original `files`. `indexedFileCount`/`chunkCount`/`uploadCount` on both routes now come from the `ProjectStatsStore` cache (`data/project-stats.json`, cache-first with compute-on-miss), not a live Qdrant scroll.
 
 `express.json` limit raised to `32mb` — uploads travel base64-encoded inside JSON, so this limit (not the file picker) is the real ceiling on document size.
 
@@ -141,7 +142,8 @@ See [../design-system/README.md](../design-system/README.md) for tokens, motion 
 - `src/history/sync-history.ts` — `SyncHistoryStore`, `recordRun`
 - `src/ingestion/document-extractor.ts` — `extractDocument`, `assertSupportedUploadExtension`, `stripDataUriImages`
 - `src/ingestion/uploads.ts` — `assertSafeUploadName`, `uploadDocument`, `listUploads`, `removeUpload`
-- `src/qdrant/qdrant-repository.ts` — `scopedFilter`, `getIndexedFiles`, scoped `getIndexedFileHashes`/`deleteProjectVectors`
+- `src/qdrant/qdrant-repository.ts` — `scopedFilter`, `getIndexedFiles`, `computeProjectDataStats`, scoped `getIndexedFileHashes`/`deleteProjectVectors`
+- `src/projects/project-stats.ts` — `ProjectStatsStore`, `refreshProjectStats` (the dashboard stats cache)
 - `src/server/routes/{uploads,history}.ts`, `src/server/app.ts` (`/api/config`, `/api/activity`, `RuntimeInfo`)
 - `src/mcp/document-reader.ts` — `uploads/…` read path
 - `src/git/hook-installer.ts` — `RAGBUDDY_TRIGGER=hook`

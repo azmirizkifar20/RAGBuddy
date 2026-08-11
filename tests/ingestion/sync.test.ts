@@ -102,4 +102,64 @@ describe('syncProject', () => {
 
     expect(qdrantClient.scroll).not.toHaveBeenCalled();
   });
+
+  it('refreshes cached dashboard stats when a sync actually changes something', async () => {
+    const project = { id: 'sample', name: 'sample', repository: dir, paths: ['docs'] };
+    const embeddingProvider = {
+      embedDocuments: vi.fn().mockResolvedValue([[0.1, 0.2]]),
+      embedQuery: vi.fn(),
+    };
+    const qdrantClient = {
+      scroll: vi.fn().mockResolvedValue({
+        points: [{ id: '1', payload: { file: 'docs/unchanged.md', content_hash: hashContent(unchangedContent) } }],
+        next_page_offset: null,
+      }),
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'ragbuddy_documents' }] }),
+      getCollection: vi.fn().mockResolvedValue({ config: { params: { vectors: { size: 2 } } } }),
+      createCollection: vi.fn().mockResolvedValue(true),
+      delete: vi.fn().mockResolvedValue(true),
+      upsert: vi.fn().mockResolvedValue(true),
+    } as any;
+    const statsStore = { get: vi.fn(), set: vi.fn(), remove: vi.fn() } as any;
+
+    await syncProject(project, {
+      qdrantClient,
+      qdrantUrl: 'http://localhost:6333',
+      qdrantCollection: 'ragbuddy_documents',
+      embeddingProvider: embeddingProvider as any,
+      statsStore,
+    });
+
+    expect(statsStore.set).toHaveBeenCalledTimes(1);
+    expect(statsStore.set.mock.calls[0][0]).toBe('sample');
+  });
+
+  it('skips the cached-stats refresh entirely when a sync finds nothing to do — the common case for the post-merge/post-checkout hooks', async () => {
+    const project = { id: 'sample', name: 'sample', repository: dir, paths: ['docs'] };
+    const embeddingProvider = { embedDocuments: vi.fn(), embedQuery: vi.fn() };
+    const qdrantClient = {
+      scroll: vi.fn().mockResolvedValue({
+        points: [
+          { id: '1', payload: { file: 'docs/unchanged.md', content_hash: hashContent(unchangedContent) } },
+          { id: '2', payload: { file: 'docs/modified.md', content_hash: hashContent(modifiedContent) } },
+          { id: '3', payload: { file: 'docs/added.md', content_hash: hashContent(addedContent) } },
+        ],
+        next_page_offset: null,
+      }),
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'ragbuddy_documents' }] }),
+    } as any;
+    const statsStore = { get: vi.fn(), set: vi.fn(), remove: vi.fn() } as any;
+
+    const result = await syncProject(project, {
+      qdrantClient,
+      qdrantUrl: 'http://localhost:6333',
+      qdrantCollection: 'ragbuddy_documents',
+      embeddingProvider: embeddingProvider as any,
+      statsStore,
+    });
+
+    expect(result).toEqual({ added: [], modified: [], deleted: [], unchanged: expect.any(Array) });
+    expect(result.unchanged).toHaveLength(3);
+    expect(statsStore.set).not.toHaveBeenCalled();
+  });
 });

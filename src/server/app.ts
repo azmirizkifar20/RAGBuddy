@@ -5,6 +5,7 @@ import type { ProjectRegistry } from '../projects/project-registry';
 import { createEmbeddingProvider, type EmbeddingProvider } from '../embedding/embedding-provider';
 import type { SyncHistoryStore } from '../history/sync-history';
 import type { CredentialsStore } from '../config/credentials-store';
+import type { ProjectStatsStore } from '../projects/project-stats';
 import { registerProjectsRoutes } from './routes/projects';
 import { registerSettingsRoutes, registerCredentialsRoutes, testChatConnection, testEmbeddingConnection } from './routes/settings';
 import { registerKnowledgeRoutes } from './routes/knowledge';
@@ -39,6 +40,8 @@ export interface AppDeps {
   dataDir: string;
   history: SyncHistoryStore;
   runtime: RuntimeInfo;
+  /** Cached per-project file/chunk/upload counts for the dashboard list — see `src/projects/project-stats.ts`. */
+  statsStore: ProjectStatsStore;
 }
 
 /** Resolves the currently active embedding credential + model into a ready-to-use provider —

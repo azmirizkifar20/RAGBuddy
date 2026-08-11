@@ -276,6 +276,33 @@ describe('indexProject', () => {
     expect(qdrantClient.upsert).not.toHaveBeenCalled();
   });
 
+  it('refreshes cached dashboard stats after a full rebuild', async () => {
+    const project = { id: 'sample', name: 'sample', repository: dir, paths: ['docs'] };
+    const embeddingProvider = {
+      embedDocuments: vi.fn().mockResolvedValue([[0.1, 0.2]]),
+      embedQuery: vi.fn(),
+    };
+    const qdrantClient = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [] }),
+      createCollection: vi.fn().mockResolvedValue(true),
+      delete: vi.fn().mockResolvedValue(true),
+      upsert: vi.fn().mockResolvedValue(true),
+      scroll: vi.fn().mockResolvedValue({ points: [], next_page_offset: null }),
+    } as any;
+    const statsStore = { get: vi.fn(), set: vi.fn(), remove: vi.fn() } as any;
+
+    await indexProject(project, {
+      qdrantClient,
+      qdrantUrl: 'http://localhost:6333',
+      qdrantCollection: 'ragbuddy_documents',
+      embeddingProvider: embeddingProvider as any,
+      statsStore,
+    });
+
+    expect(statsStore.set).toHaveBeenCalledTimes(1);
+    expect(statsStore.set.mock.calls[0][0]).toBe('sample');
+  });
+
   it('throws without touching Qdrant when the repository path is not accessible', async () => {
     const project = {
       id: 'sample',

@@ -45,6 +45,7 @@ Dependency direction: CLI and MCP are the two entry points; both call into proje
 |-----------|----------------|-----------|
 | Project Registry | Register/list/remove/find projects (JSON-persisted) | `src/projects/project-registry.ts` |
 | Project Resolver | Resolve project from cwd or explicit id, for MCP tools | `src/projects/project-resolver.ts` |
+| Project Stats Cache | Cached per-project file/chunk/upload counts for the dashboard list, so `GET /api/projects` reads a small JSON file instead of scrolling every chunk out of Qdrant; refreshed by ingest/sync/upload | `src/projects/project-stats.ts` |
 | Scanner | Walk configured doc paths, apply include/exclude rules, path-traversal-safe | `src/ingestion/scanner.ts` |
 | Hasher | SHA-256 content hash per file for incremental sync | `src/ingestion/hasher.ts` |
 | Parser / Chunker | Heading-aware markdown parsing + overlap-bounded chunking | `src/ingestion/{parser,chunker}.ts` |

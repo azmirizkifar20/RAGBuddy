@@ -16,6 +16,7 @@ import { createMcpServer } from '../mcp/server';
 import { CredentialsStore } from '../config/credentials-store';
 import { installHook, uninstallHook } from '../git/hook-installer';
 import { runHookCommand } from './hook-command';
+import { ProjectStatsStore } from '../projects/project-stats';
 import { runProjectRegister, runProjectList, runProjectRemove } from './project-command';
 import { createApp } from '../server/app';
 import { indexProject } from '../ingestion/indexer';
@@ -41,6 +42,7 @@ async function main(): Promise<void> {
   const config = loadConfig();
   const registry = new ProjectRegistry(config.projectRegistryPath);
   const history = new SyncHistoryStore(path.join(config.dataDir, 'sync-history.json'));
+  const projectStats = new ProjectStatsStore(path.join(config.dataDir, 'project-stats.json'));
   // The post-commit hook shells out to this same CLI; it sets this env var so
   // the history page can tell an automatic sync from one you typed yourself.
   const trigger: RunTrigger = process.env.RAGBUDDY_TRIGGER === 'hook' ? 'hook' : 'cli';
@@ -137,6 +139,7 @@ async function main(): Promise<void> {
       staticDir: path.resolve(__dirname, '../../web/dist'),
       dataDir: config.dataDir,
       history,
+      statsStore: projectStats,
       runtime: {
         nodePath: process.execPath,
         // Same entrypoint the git hook installer writes into post-commit, so
@@ -177,6 +180,7 @@ async function main(): Promise<void> {
               qdrantCollection: config.qdrantCollection,
               embeddingProvider: resolveEmbeddingProvider(),
               onLog,
+              statsStore: projectStats,
             }),
           (r) => ({ filesIndexed: r.filesIndexed, chunksIndexed: r.chunksIndexed }),
         ),
@@ -206,6 +210,7 @@ async function main(): Promise<void> {
               qdrantCollection: config.qdrantCollection,
               embeddingProvider: resolveEmbeddingProvider(),
               onLog,
+              statsStore: projectStats,
             }),
           (r) => ({
             added: r.added.length,
@@ -251,6 +256,7 @@ async function main(): Promise<void> {
     const result = await runQdrantDropCollection(parsed.confirmed, {
       registry,
       drop: () => dropCollection(qdrantClient, config.qdrantCollection),
+      statsStore: projectStats,
     });
     console.log(`This will permanently delete the Qdrant collection "${config.qdrantCollection}".`);
     if (result.affectedProjectIds.length > 0) {
