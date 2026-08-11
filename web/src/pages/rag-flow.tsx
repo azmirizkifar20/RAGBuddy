@@ -98,17 +98,17 @@ const RETRIEVAL: FlowStage[] = [
 const AUTOSYNC: FlowStage[] = [
   {
     id: 'commit',
-    title: 'git commit',
+    title: 'commit / pull / checkout',
     caption: 'you write docs',
     detail:
-      'You commit as usual. Nothing about your workflow changes — the hook runs after the commit is already recorded.',
+      'You work as usual. Nothing about your workflow changes — the hooks run after the commit, merge, or branch switch is already recorded.',
   },
   {
     id: 'hook',
-    title: 'post-commit hook',
+    title: 'post-commit / post-merge / post-checkout hooks',
     caption: 'fires automatically',
     detail:
-      'RAGBuddy installs a marker-delimited block into .git/hooks/post-commit, coexisting with any hook already there. If the sync fails, it prints a warning — your commit is never blocked or rolled back.',
+      'RAGBuddy installs the same marker-delimited block into all three hook files, coexisting with any hook already there. post-checkout skips single-file checkouts (branch switches only). If the sync fails, it prints a warning — the Git operation is never blocked or rolled back.',
     source: 'src/git/hook-installer.ts',
   },
   {

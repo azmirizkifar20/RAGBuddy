@@ -32,7 +32,7 @@ How the application boots, initializes, and routes requests at runtime. This is 
 
 ## Background / Scheduled Flows
 
-- Git `post-commit` hook (`.git/hooks/post-commit`, installed by `ragbuddy hook install <project>` via `src/git/hook-installer.ts`) → shells out to `ragbuddy sync <project>` using the exact `node` binary and `dist/cli/index.js` path of the installation that ran `hook install` → always exits 0 regardless of sync success, printing a warning on failure — never blocks the commit (`init.md` §12–13)
+- Git `post-commit`/`post-merge`/`post-checkout` hooks (`.git/hooks/{post-commit,post-merge,post-checkout}`, installed by `ragbuddy hook install <project>` via `src/git/hook-installer.ts`) → each shells out to `ragbuddy sync <project>` using the exact `node` binary and `dist/cli/index.js` path of the installation that ran `hook install` → always exits 0 regardless of sync success, printing a warning on failure — never blocks the commit/merge/checkout (`init.md` §12–13). `post-checkout` additionally guards on Git's branch-flag arg (`$3 = 1`) so it only fires on a branch switch, not a single-file checkout.
 
 ## Environment & Config
 

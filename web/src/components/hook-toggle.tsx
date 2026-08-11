@@ -35,13 +35,19 @@ export function HookToggle({
   return (
     <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
       <div className="min-w-0">
-        <p className="text-sm font-medium">Auto-sync on commit</p>
+        <p className="text-sm font-medium">Auto-sync on commit / pull / checkout</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Installs a <code className="font-mono">post-commit</code> hook that re-syncs changed docs. Never blocks a
-          commit.
+          Installs <code className="font-mono">post-commit</code>, <code className="font-mono">post-merge</code>, and{' '}
+          <code className="font-mono">post-checkout</code> hooks that re-sync changed docs. Never blocks the
+          underlying Git operation.
         </p>
       </div>
-      <Switch checked={installed} disabled={busy} onCheckedChange={handleToggle} aria-label="Auto-sync on commit" />
+      <Switch
+        checked={installed}
+        disabled={busy}
+        onCheckedChange={handleToggle}
+        aria-label="Auto-sync on commit, pull, and checkout"
+      />
     </div>
   )
 }

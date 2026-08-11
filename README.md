@@ -20,7 +20,7 @@ A multi-project RAG (Retrieval-Augmented Generation) platform for **coding agent
 * 📚 Repository documentation indexing
 * 📎 Upload PDF, Word, Excel, Markdown, CSV, and text documents
 * 🔄 Incremental synchronization using content hashes
-* 🪝 Git `post-commit` auto-sync
+* 🪝 Git auto-sync on commit, pull, and checkout
 * 🗄️ Single Qdrant collection with project-level isolation
 * 🧩 Ollama and OpenAI-compatible embedding providers
 * 🖥️ Web Dashboard and CLI using the same core implementation

@@ -32,7 +32,7 @@ Git Repository (project-a, project-b, ...)
 - **Embedding layer**: `src/embedding/embedding-provider.ts` — provider-agnostic `embedDocuments`/`embedQuery` interface (Ollama, OpenAI-compatible)
 - **Storage layer**: `src/qdrant/{qdrant-client,qdrant-repository}.ts` — all Qdrant reads/writes, project-filtered (`upsertChunks`, `deleteProjectVectors`, `deleteFileVectors`, `getIndexedFileHashes`, `searchPoints`)
 - **Retrieval layer**: `src/retrieval/search.ts` — topK similarity search, enforces project filter before returning results
-- **Git integration layer**: `src/git/{git-status,hook-installer}.ts` — commit metadata and post-commit hook install/uninstall (chains safely with any pre-existing hook)
+- **Git integration layer**: `src/git/{git-status,hook-installer}.ts` — commit metadata and commit/merge/checkout auto-sync hook install/uninstall (chains safely with any pre-existing hook)
 - **MCP layer**: `src/mcp/{server,tool-result,document-reader}.ts`, `src/mcp/tools/{search-project-docs,get-project-document,list-project-knowledge}.ts` — the single MCP interface shared by all agents (no separate implementations per agent)
 - **Config layer**: `src/config/config.ts` — env var loading/validation
 - **Web layer**: `src/server/{app,sse}.ts`, `src/server/routes/{projects,knowledge,search,hook,ingest,sync,chat}.ts` — a third entry point (alongside CLI and MCP) exposing the same underlying modules over a REST API + SSE, serving the `web/` React SPA statically; started by `ragbuddy web`
@@ -56,13 +56,13 @@ Dependency direction: CLI and MCP are the two entry points; both call into proje
 | Document Reader | Path-traversal-safe, configured-path-scoped file read for MCP | `src/mcp/document-reader.ts` |
 | MCP Tools | `get_project_context`, `search_project_docs`, `get_project_document`, `list_project_knowledge` | `src/mcp/tools/*` |
 | Project Context Aggregator | Orientation-only context assembly: README/steering summaries + Git status + doc inventory, no vector search | `src/context/project-context.ts` |
-| Hook Installer | Marker-delimited `post-commit` hook install/uninstall, safe chaining | `src/git/hook-installer.ts` |
+| Hook Installer | Marker-delimited `post-commit`/`post-merge`/`post-checkout` hook install/uninstall, safe chaining | `src/git/hook-installer.ts` |
 | Chat Route | SSE streaming chat per project: auto-compaction (`CHAT_CONTEXT_LIMIT`), conditional RAG search, multimodal routing to the configured chat provider, client-abort via `res.on('close')` | `src/server/routes/chat.ts` |
 
 ## Cross-Module Communication
 
 - CLI and MCP call into the same underlying modules (project registry, retrieval, ingestion) — no duplicated logic between agent integrations (`init.md` §28)
-- Git post-commit hook shells out to the `ragbuddy sync <project>` CLI command; failures are caught and logged as warnings, never block the commit (`init.md` §12)
+- Git `post-commit`/`post-merge`/`post-checkout` hooks each shell out to the `ragbuddy sync <project>` CLI command; failures are caught and logged as warnings, never block the underlying Git operation (`init.md` §12)
 
 ## Data Flow
 

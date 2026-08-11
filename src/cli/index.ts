@@ -92,7 +92,7 @@ async function main(): Promise<void> {
       uninstall: uninstallHook,
     });
     console.log(
-      `[ragbuddy] ${result.action === 'install' ? 'Installed' : 'Uninstalled'} the post-commit hook for "${result.projectName}".`,
+      `[ragbuddy] ${result.action === 'install' ? 'Installed' : 'Uninstalled'} the auto-sync Git hooks (commit/merge/checkout) for "${result.projectName}".`,
     );
     return;
   }

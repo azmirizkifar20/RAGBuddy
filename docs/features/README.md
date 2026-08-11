@@ -2,8 +2,8 @@
 
 This folder contains documentation for implemented features and current state.
 
-**Updated**: 2026-08-10
-**Recent**: Fixed a broken Mermaid diagram in a chat reply rendering as a giant raw error box leaked outside the message (below the input) instead of a contained "Invalid diagram" notice — two real mermaid rendering bugs, both worked around in `MermaidBlock` — see [../design-system/README.md](../design-system/README.md).
+**Updated**: 2026-08-11
+**Recent**: Git auto-sync now fires on `post-merge` (covers `git pull`) and `post-checkout` (branch switches), not just `post-commit` — see [06-git-hook-auto-sync.md](./06-git-hook-auto-sync.md).
 
 ## Index
 

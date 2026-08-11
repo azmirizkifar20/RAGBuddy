@@ -4,32 +4,50 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { installHook, uninstallHook, isHookInstalled } from '../../src/git/hook-installer';
 
+const HOOK_NAMES = ['post-commit', 'post-merge', 'post-checkout'] as const;
+
 describe('installHook', () => {
   let dir: string;
   let repo: string;
-  let hookPath: string;
+  let hooksDir: string;
 
   beforeEach(() => {
     dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-hook-'));
     repo = path.join(dir, 'repo');
     mkdirSync(path.join(repo, '.git', 'hooks'), { recursive: true });
-    hookPath = path.join(repo, '.git', 'hooks', 'post-commit');
+    hooksDir = path.join(repo, '.git', 'hooks');
   });
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it('creates a fresh post-commit hook when none exists', () => {
+  it('creates fresh hooks for commit, merge, and checkout when none exist', () => {
     installHook(repo, 'bidubadu', { nodePath: '/usr/bin/node', cliEntrypoint: '/opt/ragbuddy/dist/cli/index.js' });
 
-    expect(existsSync(hookPath)).toBe(true);
-    const content = readFileSync(hookPath, 'utf8');
-    expect(content).toContain('ragbuddy hook start');
-    expect(content).toContain('sync bidubadu');
-    expect(content).toContain('/usr/bin/node');
-    expect(content).toContain('/opt/ragbuddy/dist/cli/index.js');
-    expect(content).toContain('Git commit remains successful');
+    for (const hookName of HOOK_NAMES) {
+      const hookPath = path.join(hooksDir, hookName);
+      expect(existsSync(hookPath)).toBe(true);
+      const content = readFileSync(hookPath, 'utf8');
+      expect(content).toContain('ragbuddy hook start');
+      expect(content).toContain('sync bidubadu');
+      expect(content).toContain('/usr/bin/node');
+      expect(content).toContain('/opt/ragbuddy/dist/cli/index.js');
+    }
+  });
+
+  it('guards post-checkout to skip single-file checkouts (branch-flag $3)', () => {
+    installHook(repo, 'bidubadu', { nodePath: 'node', cliEntrypoint: '/x/index.js' });
+
+    const content = readFileSync(path.join(hooksDir, 'post-checkout'), 'utf8');
+    expect(content).toContain('[ "$3" = "1" ] || exit 0');
+  });
+
+  it('does not guard post-commit or post-merge', () => {
+    installHook(repo, 'bidubadu', { nodePath: 'node', cliEntrypoint: '/x/index.js' });
+
+    expect(readFileSync(path.join(hooksDir, 'post-commit'), 'utf8')).not.toContain('exit 0');
+    expect(readFileSync(path.join(hooksDir, 'post-merge'), 'utf8')).not.toContain('exit 0');
   });
 
   it('rejects a repository that is not a git repo', () => {
@@ -39,6 +57,7 @@ describe('installHook', () => {
   });
 
   it('preserves an existing user hook by appending the ragbuddy block after it', () => {
+    const hookPath = path.join(hooksDir, 'post-commit');
     writeFileSync(hookPath, '#!/bin/sh\necho "custom user hook"\n');
 
     installHook(repo, 'bidubadu', { nodePath: 'node', cliEntrypoint: '/x/index.js' });
@@ -50,6 +69,7 @@ describe('installHook', () => {
   });
 
   it('is idempotent — reinstalling replaces only the ragbuddy block, not the user content', () => {
+    const hookPath = path.join(hooksDir, 'post-commit');
     writeFileSync(hookPath, '#!/bin/sh\necho "custom user hook"\n');
     installHook(repo, 'old-project', { nodePath: 'node', cliEntrypoint: '/x/index.js' });
     installHook(repo, 'new-project', { nodePath: 'node', cliEntrypoint: '/x/index.js' });
@@ -65,26 +85,29 @@ describe('installHook', () => {
 describe('uninstallHook', () => {
   let dir: string;
   let repo: string;
-  let hookPath: string;
+  let hooksDir: string;
 
   beforeEach(() => {
     dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-hook-uninstall-'));
     repo = path.join(dir, 'repo');
     mkdirSync(path.join(repo, '.git', 'hooks'), { recursive: true });
-    hookPath = path.join(repo, '.git', 'hooks', 'post-commit');
+    hooksDir = path.join(repo, '.git', 'hooks');
   });
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it('removes the hook file entirely when it only contained the ragbuddy block', () => {
+  it('removes all three hook files entirely when they only contained the ragbuddy block', () => {
     installHook(repo, 'bidubadu', { nodePath: 'node', cliEntrypoint: '/x/index.js' });
     uninstallHook(repo);
-    expect(existsSync(hookPath)).toBe(false);
+    for (const hookName of HOOK_NAMES) {
+      expect(existsSync(path.join(hooksDir, hookName))).toBe(false);
+    }
   });
 
   it('preserves a pre-existing user hook and removes only the ragbuddy block', () => {
+    const hookPath = path.join(hooksDir, 'post-commit');
     writeFileSync(hookPath, '#!/bin/sh\necho "custom user hook"\n');
     installHook(repo, 'bidubadu', { nodePath: 'node', cliEntrypoint: '/x/index.js' });
 
@@ -97,7 +120,9 @@ describe('uninstallHook', () => {
 
   it('does nothing when no hook is installed', () => {
     expect(() => uninstallHook(repo)).not.toThrow();
-    expect(existsSync(hookPath)).toBe(false);
+    for (const hookName of HOOK_NAMES) {
+      expect(existsSync(path.join(hooksDir, hookName))).toBe(false);
+    }
   });
 });
 

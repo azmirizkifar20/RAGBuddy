@@ -11,8 +11,8 @@
 | `ragbuddy ingest <project>` | Full rebuild of a project's index | `src/cli/ingest-command.ts` → `src/ingestion/indexer.ts` |
 | `ragbuddy sync <project>` | Incremental sync (added/modified/deleted/unchanged) | `src/cli/sync-command.ts` → `src/ingestion/sync.ts` |
 | `ragbuddy search <project> "<query>"` | Query a project's indexed docs | `src/cli/search-command.ts` → `src/retrieval/search.ts` |
-| `ragbuddy hook install <project>` | Install the Git post-commit sync hook | `src/cli/hook-command.ts` → `src/git/hook-installer.ts` |
-| `ragbuddy hook uninstall <project>` | Remove the Git post-commit sync hook | `src/cli/hook-command.ts` → `src/git/hook-installer.ts` |
+| `ragbuddy hook install <project>` | Install the Git auto-sync hooks (`post-commit`/`post-merge`/`post-checkout`) | `src/cli/hook-command.ts` → `src/git/hook-installer.ts` |
+| `ragbuddy hook uninstall <project>` | Remove the Git auto-sync hooks | `src/cli/hook-command.ts` → `src/git/hook-installer.ts` |
 | `ragbuddy mcp` | Start the MCP server (stdio transport) | `src/cli/index.ts` → `src/mcp/server.ts` |
 | `ragbuddy qdrant drop-collection [--yes]` | Delete the shared Qdrant collection so it can be recreated at a new embedding dimension — prints every registered project that will need re-ingesting; without `--yes`, previews the list and exits without dropping anything | `src/cli/qdrant-command.ts` → `src/qdrant/qdrant-client.ts` |
 
@@ -44,7 +44,7 @@ The web dashboard serves the `web/` React SPA statically and exposes a REST+SSE 
 | `POST /:id/search` | Search a project's docs | `routes/search.ts` |
 | `POST /:id/ingest` / `POST /:id/sync` | Full rebuild / incremental sync | `routes/ingest.ts`, `routes/sync.ts` |
 | `POST /:id/chat` | **Streaming chat** over SSE (`event: token` / `sources` / `error` / `done`), with optional RAG and auto-compaction | `routes/chat.ts` |
-| `POST /:id/hook` / `DELETE /:id/hook` | Install / remove the Git post-commit hook | `routes/hook.ts` |
+| `POST /:id/hook` / `DELETE /:id/hook` | Install / remove the Git auto-sync hooks (commit/merge/checkout) | `routes/hook.ts` |
 
 All of the above are mounted under `/api/projects` in `src/server/app.ts`. Separate top-level routes: `GET /api/config` (runtime config, incl. `CHAT_CONTEXT_LIMIT`), `GET /api/activity` (activity feed), and `GET /api/fs/...` (filesystem browsing for the folder picker).
 
