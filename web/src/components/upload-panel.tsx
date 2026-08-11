@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { removeUpload, uploadDocument, type UploadedDocument } from '@/lib/api-client'
+import { removeUpload, streamUploadDocument, type UploadedDocument, type UploadResult } from '@/lib/api-client'
 import { formatBytes, timeAgo } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -52,20 +52,35 @@ export function UploadPanel({
 }) {
   const [busy, setBusy] = useState(false)
   const [dragging, setDragging] = useState(false)
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
+  const [queue, setQueue] = useState<{ index: number; total: number } | null>(null)
+  const [stage, setStage] = useState<string | null>(null)
+  const [chunkProgress, setChunkProgress] = useState<{ done: number; total: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  function uploadOne(file: File, base64: string): Promise<UploadResult> {
+    return new Promise((resolve, reject) => {
+      streamUploadDocument(projectId, file.name, base64, {
+        onLog: setStage,
+        onProgress: (done, total) => setChunkProgress({ done, total }),
+        onDone: resolve,
+        onError: (message) => reject(new Error(message)),
+      })
+    })
+  }
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return
     const list = [...files]
     setBusy(true)
-    setProgress({ done: 0, total: list.length })
 
     let succeeded = 0
     for (const [index, file] of list.entries()) {
+      setQueue({ index, total: list.length })
+      setStage('Reading file...')
+      setChunkProgress(null)
       try {
         if (file.size > MAX_BYTES) throw new Error(`${file.name} is larger than ${formatBytes(MAX_BYTES)}`)
-        const result = await uploadDocument(projectId, file.name, await readAsBase64(file))
+        const result = await uploadOne(file, await readAsBase64(file))
         succeeded += 1
         toast.success(
           `${result.replaced ? 'Replaced' : 'Indexed'} ${result.name} — ${result.chunksIndexed} chunk(s).`,
@@ -75,13 +90,13 @@ export function UploadPanel({
         )
       } catch (error) {
         toast.error(error instanceof Error ? error.message : String(error))
-      } finally {
-        setProgress({ done: index + 1, total: list.length })
       }
     }
 
     setBusy(false)
-    setProgress(null)
+    setQueue(null)
+    setStage(null)
+    setChunkProgress(null)
     if (inputRef.current) inputRef.current.value = ''
     if (succeeded > 0) onChanged()
   }
@@ -120,18 +135,36 @@ export function UploadPanel({
       >
         <UploadCloudIcon className="mb-2.5 size-5 text-muted-foreground" />
         <p className="font-medium">
-          {busy ? `Indexing ${progress?.done ?? 0}/${progress?.total ?? 0}...` : 'Drop documents here'}
+          {busy
+            ? `${queue && queue.total > 1 ? `File ${queue.index + 1}/${queue.total} — ` : ''}${stage ?? 'Starting...'}`
+            : 'Drop documents here'}
         </p>
-        <p className="mt-1 max-w-md text-sm text-muted-foreground">
-          PDF, Word (.docx), Excel (.xlsx), Markdown, CSV and plain text. Text is extracted server-side and embedded
-          immediately — the original file is kept, nothing is written into your Git repository, and a sync never
-          removes them.
-        </p>
+        {busy && (
+          <div className="mt-3 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-muted" role="progressbar">
+            {chunkProgress ? (
+              <div
+                className="h-full rounded-full bg-brand transition-[width] duration-300 ease-out"
+                style={{ width: `${Math.round((chunkProgress.done / chunkProgress.total) * 100)}%` }}
+              />
+            ) : (
+              <div className="progress-bar-indeterminate h-full rounded-full bg-brand" />
+            )}
+          </div>
+        )}
+        {!busy && (
+          <p className="mt-1 max-w-md text-sm text-muted-foreground">
+            PDF, Word (.docx), Excel (.xlsx), Markdown, CSV and plain text. Text is extracted server-side and
+            embedded immediately — the original file is kept, nothing is written into your Git repository, and a
+            sync never removes them.
+          </p>
+        )}
         {/* No handler of its own — the click bubbles to the drop zone, which is
             the single place that opens the picker. */}
-        <Button variant="outline" size="sm" type="button" className="mt-4">
-          Choose files
-        </Button>
+        {!busy && (
+          <Button variant="outline" size="sm" type="button" className="mt-4">
+            Choose files
+          </Button>
+        )}
       </div>
 
       {/*

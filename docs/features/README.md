@@ -3,7 +3,7 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-10
-**Recent**: Fixed a regression where `ragbuddy ingest` 404'd on the very first file right after `qdrant drop-collection` — the per-file delete now checks once whether the collection exists at all before attempting any delete — see [02-ingestion-full-index.md](./02-ingestion-full-index.md).
+**Recent**: Fixed a broken Mermaid diagram in a chat reply rendering as a giant raw error box leaked outside the message (below the input) instead of a contained "Invalid diagram" notice — two real mermaid rendering bugs, both worked around in `MermaidBlock` — see [../design-system/README.md](../design-system/README.md).
 
 ## Index
 

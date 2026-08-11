@@ -40,6 +40,9 @@ export interface UploadDeps {
   embeddingProvider: EmbeddingProvider;
   dataDir: string;
   onLog?: (message: string) => void;
+  /** Structured tick during the embedding stage, alongside the human-readable log line — lets a
+   *  UI render a real percentage instead of parsing log text. */
+  onProgress?: (done: number, total: number) => void;
 }
 
 export function uploadsDirFor(dataDir: string, projectId: string): string {
@@ -135,12 +138,17 @@ export async function uploadDocument(
   const replaced = existsSync(absolutePath);
   const file = `${UPLOAD_PREFIX}${name}`;
 
+  log(`Extracting text from ${name}`);
   const extracted = await extractDocument(name, bytes);
   const chunks = chunkMarkdown(extracted.text);
   if (chunks.length === 0) throw new Error('Uploaded document produced no indexable content');
+  log(`Chunked ${name} into ${chunks.length} piece(s)`);
 
   log(`Embedding ${file} (${chunks.length} chunk(s))`);
-  const vectors = await deps.embeddingProvider.embedDocuments(chunks.map(composeEmbedText));
+  const vectors = await deps.embeddingProvider.embedDocuments(chunks.map(composeEmbedText), (done, total) => {
+    log(`Embedded ${done}/${total} chunk(s) of ${name}`);
+    deps.onProgress?.(done, total);
+  });
   // Hash the original bytes, not the extracted text — the file on disk is the
   // thing being versioned, and a parser upgrade should not look like an edit.
   const contentHash = hashContent(bytes.toString('base64'));
@@ -175,6 +183,7 @@ export async function uploadDocument(
   mkdirSync(dir, { recursive: true });
   writeFileSync(absolutePath, bytes);
   if (replaced) await deleteFileVectors(deps.qdrantClient, deps.qdrantCollection, project.id, file);
+  log(`Saving ${points.length} chunk(s) to the index`);
   await upsertChunks(deps.qdrantClient, deps.qdrantCollection, points);
   log(`Upserted ${points.length} chunk(s) for ${file}`);
 

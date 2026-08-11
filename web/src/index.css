@@ -64,6 +64,7 @@
     --animate-dash: dash 1.6s linear infinite;
     --animate-shimmer: shimmer 2s linear infinite;
     --animate-blink: blink 1.1s step-end infinite;
+    --animate-progress-indeterminate: progress-indeterminate 1.4s ease-in-out infinite;
 }
 
 :root {
@@ -184,6 +185,13 @@
     50% { opacity: 0; }
 }
 
+/* Slides a segment across a track — used for a progress bar whose total isn't known yet
+   (e.g. extracting/chunking an upload, before the embedding stage reports real done/total). */
+@keyframes progress-indeterminate {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(350%); }
+}
+
 @layer base {
     * {
         @apply border-border outline-ring/50;
@@ -234,6 +242,11 @@
 }
 
 @layer components {
+    .progress-bar-indeterminate {
+        width: 35%;
+        animation: var(--animate-progress-indeterminate);
+    }
+
     .skeleton-shimmer {
         background: linear-gradient(
             90deg,

@@ -93,7 +93,7 @@ export function AppShell() {
       >
         <header
           className={cn(
-            'sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur-md',
+            'sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-sidebar-border bg-sidebar/80 px-4 backdrop-blur-md',
             isChatRoute && 'shrink-0',
           )}
         >

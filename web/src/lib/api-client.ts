@@ -140,16 +140,64 @@ export interface UploadResult {
   truncated: boolean
 }
 
+export interface UploadStreamHandlers {
+  onLog: (message: string) => void
+  /** Structured tick during the embedding stage — the only stage worth a real percentage. */
+  onProgress: (done: number, total: number) => void
+  onDone: (result: UploadResult) => void
+  onError: (message: string) => void
+}
+
 /**
- * Everything is sent base64-encoded so PDF/Word/Excel travel byte-for-byte
- * over the same JSON endpoint plain text uses — no multipart handling needed.
+ * Everything is sent base64-encoded so PDF/Word/Excel travel byte-for-byte over the same JSON
+ * endpoint plain text uses — no multipart handling needed. SSE (`event: log`/`done`/`error`,
+ * same wire format as ingest/sync) so a slow extract → chunk → embed pipeline can report its
+ * progress instead of leaving the UI blank until the whole thing finishes.
  */
-export function uploadDocument(id: string, filename: string, data: string): Promise<UploadResult> {
-  return fetch(`/api/projects/${id}/uploads`, {
+export async function streamUploadDocument(
+  id: string,
+  filename: string,
+  data: string,
+  handlers: UploadStreamHandlers,
+): Promise<void> {
+  const res = await fetch(`/api/projects/${id}/uploads`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ filename, data }),
-  }).then(parseJsonResponse<UploadResult>)
+  })
+  if (!res.ok || !res.body) {
+    const body = await res.json().catch(() => ({ error: res.statusText }))
+    handlers.onError(body.error ?? res.statusText)
+    return
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    const frames = buffer.split('\n\n')
+    buffer = frames.pop() ?? ''
+
+    for (const frame of frames) {
+      const lines = frame.split('\n')
+      const eventLine = lines.find((line) => line.startsWith('event: '))
+      const dataLine = lines.find((line) => line.startsWith('data: '))
+      if (!eventLine || !dataLine) continue
+
+      const event = eventLine.slice('event: '.length)
+      const data = JSON.parse(dataLine.slice('data: '.length))
+
+      if (event === 'log') handlers.onLog(data)
+      else if (event === 'progress') handlers.onProgress(data.done, data.total)
+      else if (event === 'done') handlers.onDone(data)
+      else if (event === 'error') handlers.onError(data.message)
+    }
+  }
 }
 
 export function removeUpload(id: string, filename: string): Promise<void> {

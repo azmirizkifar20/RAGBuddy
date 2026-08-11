@@ -1,5 +1,9 @@
+/** Called as each unit of work finishes — one call per text for Ollama, one per batch for
+ *  the OpenAI-compatible provider (which embeds up to 100 texts in a single request). */
+export type EmbedProgress = (done: number, total: number) => void;
+
 export interface EmbeddingProvider {
-  embedDocuments(texts: string[]): Promise<number[][]>;
+  embedDocuments(texts: string[], onProgress?: EmbedProgress): Promise<number[][]>;
   embedQuery(text: string): Promise<number[]>;
 }
 
@@ -55,8 +59,13 @@ async function mapWithConcurrency<T, R>(
 class OllamaEmbeddingProvider implements EmbeddingProvider {
   constructor(private readonly config: EmbeddingConfig) {}
 
-  embedDocuments(texts: string[]): Promise<number[][]> {
-    return mapWithConcurrency(texts, EMBEDDING_CONCURRENCY, (text) => this.embedOne(text));
+  embedDocuments(texts: string[], onProgress?: EmbedProgress): Promise<number[][]> {
+    let done = 0;
+    return mapWithConcurrency(texts, EMBEDDING_CONCURRENCY, async (text) => {
+      const vector = await this.embedOne(text);
+      onProgress?.(++done, texts.length);
+      return vector;
+    });
   }
 
   embedQuery(text: string): Promise<number[]> {
@@ -122,11 +131,12 @@ function parseRetryAfterMs(header: string | null | undefined): number | undefine
 class OpenAICompatibleEmbeddingProvider implements EmbeddingProvider {
   constructor(private readonly config: EmbeddingConfig) {}
 
-  async embedDocuments(texts: string[]): Promise<number[][]> {
+  async embedDocuments(texts: string[], onProgress?: EmbedProgress): Promise<number[][]> {
     const results: number[][] = [];
     for (let i = 0; i < texts.length; i += OPENAI_MAX_BATCH_SIZE) {
       const res = await this.request(texts.slice(i, i + OPENAI_MAX_BATCH_SIZE));
       results.push(...res.data.map((item) => item.embedding));
+      onProgress?.(results.length, texts.length);
     }
     return results;
   }

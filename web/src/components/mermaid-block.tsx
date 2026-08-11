@@ -50,6 +50,18 @@ interface MermaidResult {
   bind?: (element: Element) => void
 }
 
+/**
+ * Mermaid doesn't always *throw* on invalid syntax — for many parse errors it substitutes its
+ * own internal "error" diagram (a big `error-icon`/`error-text` SVG reading "Syntax error in
+ * text") and resolves `render()` normally with that. A raw try/catch around `render()` never
+ * sees this, so it has to be detected in the successful result instead — `error-icon`/`error-text`
+ * are class names mermaid assigns only to this synthetic diagram, not something real diagram
+ * content would ever produce.
+ */
+function isMermaidErrorSvg(svg: string): boolean {
+  return svg.includes('class="error-icon"') || svg.includes('class="error-text"')
+}
+
 export function MermaidBlock({ code }: { code: string }) {
   const theme = useMermaidTheme()
   const [result, setResult] = useState<MermaidResult | null>(null)
@@ -79,9 +91,34 @@ export function MermaidBlock({ code }: { code: string }) {
 
         // Fresh id per render; mermaid.render mutates the DOM node it produces.
         const id = `mermaid-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`
-        const { svg, bindFunctions } = await mermaid.render(id, code)
-        if (cancelled) return
-        setResult({ svg, bind: bindFunctions })
+        // Without an explicit container, mermaid appends its own scratch element straight to
+        // `document.body` — and on a parse error it throws *before* its own cleanup step runs,
+        // permanently orphaning that scratch element (containing mermaid's own ugly "Syntax error
+        // in text" SVG) right under `<body>`, completely outside this component/React's tree —
+        // verified by hand: `document.body`'s child count grows after a failed render with no
+        // container and stays flat with one. The container can't be fully detached, though —
+        // flowchart rendering needs real layout (getBBox/text measurement), which returns nothing
+        // useful for an element never attached to the document — so it's positioned off-screen
+        // and always removed ourselves in `finally`, independent of whether mermaid's own
+        // (buggy) cleanup path ever runs.
+        const container = document.createElement('div')
+        container.style.position = 'fixed'
+        container.style.top = '-10000px'
+        container.style.left = '-10000px'
+        container.style.visibility = 'hidden'
+        document.body.appendChild(container)
+        try {
+          const { svg, bindFunctions } = await mermaid.render(id, code, container)
+          if (cancelled) return
+          if (isMermaidErrorSvg(svg)) {
+            console.error('Mermaid render failed: resolved with its own internal error diagram', code)
+            setError(true)
+            return
+          }
+          setResult({ svg, bind: bindFunctions })
+        } finally {
+          container.remove()
+        }
       } catch (err: unknown) {
         if (cancelled) return
         console.error('Mermaid render failed:', err)

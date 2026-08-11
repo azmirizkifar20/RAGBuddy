@@ -314,4 +314,38 @@ describe('createEmbeddingProvider', () => {
     expect(maxActive).toBeGreaterThan(1);
     expect(fetchMock).toHaveBeenCalledTimes(12);
   });
+
+  it('reports one onProgress tick per text for the ollama provider', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ embedding: [0.1] }) }));
+    const provider = createEmbeddingProvider({ provider: 'ollama', baseUrl: 'http://localhost:11434', model: 'bge-m3' });
+    const ticks: Array<[number, number]> = [];
+
+    await provider.embedDocuments(['a', 'b', 'c'], (done, total) => ticks.push([done, total]));
+
+    expect(ticks).toHaveLength(3);
+    expect(ticks.every(([, total]) => total === 3)).toBe(true);
+    expect(ticks.map(([done]) => done).sort()).toEqual([1, 2, 3]);
+  });
+
+  it('reports one onProgress tick per batch for the openai-compatible provider', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (_url: string, init: any) => {
+        const { input } = JSON.parse(init.body);
+        return { ok: true, json: async () => ({ data: input.map(() => ({ embedding: [0.1] })) }) };
+      }),
+    );
+    const provider = createEmbeddingProvider({
+      provider: 'openai',
+      baseUrl: 'http://proxy.local/v1',
+      model: 'gemini-embedding',
+      apiKey: 'sk-test',
+    });
+    const ticks: Array<[number, number]> = [];
+    const texts = Array.from({ length: 150 }, (_, i) => `chunk-${i}`);
+
+    await provider.embedDocuments(texts, (done, total) => ticks.push([done, total]));
+
+    expect(ticks).toEqual([[100, 150], [150, 150]]);
+  });
 });

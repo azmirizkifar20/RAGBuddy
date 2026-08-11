@@ -2,6 +2,7 @@ import type { Router } from 'express';
 import { type AppDeps, resolveEmbeddingProvider } from '../app';
 import { listUploads, uploadDocument, removeUpload } from '../../ingestion/uploads';
 import { recordRun } from '../../history/sync-history';
+import { startSse, sendSseEvent } from '../sse';
 
 export function registerUploadRoutes(router: Router, deps: AppDeps): void {
   router.get('/:id/uploads', (req, res) => {
@@ -27,6 +28,7 @@ export function registerUploadRoutes(router: Router, deps: AppDeps): void {
       res.status(400).json({ error: 'filename and content (or data) are required' });
       return;
     }
+    startSse(res);
     try {
       const result = await recordRun(
         deps.history,
@@ -41,6 +43,8 @@ export function registerUploadRoutes(router: Router, deps: AppDeps): void {
               qdrantCollection: deps.qdrantCollection,
               embeddingProvider: resolveEmbeddingProvider(deps),
               dataDir: deps.dataDir,
+              onLog: (message) => sendSseEvent(res, 'log', message),
+              onProgress: (done, total) => sendSseEvent(res, 'progress', { done, total }),
             },
           ),
         (r) => ({
@@ -51,10 +55,18 @@ export function registerUploadRoutes(router: Router, deps: AppDeps): void {
           truncated: r.truncated,
         }),
       );
-      res.status(201).json(result);
+      sendSseEvent(res, 'done', {
+        file: result.file,
+        name: result.name,
+        chunksIndexed: result.chunksIndexed,
+        replaced: result.replaced,
+        documentType: result.documentType,
+        truncated: result.truncated,
+      });
     } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : String(error) });
+      sendSseEvent(res, 'error', { message: error instanceof Error ? error.message : String(error) });
     }
+    res.end();
   });
 
   router.delete('/:id/uploads/:filename', async (req, res) => {

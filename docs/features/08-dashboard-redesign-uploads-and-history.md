@@ -36,14 +36,28 @@ Navigation is deliberately single-level per surface: the sidebar lists workspace
 ```
 Browser file picker / drag-drop
   → FileReader → base64            (binary formats ride the same JSON endpoint)
-  → POST /api/projects/:id/uploads   { filename, data }
+  → POST /api/projects/:id/uploads   { filename, data }   — SSE (event: log/progress/done/error)
   → assertSafeUploadName()           rejects paths, dotfiles, unsupported extensions
-  → extractDocument()                PDF/DOCX/XLSX → Markdown-shaped text
-  → chunkMarkdown → embedDocuments   same pipeline repository docs use
+  → extractDocument()                PDF/DOCX/XLSX → Markdown-shaped text        (log: "Extracting text from …")
+  → chunkMarkdown                    same pipeline repository docs use          (log: "Chunked … into N piece(s)")
+  → embedDocuments(texts, onProgress) same pipeline repository docs use         (log per tick + event: progress {done,total})
   → write ORIGINAL bytes to <dataDir>/uploads/<projectId>/<name>  (only after extract+embed succeeded)
-  → delete old vectors for that file (if replacing) → upsert with source:'upload'
+  → delete old vectors for that file (if replacing) → upsert with source:'upload'  (log: "Saving N chunk(s) to the index")
   → recordRun() writes a history entry
 ```
+
+**Progress feedback (2026-08-11):** a large upload's extract/chunk/embed pipeline can take a while
+with nothing to show for it, so `POST /api/projects/:id/uploads` is SSE (same wire format as
+ingest/sync), not a single blocking JSON response — `event: log` (human-readable stage text),
+`event: progress` (`{done, total}`, one tick per text for Ollama / per batch of ≤100 for the
+OpenAI-compatible provider — the only stage with a real, non-fragile percentage), `event: done`
+(the same result shape the old JSON response returned), `event: error`. `web/src/lib/api-client.ts`'s
+`streamUploadDocument` consumes it; `UploadPanel` renders the latest log line as the current stage
+and a progress bar — a real percentage while `progress` events are arriving (embedding), an
+animated indeterminate bar otherwise (extracting/chunking/saving, where there's no total to show).
+`EmbeddingProvider.embedDocuments` gained an optional `onProgress?: (done, total) => void` second
+parameter to make this possible — backward compatible, every existing caller that doesn't pass it
+is unaffected. See [../issue/2026-08-11_upload-progress-feedback.md](../issue/2026-08-11_upload-progress-feedback.md).
 
 ### Supported formats and how each is read
 
@@ -91,7 +105,7 @@ New `getIndexedFiles()` returns one row per file (`file`, `source`, `documentTyp
 | Method | Path | Notes |
 |--------|------|-------|
 | `GET` | `/api/projects/:id/uploads` | List uploaded documents |
-| `POST` | `/api/projects/:id/uploads` | `{ filename, data }` (base64) or `{ filename, content }` (UTF-8 text) → extract + index it |
+| `POST` | `/api/projects/:id/uploads` | `{ filename, data }` (base64) or `{ filename, content }` (UTF-8 text) → extract + index it. SSE: `event: log`/`progress`/`done`/`error` (2026-08-11) |
 | `DELETE` | `/api/projects/:id/uploads/:filename` | Delete file + vectors |
 | `GET` | `/api/projects/:id/history?limit=` | Project-scoped run list |
 | `GET` | `/api/activity?limit=` | Cross-project run feed |

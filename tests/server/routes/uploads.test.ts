@@ -54,8 +54,12 @@ describe('project upload routes', () => {
     const created = await request(app)
       .post('/api/projects/sample/uploads')
       .send({ filename: 'notes.md', content: '# Notes\n\nBody.\n' });
-    expect(created.status).toBe(201);
-    expect(created.body).toMatchObject({ file: 'uploads/notes.md', chunksIndexed: 1, replaced: false, documentType: 'markdown', truncated: false });
+    expect(created.status).toBe(200);
+    expect(created.headers['content-type']).toContain('text/event-stream');
+    expect(created.text).toContain('event: log');
+    expect(created.text).toContain(
+      'event: done\ndata: {"file":"uploads/notes.md","name":"notes.md","chunksIndexed":1,"replaced":false,"documentType":"markdown","truncated":false}',
+    );
 
     const listed = await request(app).get('/api/projects/sample/uploads');
     expect(listed.status).toBe(200);
@@ -72,12 +76,23 @@ describe('project upload routes', () => {
     expect(res.body.error).toContain('filename and content (or data) are required');
   });
 
-  it('rejects an unsupported file type with 400', async () => {
+  it('emits an error event for an unsupported file type', async () => {
     const res = await request(appWithProject())
       .post('/api/projects/sample/uploads')
       .send({ filename: 'run.exe', content: 'x' });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toContain('Unsupported file type');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('event: error');
+    expect(res.text).toContain('Unsupported file type');
+  });
+
+  it('emits progress events for the embedding stage', async () => {
+    const app = appWithProject();
+
+    const res = await request(app)
+      .post('/api/projects/sample/uploads')
+      .send({ filename: 'notes.md', content: '# Notes\n\nBody.\n' });
+
+    expect(res.text).toContain('event: progress\ndata: {"done":1,"total":1}');
   });
 
   it('records the upload in the sync history', async () => {

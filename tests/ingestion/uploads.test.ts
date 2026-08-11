@@ -148,6 +148,36 @@ describe('uploadDocument', () => {
     expect(payload.absolute_path.startsWith(dataDir)).toBe(true);
   });
 
+  it('reports extract/chunk/embed/save stages via onLog and onProgress', async () => {
+    const qdrantClient = qdrantStub();
+    const onLog = vi.fn();
+    const onProgress = vi.fn();
+    const embeddingProvider = {
+      embedDocuments: vi.fn((texts: string[], progress?: (done: number, total: number) => void) => {
+        texts.forEach((_, i) => progress?.(i + 1, texts.length));
+        return Promise.resolve(texts.map(() => [0.1, 0.2]));
+      }),
+      embedQuery: vi.fn(),
+    };
+
+    await uploadDocument(
+      project,
+      { filename: 'notes.md', content: '# Notes\n\nSome content.\n' },
+      { ...deps(qdrantClient), embeddingProvider: embeddingProvider as any, onLog, onProgress },
+    );
+
+    const messages = onLog.mock.calls.map((call) => call[0]);
+    expect(messages).toEqual([
+      'Extracting text from notes.md',
+      'Chunked notes.md into 1 piece(s)',
+      'Embedding uploads/notes.md (1 chunk(s))',
+      'Embedded 1/1 chunk(s) of notes.md',
+      'Saving 1 chunk(s) to the index',
+      'Upserted 1 chunk(s) for uploads/notes.md',
+    ]);
+    expect(onProgress).toHaveBeenCalledWith(1, 1);
+  });
+
   it('replaces the previous vectors when the same filename is uploaded again', async () => {
     const qdrantClient = qdrantStub();
     await uploadDocument(project, { filename: 'notes.md', content: '# One\n' }, deps(qdrantClient));
