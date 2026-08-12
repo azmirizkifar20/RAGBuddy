@@ -3,7 +3,7 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-11
-**Recent**: `GET /api/projects`/`GET /api/projects/:id` no longer scroll every chunk of every project out of Qdrant on every request — counts are now cached in `data/project-stats.json`, refreshed by ingest/sync/upload — see [2026-08-11_dashboard-slow-project-list.md](../issue/2026-08-11_dashboard-slow-project-list.md).
+**Recent**: The packaged Electron app now points `RAGBUDDY_DATA_DIR`/`PROJECT_REGISTRY_PATH`/`CHAT_SETTINGS_PATH`/`EMBEDDING_CREDENTIALS_PATH` at the dev install's absolute paths (via `.env`) instead of relative ones, so it shares the same sync history/registered projects/credentials instead of starting from an empty copy — see [11-electron-desktop-app.md](./11-electron-desktop-app.md).
 
 ## Index
 
@@ -17,6 +17,7 @@ This folder contains documentation for implemented features and current state.
 8. [Dashboard Redesign, Document Uploads & Sync History](./08-dashboard-redesign-uploads-and-history.md) — Implemented
 9. [Per-Project Chat](./09-project-chat.md) — Implemented
 10. [Provider Credentials (Embedding & Chat)](./10-chat-provider-settings.md) — Implemented
+11. [Electron Desktop Shell](./11-electron-desktop-app.md) — Implemented (first cut — packaging not yet verified)
 
 ---
 

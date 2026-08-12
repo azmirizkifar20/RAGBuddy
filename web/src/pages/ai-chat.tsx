@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { toast } from 'sonner'
 import {
   ArrowUp,
+  ChevronDown,
   ChevronLeft,
   FileText,
   MessageSquareIcon,
@@ -322,6 +323,12 @@ function ChatWithProject({ project }: { project: Project }) {
   const dragDepth = useRef(0)
   const abortRef = useRef<AbortController | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  // Whether the feed should keep following new content. Only false once the
+  // user has deliberately scrolled up — read from a ref (not state) inside the
+  // scroll-follow effect so it doesn't need to be a dependency.
+  const stickToBottomRef = useRef(true)
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   // Mirror of streamText for callbacks (onDone/onError) that run against a
   // stale closure captured at send() time; avoids saving an empty assistant reply.
@@ -348,8 +355,27 @@ function ChatWithProject({ project }: { project: Project }) {
   }, [sessions, activeId, storageKey])
 
   useEffect(() => {
+    if (stickToBottomRef.current) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [streamText, streaming, sessions, activeId])
+
+  /** Distance from the bottom under which the feed still counts as "at the bottom". */
+  function isNearBottom(el: HTMLDivElement): boolean {
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 96
+  }
+
+  function handleFeedScroll() {
+    const el = scrollAreaRef.current
+    if (!el) return
+    const atBottom = isNearBottom(el)
+    stickToBottomRef.current = atBottom
+    setShowJumpToBottom(!atBottom)
+  }
+
+  function jumpToBottom() {
+    stickToBottomRef.current = true
+    setShowJumpToBottom(false)
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [streamText, streaming, sessions])
+  }
 
   const activeSession = sessions.find((s) => s.id === activeId)
   // Most-recent-activity-first, grouped by calendar day; `sessions` itself
@@ -449,6 +475,10 @@ function ChatWithProject({ project }: { project: Project }) {
     const isFirstExchange = active.messages.length === 1
     const activeSessionId = active.id
 
+    // Sending a message always returns the feed to the bottom, even if the
+    // user had scrolled up to re-read earlier context.
+    stickToBottomRef.current = true
+    setShowJumpToBottom(false)
     setSessions(updated)
     setInput('')
     setImages([])
@@ -520,6 +550,8 @@ function ChatWithProject({ project }: { project: Project }) {
   function activate(id: string) {
     if (id === activeId) return
     stop()
+    stickToBottomRef.current = true
+    setShowJumpToBottom(false)
     setActiveId(id)
     setInput('')
     setImages([])
@@ -681,7 +713,12 @@ function ChatWithProject({ project }: { project: Project }) {
             {activeSession?.title ?? 'Chat'}
           </h2>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-10">
+        <div className="relative min-h-0 flex-1">
+        <div
+          ref={scrollAreaRef}
+          onScroll={handleFeedScroll}
+          className="absolute inset-0 overflow-y-auto px-4 py-6 sm:px-6 lg:px-10"
+        >
           {activeSession && activeSession.messages.length === 0 && !streaming && (
             <div className="mx-auto flex h-full max-w-5xl flex-col items-center justify-center gap-3">
               <h2 className="font-heading text-3xl font-semibold tracking-tight">
@@ -771,6 +808,18 @@ function ChatWithProject({ project }: { project: Project }) {
               Select a session or create a new one.
             </div>
           )}
+        </div>
+
+        {showJumpToBottom && (
+          <button
+            type="button"
+            onClick={jumpToBottom}
+            className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full border bg-background px-3 py-1.5 text-xs text-muted-foreground shadow-md transition-colors hover:text-foreground"
+          >
+            <ChevronDown className="size-3.5" />
+            Jump to latest
+          </button>
+        )}
         </div>
 
         {/* Input area — centred on the same 3xl column as the message feed. */}

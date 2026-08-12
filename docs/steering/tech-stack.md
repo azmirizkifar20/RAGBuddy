@@ -15,6 +15,10 @@ Stack decisions per [`../../init.md`](../../init.md) §3, as actually installed 
 
 `web/` — a separate Vite project (own `package.json`/toolchain, kept out of the backend's `tsconfig.build.json`): React 19 + TypeScript ~6.0, Tailwind CSS v4 (`@tailwindcss/vite` plugin), shadcn/ui (Radix base, Nova preset) for buttons/cards/dialogs/badges/toasts, `react-router` v8 for the Dashboard/Project Detail routes. `npm run build` produces `web/dist`, served as static files by `ragbuddy web` (`src/server/app.ts`) alongside its REST API — one process, one port. This is in addition to, not a replacement for, the CLI + MCP server, which remain the primary interface for coding agents.
 
+## Desktop Shell
+
+`electron/` — a third, equally separate Node project (own `package.json`, no npm workspace link to the root or to `web/`) wrapping the same backend + `web/dist` in a native window via Electron. Contains no application logic: `main.js` spawns `dist/cli/index.js web` (same binary `ragbuddy web` runs) and loads its dashboard in a `BrowserWindow` — see [11-electron-desktop-app.md](../features/11-electron-desktop-app.md).
+
 ## Database
 
 - Qdrant — vector database, used purely as a rebuildable search index (Git remains source of truth) (`init.md` §1, §6); `@qdrant/js-client-rest` (v1.19.0) client

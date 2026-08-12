@@ -1,0 +1,63 @@
+{
+  "name": "ragbuddy-electron",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Desktop shell for RAGBuddy — spawns the existing backend (dist/cli/index.js web) and loads the built web dashboard (web/dist) in a native window. No RAGBuddy logic lives here.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^43.3.0",
+    "electron-builder": "^26.15.3"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@qdrant/js-client-rest": "^1.13.0",
+    "dotenv": "^17.4.2",
+    "exceljs": "^3.4.0",
+    "express": "^5.2.1",
+    "mammoth": "^1.12.0",
+    "pdf-parse": "^2.4.5",
+    "zod": "^4.4.3"
+  },
+  "build": {
+    "appId": "com.ragbuddy.desktop",
+    "productName": "RAGBuddy",
+    "icon": "build/icon.png",
+    "asar": false,
+    "files": [
+      "main.js",
+      "preload.js"
+    ],
+    "extraResources": [
+      {
+        "from": "../dist",
+        "to": "app/backend"
+      },
+      {
+        "from": "../web/dist",
+        "to": "app/web/dist"
+      },
+      {
+        "from": "../.env",
+        "to": "app/.env"
+      },
+      {
+        "from": "../config",
+        "to": "app/config"
+      }
+    ],
+    "win": {
+      "target": "portable"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

@@ -258,6 +258,17 @@
         animation: var(--animate-shimmer);
     }
 
+    /* Electron's frameless-window drag region — a no-op outside Electron
+       (browsers silently ignore the unknown -webkit-app-region property), so
+       these are safe to apply unconditionally in the shared topbar. */
+    .app-drag-region {
+        -webkit-app-region: drag;
+    }
+
+    .app-no-drag-region {
+        -webkit-app-region: no-drag;
+    }
+
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
-import { MenuIcon, PlusIcon } from 'lucide-react'
+import { MenuIcon } from 'lucide-react'
 import { Sidebar } from '@/components/layout/sidebar'
-import { AddProjectModal } from '@/components/add-project-modal'
+import { WindowControls } from '@/components/layout/window-controls'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useProjects } from '@/lib/projects-context'
@@ -46,7 +46,7 @@ function useCrumbs(): { label: string; to?: string }[] {
 export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1')
-  const { projects, refresh } = useProjects()
+  const { projects } = useProjects()
   const crumbs = useCrumbs()
   // The chat page wants to fill the available width edge-to-edge (per
   // reference design) instead of sitting inside the 6xl-capped column every
@@ -93,21 +93,21 @@ export function AppShell() {
       >
         <header
           className={cn(
-            'sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-sidebar-border bg-sidebar/80 px-4 backdrop-blur-md',
+            'app-drag-region sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-sidebar-border bg-sidebar/80 px-4 backdrop-blur-md',
             isChatRoute && 'shrink-0',
           )}
         >
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden"
+            className="app-no-drag-region lg:hidden"
             onClick={() => setMenuOpen(true)}
             aria-label="Open menu"
           >
             <MenuIcon className="size-4" />
           </Button>
 
-          <nav className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
+          <nav className="app-no-drag-region flex min-w-0 flex-1 items-center gap-1.5 text-sm">
             {crumbs.map((crumb, i) => (
               <span key={`${crumb.label}-${i}`} className="flex min-w-0 items-center gap-1.5">
                 {i > 0 && <span className="text-muted-foreground/50">/</span>}
@@ -122,15 +122,7 @@ export function AppShell() {
             ))}
           </nav>
 
-          <AddProjectModal
-            onRegistered={() => refresh()}
-            trigger={
-              <Button size="sm" className="gap-1.5">
-                <PlusIcon className="size-4" />
-                <span className="hidden sm:inline">Add project</span>
-              </Button>
-            }
-          />
+          <WindowControls />
         </header>
 
         {/* The chat page owns its full viewport rectangle (its own scrolling
