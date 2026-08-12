@@ -79,12 +79,20 @@ async function createWindow() {
     // titlebar — see `web/src/components/layout/window-controls.tsx` — instead
     // of the OS chrome, which would otherwise sit redundantly on top of it.
     frame: false,
+    // Kept hidden until the page has actually finished laying out ('ready-to-show'
+    // below) — showing immediately (Electron's default) lets the user see the
+    // window mid-render (fonts/CSS/React still settling), which is what caused
+    // the titlebar buttons to intermittently render mis-sized/offset and clicks
+    // during that window to land on stale coordinates (e.g. the chat input not
+    // taking focus).
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
+  mainWindow.once('ready-to-show', () => mainWindow?.show());
   mainWindow.on('maximize', () => mainWindow?.webContents.send('window:maximized-changed', true));
   mainWindow.on('unmaximize', () => mainWindow?.webContents.send('window:maximized-changed', false));
   mainWindow.on('closed', () => {

@@ -19,8 +19,12 @@ export function WindowControls() {
 
   if (!api) return null
 
+  // No explicit height here on purpose: an explicit height fights `self-stretch`
+  // for the cross-axis size, which made the actual rendered box depend on
+  // font-metric/layout timing at first paint — leaving it unset lets stretch
+  // alone fill the header's height exactly, every time.
   return (
-    <div className="app-no-drag-region -my-3 -mr-4 flex h-14 items-stretch self-stretch">
+    <div className="app-no-drag-region -mr-4 flex self-stretch">
       <button
         type="button"
         onClick={api.minimizeWindow}
