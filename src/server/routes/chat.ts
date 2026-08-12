@@ -1,26 +1,14 @@
 import type { Router } from 'express';
 import { type AppDeps, resolveEmbeddingProvider } from '../app';
 import { startSse, sendSseEvent } from '../sse';
-import { searchProject } from '../../retrieval/search';
+import { searchProjectMultiQuery } from '../../retrieval/search';
+import { rewriteQuery } from '../../retrieval/query-rewrite';
+import { rerank } from '../../retrieval/rerank';
 import type { ActiveConnection as ChatSettings } from '../../config/credentials-store';
-
-export interface ContentPartText {
-  type: 'text';
-  text: string;
-}
-export interface ContentPartImage {
-  type: 'image_url';
-  image_url: { url: string };
-}
-export type ContentPart = ContentPartText | ContentPartImage;
+import { completeOnce, toProviderMessages, type ContentPart, type LlmMessage } from '../../chat/complete-once';
 
 export interface ChatMsg {
   role: 'user' | 'assistant';
-  content: string | ContentPart[];
-}
-
-interface LlmMessage {
-  role: 'system' | 'user' | 'assistant';
   content: string | ContentPart[];
 }
 
@@ -29,6 +17,10 @@ interface Source {
   section: string;
   score: number;
 }
+
+/** How much larger a candidate pool `searchProjectMultiQuery` fetches than the final `ragTopK`,
+ * giving `rerank` something to actually reorder instead of just re-scoring the same top few. */
+const RERANK_POOL_MULTIPLIER = 3;
 
 const RAG_SYSTEM_PROMPT =
   'You are a helpful assistant. Project documents may be attached as extra context below — treat them as a ' +
@@ -59,43 +51,6 @@ function lastUserText(messages: ChatMsg[]): string {
     if (messages[i].role === 'user') return flattenContent(messages[i].content).text;
   }
   return '';
-}
-
-function toProviderMessages(
-  messages: LlmMessage[],
-  provider: 'ollama' | 'openai',
-): Array<{ role: string; content: string | ContentPart[]; images?: string[] }> {
-  if (provider === 'openai') {
-    return messages.map((m) => ({ role: m.role, content: m.content }));
-  }
-  return messages.map((m) => {
-    const { text, images } = flattenContent(m.content);
-    return { role: m.role, content: text, ...(images.length ? { images } : {}) };
-  });
-}
-
-/** One blocking, non-streaming completion — shared by summarize() and the title generator below. */
-async function completeOnce(
-  systemPrompt: string,
-  messages: ChatMsg[],
-  settings: ChatSettings,
-  label: string,
-  timeoutMs: number,
-): Promise<string> {
-  const providerMessages = toProviderMessages(messages, settings.provider);
-  const body = {
-    model: settings.model,
-    messages: [{ role: 'system', content: systemPrompt }, ...providerMessages],
-    stream: false,
-  };
-  const url = settings.provider === 'openai' ? `${settings.baseUrl}/chat/completions` : `${settings.baseUrl}/api/chat`;
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (settings.provider === 'openai' && settings.apiKey) headers.Authorization = `Bearer ${settings.apiKey}`;
-  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });
-  if (!res.ok) throw new Error(`${label} request failed: ${res.status} ${res.statusText}`);
-  const json = (await res.json()) as { choices?: { message?: { content?: string } }[]; message?: { content?: string } };
-  if (settings.provider === 'openai') return json.choices?.[0]?.message?.content ?? '';
-  return json.message?.content ?? '';
 }
 
 async function summarize(messages: ChatMsg[], settings: ChatSettings): Promise<string> {
@@ -262,12 +217,18 @@ export function registerChatRoutes(router: Router, deps: AppDeps): void {
         const query = lastUserText(messages);
         if (query.trim()) {
           try {
-            const results = await searchProject(project.id, query, {
+            // Broaden recall with a couple of rewritten phrasings, over-fetch a candidate
+            // pool, then let the LLM reorder it — each step degrades to the plain single-query
+            // behavior on its own failure (see rewriteQuery/rerank), so a flaky rewrite/rerank
+            // call never blocks RAG, it just falls back to the original ranking.
+            const queries = await rewriteQuery(query, settings);
+            const candidates = await searchProjectMultiQuery(project.id, queries, {
               qdrantClient: deps.qdrantClient,
               qdrantCollection: deps.qdrantCollection,
               embeddingProvider: resolveEmbeddingProvider(deps),
-              topK: deps.ragTopK,
+              topK: deps.ragTopK * RERANK_POOL_MULTIPLIER,
             });
+            const results = await rerank(query, candidates, settings, deps.ragTopK);
             sources = results.map((r) => ({ file: r.file, section: r.section, score: r.score }));
             if (results.length > 0) {
               const context = results

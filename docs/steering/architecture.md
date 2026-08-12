@@ -31,7 +31,8 @@ Git Repository (project-a, project-b, ...)
 - **Ingestion layer**: `src/ingestion/{scanner,parser,chunker,hasher,payload-builder,indexer,sync}.ts` — scan → parse → chunk → hash; `indexer.ts` is the full-rebuild path, `sync.ts` is the incremental (hash-diff) path, both share `payload-builder.ts`'s chunk-payload/category helpers
 - **Embedding layer**: `src/embedding/embedding-provider.ts` — provider-agnostic `embedDocuments`/`embedQuery` interface (Ollama, OpenAI-compatible)
 - **Storage layer**: `src/qdrant/{qdrant-client,qdrant-repository}.ts` — all Qdrant reads/writes, project-filtered (`upsertChunks`, `deleteProjectVectors`, `deleteFileVectors`, `getIndexedFileHashes`, `searchPoints`)
-- **Retrieval layer**: `src/retrieval/search.ts` — topK similarity search, enforces project filter before returning results
+- **Retrieval layer**: `src/retrieval/search.ts` — topK similarity search, enforces project filter before returning results; `src/retrieval/query-rewrite.ts`/`src/retrieval/rerank.ts` — chat-only query rewriting/reranking on top of the same project-filtered search
+- **Chat/completion layer**: `src/chat/complete-once.ts` — one shared blocking (non-streaming) LLM completion helper, used by the chat route's summarize/title generation and by the retrieval layer's query-rewrite/rerank, so retrieval never depends on `server/routes`
 - **Git integration layer**: `src/git/{git-status,hook-installer}.ts` — commit metadata and commit/merge/checkout auto-sync hook install/uninstall (chains safely with any pre-existing hook)
 - **MCP layer**: `src/mcp/{server,tool-result,document-reader}.ts`, `src/mcp/tools/{search-project-docs,get-project-document,list-project-knowledge}.ts` — the single MCP interface shared by all agents (no separate implementations per agent)
 - **Config layer**: `src/config/config.ts` — env var loading/validation
@@ -53,7 +54,10 @@ Dependency direction: CLI and MCP are the two entry points; both call into proje
 | Sync | Incremental: hash-diff against Qdrant, only re-embed changed files, per-file delete-then-upsert | `src/ingestion/sync.ts` |
 | EmbeddingProvider | Pluggable embedding backend (Ollama/OpenAI-compatible), concurrency-capped + timeout | `src/embedding/embedding-provider.ts` |
 | Qdrant Repository | Project-filtered vector CRUD + search | `src/qdrant/qdrant-repository.ts` |
-| Retrieval | topK search with mandatory project filter | `src/retrieval/search.ts` |
+| Retrieval | topK search with mandatory project filter; `searchProjectMultiQuery` (chat-only) merges results across query variants | `src/retrieval/search.ts` |
+| Query Rewrite | Chat-only: LLM-generated alternative phrasings before retrieval, degrades to the original query on failure | `src/retrieval/query-rewrite.ts` |
+| Rerank | Chat-only: LLM reorders a retrieval candidate pool by relevance before truncating to topK, degrades to vector-score order on failure | `src/retrieval/rerank.ts` |
+| Complete-Once | Shared blocking (non-streaming) LLM completion, used by chat summarize/title and by query-rewrite/rerank | `src/chat/complete-once.ts` |
 | Document Reader | Path-traversal-safe, configured-path-scoped file read for MCP | `src/mcp/document-reader.ts` |
 | MCP Tools | `get_project_context`, `search_project_docs`, `get_project_document`, `list_project_knowledge` | `src/mcp/tools/*` |
 | Project Context Aggregator | Orientation-only context assembly: README/steering summaries + Git status + doc inventory, no vector search | `src/context/project-context.ts` |

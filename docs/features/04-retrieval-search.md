@@ -21,7 +21,8 @@ Vector similarity search over indexed documentation, always scoped to a single p
 
 - Project filter is enforced at the retrieval layer itself, never left to the LLM/caller to apply (`init.md` §16, §21.7)
 - Collection: `ragbuddy_documents`, project isolation via payload metadata (`init.md` §6)
-- Designed so hybrid search, BM25, reranking, metadata filters, or per-project collections can be added later without a retrieval rewrite (`init.md` §17) — none of these are in v1
+- Designed so hybrid search, BM25, metadata filters, or per-project collections can be added later without a retrieval rewrite (`init.md` §17) — none of these are in v1
+- Query rewriting and reranking now exist (`src/retrieval/query-rewrite.ts`, `src/retrieval/rerank.ts`, plus `searchProjectMultiQuery` here) but only as additive functions the **chat** feature opts into (see [09-project-chat.md](./09-project-chat.md)) — `searchProject` itself, and every consumer of it below (CLI `search`, the plain `/api/search` route, the MCP tool), are unchanged
 
 ## 4) UI
 
@@ -38,6 +39,7 @@ Not applicable — CLI + MCP only.
 - `src/qdrant/qdrant-repository.ts` — `searchPoints`: project-filtered `client.query()` wrapper (note: the underlying `@qdrant/js-client-rest` v1.19.0 API is `query()`, not the older `search()` some docs still describe)
 - `src/cli/search-command.ts` — `runSearchCommand`: registry lookup + delegate, mirrors `ingest-command.ts`/`sync-command.ts`
 - `src/cli/args.ts`, `src/cli/index.ts` — extended for the `search <project> "<query>"` command (multi-word queries are joined even if the shell doesn't quote them)
+- `src/retrieval/query-rewrite.ts`, `src/retrieval/rerank.ts` — chat-only query enhancement, see [09-project-chat.md](./09-project-chat.md)
 - Spec source: [`../../init.md`](../../init.md) §16, §17
 
 ## Cross-References
@@ -45,4 +47,4 @@ Not applicable — CLI + MCP only.
 - System flow: [../steering/system-flow.md](../steering/system-flow.md)
 - Architecture: [../steering/architecture.md](../steering/architecture.md)
 - Depends on: [02-ingestion-full-index.md](./02-ingestion-full-index.md)
-- Consumed by: [05-mcp-server.md](./05-mcp-server.md)
+- Consumed by: [05-mcp-server.md](./05-mcp-server.md), [09-project-chat.md](./09-project-chat.md) (chat-only query rewriting + reranking on top of the same `searchProject`)

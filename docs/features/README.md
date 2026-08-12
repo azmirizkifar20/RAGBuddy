@@ -2,8 +2,8 @@
 
 This folder contains documentation for implemented features and current state.
 
-**Updated**: 2026-08-11
-**Recent**: The packaged Electron app now points `RAGBUDDY_DATA_DIR`/`PROJECT_REGISTRY_PATH`/`CHAT_SETTINGS_PATH`/`EMBEDDING_CREDENTIALS_PATH` at the dev install's absolute paths (via `.env`) instead of relative ones, so it shares the same sync history/registered projects/credentials instead of starting from an empty copy — see [11-electron-desktop-app.md](./11-electron-desktop-app.md).
+**Updated**: 2026-08-12
+**Recent**: Per-project chat's RAG retrieval now rewrites the query into alternative phrasings, searches across all of them, and reranks the merged candidate pool before answering — chat-only additions (`src/retrieval/query-rewrite.ts`, `src/retrieval/rerank.ts`, `searchProjectMultiQuery`) that leave `searchProject`/CLI/MCP unchanged — see [09-project-chat.md](./09-project-chat.md).
 
 ## Index
 

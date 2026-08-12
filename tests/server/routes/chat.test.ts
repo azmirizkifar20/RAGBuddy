@@ -164,9 +164,17 @@ describe('POST /api/projects/:id/chat', () => {
   it('emits sources and passes the retrieved context when useRag is true', async () => {
     // The embedding call now goes through the same fetch as the chat completion (both resolve
     // through resolveEmbeddingProvider/chatCredentials.get(), not an injectable object anymore).
+    // Every non-embedding call is `stream:false` (query-rewrite) or the final streaming answer;
+    // the rewrite call returns no usable variants here so the retrieval fan-out/rerank/dedup
+    // behavior itself is covered separately below, keeping this test's single-candidate flow
+    // deterministic.
     const fetchMock = vi.fn(async (url: string, init?: any) => {
       if (url.endsWith('/api/embeddings')) {
         return new Response(JSON.stringify({ embedding: [0.1, 0.2] }), { status: 200 });
+      }
+      const payload = init?.body ? JSON.parse(init.body) : {};
+      if (payload.stream === false) {
+        return new Response(JSON.stringify({ message: { content: '' } }), { status: 200 });
       }
       return new Response(ollamaStreamBody(['answer']), {
         status: 200,
@@ -190,13 +198,89 @@ describe('POST /api/projects/:id/chat', () => {
     expect(res.text).toContain('event: done');
     const embedCall = fetchMock.mock.calls.find((call: any[]) => call[0].endsWith('/api/embeddings'));
     expect(embedCall?.[1].body).toContain('what is the secret?');
-    const chatCall = fetchMock.mock.calls.find((call: any[]) => call[0].endsWith('/api/chat'));
+    const chatCall = fetchMock.mock.calls.find(
+      (call: any[]) => call[0].endsWith('/api/chat') && JSON.parse(call[1].body).stream !== false,
+    );
     const payload = JSON.parse(chatCall![1].body);
     const systemContext = payload.messages.find(
       (m: any) => typeof m.content === 'string' && m.content.includes('File: docs/a.md'),
     );
     expect(systemContext).toBeDefined();
     expect(systemContext.content).toContain('the secret');
+  });
+
+  it('rewrites the query into multiple variants and merges/dedupes retrieval across them', async () => {
+    const fetchMock = vi.fn(async (url: string, init?: any) => {
+      if (url.endsWith('/api/embeddings')) {
+        return new Response(JSON.stringify({ embedding: [0.1, 0.2] }), { status: 200 });
+      }
+      const payload = init?.body ? JSON.parse(init.body) : {};
+      if (payload.stream === false) {
+        // The query-rewrite call: one alternative phrasing.
+        return new Response(JSON.stringify({ message: { content: 'sync mechanism' } }), { status: 200 });
+      }
+      return new Response(ollamaStreamBody(['answer']), { status: 200, headers: { 'Content-Type': 'application/x-ndjson' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const qdrantClient = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          points: [{ id: '1', score: 0.6, payload: { file: 'docs/a.md', section: 'Intro', content: 'A' } }],
+        })
+        .mockResolvedValueOnce({
+          points: [{ id: '2', score: 0.9, payload: { file: 'docs/b.md', section: 'Setup', content: 'B' } }],
+        }),
+    };
+    const app = createApp(chatDeps({ qdrantClient }));
+
+    const res = await request(app).post('/api/projects/sample/chat').send({
+      messages: [{ role: 'user', content: 'how does sync work?' }],
+    });
+
+    expect(res.status).toBe(200);
+    // Two query variants -> two Qdrant queries, merged into two distinct sources (no rerank
+    // call since 2 candidates <= the default ragTopK of 5), best score first.
+    expect(qdrantClient.query).toHaveBeenCalledTimes(2);
+    expect(res.text).toContain(
+      'event: sources\ndata: {"sources":[{"file":"docs/b.md","section":"Setup","score":0.9},{"file":"docs/a.md","section":"Intro","score":0.6}]}',
+    );
+  });
+
+  it('reranks the candidate pool and truncates to ragTopK when it holds more candidates than requested', async () => {
+    const fetchMock = vi.fn(async (url: string, init?: any) => {
+      if (url.endsWith('/api/embeddings')) {
+        return new Response(JSON.stringify({ embedding: [0.1, 0.2] }), { status: 200 });
+      }
+      const payload = init?.body ? JSON.parse(init.body) : {};
+      if (payload.stream === false) {
+        if (typeof payload.messages[1]?.content === 'string' && payload.messages[1].content.startsWith('Question:')) {
+          // The rerank call: put candidate index 1 ("docs/b.md") first.
+          return new Response(JSON.stringify({ message: { content: '[1,0]' } }), { status: 200 });
+        }
+        // The query-rewrite call: no extra variants, so exactly one Qdrant query runs.
+        return new Response(JSON.stringify({ message: { content: '' } }), { status: 200 });
+      }
+      return new Response(ollamaStreamBody(['answer']), { status: 200, headers: { 'Content-Type': 'application/x-ndjson' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const qdrantClient = {
+      query: vi.fn().mockResolvedValue({
+        points: [
+          { id: '1', score: 0.9, payload: { file: 'docs/a.md', section: 'A', content: 'a' } },
+          { id: '2', score: 0.8, payload: { file: 'docs/b.md', section: 'B', content: 'b' } },
+        ],
+      }),
+    };
+    const app = createApp(chatDeps({ qdrantClient, ragTopK: 1 }));
+
+    const res = await request(app).post('/api/projects/sample/chat').send({
+      messages: [{ role: 'user', content: 'what is in these docs?' }],
+    });
+
+    expect(res.status).toBe(200);
+    // ragTopK=1 with 2 candidates triggers the rerank call, which put docs/b.md first.
+    expect(res.text).toContain('event: sources\ndata: {"sources":[{"file":"docs/b.md","section":"B","score":0.8}]}');
   });
 
   it('surfaces a ragError on the sources event when retrieval throws (e.g. embedding dimension mismatch), and still answers', async () => {
