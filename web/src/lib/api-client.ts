@@ -25,6 +25,14 @@ export interface IndexedDocument {
   documentType: string
   chunkCount: number
   title: string
+  gitCommit: string | null
+  /** Commits made to the repo since this file was last (re)indexed. Null for uploads and for
+   *  legacy points indexed before this was tracked, or when the indexed commit is no longer known
+   *  to the repo (rebase, shallow clone). */
+  commitsBehind: number | null
+  /** True once `commitsBehind` crosses the server's staleness threshold — a heuristic hint that
+   *  this doc may be out of date, not a certainty. */
+  stale: boolean
 }
 
 export interface KnowledgeResponse {
@@ -496,4 +504,17 @@ export function generateChatTitle(projectId: string, userMessage: string, assist
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userMessage, assistantMessage }),
   }).then(parseJsonResponse<{ title: string }>)
+}
+
+/** Logs a 👍/👎 on a chat answer. Best-effort — callers should swallow failures, since a rating
+ *  that fails to save shouldn't disrupt the chat UI. */
+export function postChatFeedback(
+  projectId: string,
+  body: { query: string; answer: string; rating: 'up' | 'down'; sources?: ChatSource[] },
+): Promise<{ id: string }> {
+  return fetch(`/api/projects/${projectId}/chat/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(parseJsonResponse<{ id: string }>)
 }

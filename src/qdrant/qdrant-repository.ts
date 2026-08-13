@@ -121,6 +121,10 @@ export interface IndexedFile {
   documentType: string;
   chunkCount: number;
   title: string;
+  /** The repo HEAD commit at the time this file was last (re)indexed — null for uploads and for
+   *  legacy points indexed before this field existed. Feeds the staleness check in
+   *  `src/git/doc-staleness.ts` (route-level, since that needs the project's repository path). */
+  gitCommit: string | null;
 }
 
 /** One row per indexed file — what the dashboard's document list renders. */
@@ -137,6 +141,7 @@ export async function getIndexedFiles(
     if (existing) {
       existing.chunkCount += 1;
       if (!existing.title && payload.title) existing.title = payload.title;
+      if (!existing.gitCommit && payload.git_commit) existing.gitCommit = payload.git_commit;
       continue;
     }
     byFile.set(payload.file, {
@@ -145,6 +150,7 @@ export async function getIndexedFiles(
       documentType: payload.document_type ?? 'markdown',
       chunkCount: 1,
       title: payload.title ?? '',
+      gitCommit: payload.git_commit ?? null,
     });
   }
   return [...byFile.values()].sort((a, b) => a.file.localeCompare(b.file));

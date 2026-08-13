@@ -3,7 +3,7 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-13
-**Recent**: Chat RAG retrieval got two additions, both chat-only (CLI/MCP `searchProject` unchanged): `rewriteQuery` now takes recent conversation history so follow-up questions ("how does that work?") resolve correctly instead of losing their referent; and a new `hybridSearch` (`src/retrieval/hybrid-search.ts`) fuses vector search with a lexical BM25 pass (`src/retrieval/bm25.ts`, cached per-project in `src/retrieval/bm25-index.ts`) via Reciprocal Rank Fusion, so exact-term matches (function names, error codes) that cosine similarity misses can still surface. See [09-project-chat.md](./09-project-chat.md#query-rewriting-hybrid-search--reranking).
+**Recent**: Added chat answer feedback (👍/👎 buttons, logged server-side to `ChatFeedbackStore` — see [09-project-chat.md](./09-project-chat.md#answer-feedback-2026-08-13)) and doc staleness detection (`GET /api/projects/:id/knowledge` flags a document once the repo has moved `STALE_COMMIT_THRESHOLD` commits past its indexed commit, surfaced as a warning badge in the Documents tab — see [08-dashboard-redesign-uploads-and-history.md](./08-dashboard-redesign-uploads-and-history.md#doc-staleness-detection-2026-08-13)).
 
 ## Index
 

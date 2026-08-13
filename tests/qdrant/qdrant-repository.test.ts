@@ -189,10 +189,26 @@ describe('getIndexedFiles', () => {
     } as any;
 
     expect(await getIndexedFiles(client, 'docs', 'sample')).toEqual([
-      { file: 'docs/a.md', source: 'repository', documentType: 'markdown', chunkCount: 2, title: 'A' },
-      { file: 'docs/b.md', source: 'repository', documentType: 'markdown', chunkCount: 1, title: 'B' },
-      { file: 'uploads/n.md', source: 'upload', documentType: 'markdown', chunkCount: 1, title: 'N' },
+      { file: 'docs/a.md', source: 'repository', documentType: 'markdown', chunkCount: 2, title: 'A', gitCommit: null },
+      { file: 'docs/b.md', source: 'repository', documentType: 'markdown', chunkCount: 1, title: 'B', gitCommit: null },
+      { file: 'uploads/n.md', source: 'upload', documentType: 'markdown', chunkCount: 1, title: 'N', gitCommit: null },
     ]);
+  });
+
+  it('carries the git_commit from whichever chunk has it, for staleness checks upstream', async () => {
+    const client = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'docs' }] }),
+      scroll: vi.fn().mockResolvedValue({
+        points: [
+          { id: '1', payload: { file: 'docs/a.md', title: 'A', git_commit: 'abc123' } },
+          { id: '2', payload: { file: 'docs/a.md', title: 'A', git_commit: 'abc123' } },
+        ],
+        next_page_offset: null,
+      }),
+    } as any;
+
+    const [doc] = await getIndexedFiles(client, 'docs', 'sample');
+    expect(doc.gitCommit).toBe('abc123');
   });
 
   it('returns an empty list without scrolling when the collection does not exist yet', async () => {

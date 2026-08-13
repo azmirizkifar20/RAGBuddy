@@ -82,6 +82,17 @@ Parsers are loaded with `await import(...)` so `ragbuddy mcp` and `sync` never p
 
 The git hook now exports `RAGBUDDY_TRIGGER=hook` before invoking the CLI, which is how the history page distinguishes an automatic sync from one you typed.
 
+### Doc staleness detection (2026-08-13)
+
+`GET /api/projects/:id/knowledge` flags a repository-sourced document as possibly stale when the project's repo has moved many commits past the commit it was last (re)indexed at — a heuristic proxy, since no doc-to-code reference graph exists to check a doc's actual claims against the code it describes.
+
+1. Each chunk payload already carries `git_commit` (the repo `HEAD` at indexing time, set by `indexProject`/`syncProject`). `getIndexedFiles` (`src/qdrant/qdrant-repository.ts`) now surfaces this per file as `gitCommit`.
+2. The knowledge route (`src/server/routes/knowledge.ts`) dedupes the distinct `gitCommit` values across all documents (files re-indexed in the same run share one commit) and calls `commitsSince(project.repository, commit)` (`src/git/doc-staleness.ts`) once per unique commit — `git rev-list --count <commit>..HEAD`, synchronous, returns `null` if the commit is unknown to the repo (rebase, shallow clone, legacy point).
+3. `isStale(commitsBehind)` is true once `commitsBehind >= STALE_COMMIT_THRESHOLD` (20, hardcoded — not exposed as env config, since nobody has asked to tune it yet). Each document in the response gains `commitsBehind: number | null` and `stale: boolean`.
+4. The dashboard's Documents tab (`web/src/pages/project-documents.tsx`) shows a small warning badge ("N behind") only on stale rows — a non-stale or unknown (`uploads`, or a commit git can't resolve) row shows nothing, keeping the table quiet for the common case.
+
+This is a hint, not a guarantee: a doc can be stale while under the threshold (few commits, but a critical one), or flagged while still accurate (many commits, none touching what the doc describes). No env-configurable threshold or day-based signal was added — YAGNI until someone needs to tune it.
+
 ## 3) Domain & Data
 
 Two new pieces of persisted state, both under `config.dataDir` (default `<install>/data`, overridable with `RAGBUDDY_DATA_DIR`, resolved against the install directory not `process.cwd()` — same rule as the project registry):
@@ -99,7 +110,7 @@ Qdrant points now carry `source: 'repository' | 'upload'`. This is what keeps up
 
 **`'repository'` is expressed as `must_not source=upload`, not `must source=repository`** — points written before this feature existed have no `source` field at all, and a positive match would orphan every one of them (never diffed, never deleted, never cleaned up).
 
-New `getIndexedFiles()` returns one row per file (`file`, `source`, `documentType`, `chunkCount`, `title`) off a single scroll, which the document browser uses directly. The project-list counts (`indexedFileCount`/`chunkCount`/`uploadCount`) go through a cache instead — see `src/projects/project-stats.ts` — since scrolling every chunk of every project on every dashboard page load stopped scaling once real projects reached thousands of chunks (2026-08-11, [2026-08-11_dashboard-slow-project-list.md](../issue/2026-08-11_dashboard-slow-project-list.md)). `document_type` now carries the real format (`pdf`/`docx`/`xlsx`/…) instead of always saying `markdown`.
+New `getIndexedFiles()` returns one row per file (`file`, `source`, `documentType`, `chunkCount`, `title`, `gitCommit`) off a single scroll, which the document browser uses directly (the route layer above turns `gitCommit` into `commitsBehind`/`stale` — see "Doc staleness detection" below). The project-list counts (`indexedFileCount`/`chunkCount`/`uploadCount`) go through a cache instead — see `src/projects/project-stats.ts` — since scrolling every chunk of every project on every dashboard page load stopped scaling once real projects reached thousands of chunks (2026-08-11, [2026-08-11_dashboard-slow-project-list.md](../issue/2026-08-11_dashboard-slow-project-list.md)). `document_type` now carries the real format (`pdf`/`docx`/`xlsx`/…) instead of always saying `markdown`.
 
 ### New API surface
 
@@ -112,7 +123,7 @@ New `getIndexedFiles()` returns one row per file (`file`, `source`, `documentTyp
 | `GET` | `/api/activity?limit=` | Cross-project run feed |
 | `GET` | `/api/config` | Runtime settings for the MCP/settings pages |
 
-`GET /api/projects` and `/api/projects/:id` gained `chunkCount`, `uploadCount` and `lastRunAt`. `/api/projects/:id/knowledge` gained `documents` and `chunkCount` alongside the original `files`. `indexedFileCount`/`chunkCount`/`uploadCount` on both routes now come from the `ProjectStatsStore` cache (`data/project-stats.json`, cache-first with compute-on-miss), not a live Qdrant scroll.
+`GET /api/projects` and `/api/projects/:id` gained `chunkCount`, `uploadCount` and `lastRunAt`. `/api/projects/:id/knowledge` gained `documents` and `chunkCount` alongside the original `files`; each document also carries `gitCommit`/`commitsBehind`/`stale` (2026-08-13, see "Doc staleness detection" above). `indexedFileCount`/`chunkCount`/`uploadCount` on both routes now come from the `ProjectStatsStore` cache (`data/project-stats.json`, cache-first with compute-on-miss), not a live Qdrant scroll.
 
 `express.json` limit raised to `32mb` — uploads travel base64-encoded inside JSON, so this limit (not the file picker) is the real ceiling on document size.
 
@@ -142,7 +153,9 @@ See [../design-system/README.md](../design-system/README.md) for tokens, motion 
 - `src/history/sync-history.ts` — `SyncHistoryStore`, `recordRun`
 - `src/ingestion/document-extractor.ts` — `extractDocument`, `assertSupportedUploadExtension`, `stripDataUriImages`
 - `src/ingestion/uploads.ts` — `assertSafeUploadName`, `uploadDocument`, `listUploads`, `removeUpload`
-- `src/qdrant/qdrant-repository.ts` — `scopedFilter`, `getIndexedFiles`, `computeProjectDataStats`, scoped `getIndexedFileHashes`/`deleteProjectVectors`
+- `src/qdrant/qdrant-repository.ts` — `scopedFilter`, `getIndexedFiles` (now also returns `gitCommit`), `computeProjectDataStats`, scoped `getIndexedFileHashes`/`deleteProjectVectors`
+- `src/git/doc-staleness.ts` — `commitsSince`, `isStale`, `STALE_COMMIT_THRESHOLD` (doc staleness detection, 2026-08-13)
+- `src/server/routes/knowledge.ts` — attaches `commitsBehind`/`stale` to each document
 - `src/projects/project-stats.ts` — `ProjectStatsStore`, `refreshProjectStats` (the dashboard stats cache)
 - `src/server/routes/{uploads,history}.ts`, `src/server/app.ts` (`/api/config`, `/api/activity`, `RuntimeInfo`)
 - `src/mcp/document-reader.ts` — `uploads/…` read path

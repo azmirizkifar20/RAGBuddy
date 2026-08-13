@@ -370,6 +370,93 @@ describe('POST /api/projects/:id/chat', () => {
   });
 });
 
+describe('POST /api/projects/:id/chat/feedback', () => {
+  it('returns 404 for an unregistered project', async () => {
+    const app = createApp(chatDeps({ registry: { list: vi.fn(), find: vi.fn().mockReturnValue(undefined) } }));
+
+    const res = await request(app)
+      .post('/api/projects/missing/chat/feedback')
+      .send({ query: 'q', answer: 'a', rating: 'up' });
+
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 400 when rating is missing or not "up"/"down"', async () => {
+    const app = createApp(chatDeps());
+
+    const missing = await request(app).post('/api/projects/sample/chat/feedback').send({ query: 'q', answer: 'a' });
+    expect(missing.status).toBe(400);
+
+    const invalid = await request(app)
+      .post('/api/projects/sample/chat/feedback')
+      .send({ query: 'q', answer: 'a', rating: 'sideways' });
+    expect(invalid.status).toBe(400);
+  });
+
+  it('returns 400 when query or answer is missing', async () => {
+    const app = createApp(chatDeps());
+
+    const res = await request(app).post('/api/projects/sample/chat/feedback').send({ answer: 'a', rating: 'up' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('appends a feedback record scoped to the project, with sources defaulted to an empty array', async () => {
+    const append = vi.fn().mockReturnValue({ id: 'fb-1' });
+    const app = createApp(chatDeps({ chatFeedback: { append, list: vi.fn() } }));
+
+    const res = await request(app)
+      .post('/api/projects/sample/chat/feedback')
+      .send({ query: 'how does sync work?', answer: 'it runs on commit', rating: 'down' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ id: 'fb-1' });
+    expect(append).toHaveBeenCalledWith({
+      project: 'sample',
+      query: 'how does sync work?',
+      answer: 'it runs on commit',
+      rating: 'down',
+      sources: [],
+    });
+  });
+
+  it('passes through provided sources', async () => {
+    const append = vi.fn().mockReturnValue({ id: 'fb-2' });
+    const app = createApp(chatDeps({ chatFeedback: { append, list: vi.fn() } }));
+
+    await request(app)
+      .post('/api/projects/sample/chat/feedback')
+      .send({
+        query: 'q',
+        answer: 'a',
+        rating: 'up',
+        sources: [{ file: 'docs/a.md', section: 'Intro', score: 0.9 }],
+      });
+
+    expect(append).toHaveBeenCalledWith(
+      expect.objectContaining({ sources: [{ file: 'docs/a.md', section: 'Intro', score: 0.9 }] }),
+    );
+  });
+
+  it('returns 500 when the store throws', async () => {
+    const app = createApp(
+      chatDeps({
+        chatFeedback: {
+          append: vi.fn().mockImplementation(() => {
+            throw new Error('disk full');
+          }),
+          list: vi.fn(),
+        },
+      }),
+    );
+
+    const res = await request(app).post('/api/projects/sample/chat/feedback').send({ query: 'q', answer: 'a', rating: 'up' });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('disk full');
+  });
+});
+
 describe('POST /api/projects/:id/chat/title', () => {
   it('returns 404 for an unregistered project', async () => {
     const app = createApp(chatDeps({ registry: { list: vi.fn(), find: vi.fn().mockReturnValue(undefined) } }));

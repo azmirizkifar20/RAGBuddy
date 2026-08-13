@@ -54,6 +54,16 @@ Chat-only additions on top of the plain `searchProject` that CLI/MCP still use u
 
 The two LLM calls (rewrite, rerank) reuse `completeOnce` (`src/chat/complete-once.ts`, also shared by `summarize`/title generation below) and the same `chatCredentials` connection as the answer itself — no separate provider config. Each adds one blocking round-trip before the answer starts streaming (rewrite always; rerank only when there are more candidates than `ragTopK`); the BM25 pass adds no LLM round-trip, only an occasional Qdrant scroll on a cache miss. Every step degrades to a simpler behavior on its own failure rather than surfacing an error.
 
+### Answer feedback (2026-08-13)
+
+Each assistant reply gets 👍/👎 buttons in the UI. Rating an answer:
+
+1. Updates the message's `feedback` field locally (persisted in the same `localStorage` session blob as everything else) — clicking the active rating again clears it.
+2. Fires `POST /api/projects/:id/chat/feedback` (`{ query, answer, rating, sources }`, `query` resolved as the nearest preceding user message) best-effort — a failed write never disrupts the chat UI, matching every other non-critical call in this pipeline.
+3. The server appends it to `ChatFeedbackStore` (`src/history/chat-feedback.ts`, same append/list/cap-at-500/corrupt-file-is-empty shape as `SyncHistoryStore`), at `data/chat-feedback.json`.
+
+This exists so which queries the RAG pipeline is actually failing on is reviewable across sessions and devices — today by reading `data/chat-feedback.json` directly (no dashboard view was built for it; add one if this needs to be browsable in the UI, YAGNI for now) — rather than living only in one browser's fading memory of "that answer felt off."
+
 ### Provider routing
 
 The provider/base URL/model/API key come from `deps.chatCredentials.get()` (resolving the active credential+model from a list you can add to and switch between) — **independent of the embedding provider** used for RAG retrieval above (see [10-chat-provider-settings.md](./10-chat-provider-settings.md)), editable at runtime from **Settings** with no restart. OpenAI hits `${baseUrl}/chat/completions` with `Authorization: Bearer ${apiKey}`; Ollama hits `${baseUrl}/api/chat`. Images ride the request as `image_url` parts for OpenAI and as an `images` array for Ollama.
@@ -64,6 +74,7 @@ The provider/base URL/model/API key come from `deps.chatCredentials.get()` (reso
 |-------|---------|
 | `POST /api/projects/:id/chat` | Streaming chat for one project. 404 if the project is not registered, 400 if `messages` is empty or not an array |
 | `POST /api/projects/:id/chat/title` | `{ userMessage, assistantMessage }` → `{ title }`, one non-streaming completion generating a short session title. 404/400 the same way as above; a provider failure is a 500, which the client treats as best-effort and ignores (session keeps its placeholder title) |
+| `POST /api/projects/:id/chat/feedback` | `{ query, answer, rating: "up"\|"down", sources? }` → `{ id }`. 404 for an unregistered project, 400 if `query`/`answer` is missing or `rating` isn't `"up"`/`"down"`. Appends to `ChatFeedbackStore` (2026-08-13) |
 
 ### Request body
 
@@ -96,9 +107,10 @@ The provider/base URL/model/API key come from `deps.chatCredentials.get()` (reso
 
 ## 4) Domain
 
-- **`src/server/routes/chat.ts`** — `registerChatRoutes`; the endpoint, auto-compaction, RAG injection (rewrite → hybrid search → rerank), provider routing, and the OpenAI/Ollama streaming paths. Helpers `flattenContent`, `lastUserText`, `summarize`, `recentHistory` (the trailing conversation window fed to `rewriteQuery`). Provider/base URL/model/API key come from `deps.chatCredentials.get()` — see [10-chat-provider-settings.md](./10-chat-provider-settings.md) — not from the embedding config.
+- **`src/server/routes/chat.ts`** — `registerChatRoutes`; the endpoint, auto-compaction, RAG injection (rewrite → hybrid search → rerank), provider routing, the OpenAI/Ollama streaming paths, and the feedback endpoint. Helpers `flattenContent`, `lastUserText`, `summarize`, `recentHistory` (the trailing conversation window fed to `rewriteQuery`). Provider/base URL/model/API key come from `deps.chatCredentials.get()` — see [10-chat-provider-settings.md](./10-chat-provider-settings.md) — not from the embedding config.
+- **`src/history/chat-feedback.ts`** — `ChatFeedbackStore`: append/list/cap-at-500 JSON store for 👍/👎 ratings, same shape as `SyncHistoryStore`.
 - **`src/chat/complete-once.ts`** — `completeOnce` (one blocking, non-streaming completion), `toProviderMessages`, `ContentPart`/`LlmMessage` types. Shared by `summarize`/title generation here and by `rewriteQuery`/`rerank` in the retrieval layer, so neither depends on `server/routes`.
-- **`src/server/app.ts`** — mounts the chat router at `/api/projects`, threads `chatCredentials`/`embeddingCredentials` (both `CredentialsStore`) / `chatContextLimit` / `statsStore` through `AppDeps` and mounts the generic credential routes twice at `/api/settings/{embedding,chat}`.
+- **`src/server/app.ts`** — mounts the chat router at `/api/projects`, threads `chatCredentials`/`embeddingCredentials` (both `CredentialsStore`) / `chatContextLimit` / `statsStore` / `chatFeedback` through `AppDeps` and mounts the generic credential routes twice at `/api/settings/{embedding,chat}`.
 - **`src/config/config.ts`** — `chatModel` (default `gpt-4o-mini` for OpenAI, `llama3` for Ollama) and `chatContextLimit` (default `10`), validated against `CHAT_MODEL` / `CHAT_CONTEXT_LIMIT`; `chatModel` (plus the embedding provider/base URL/API key) only seeds `chatCredentials`' first (`"Default (.env)"`) credential now — the values actually used per request come from whichever credential+model is active in that store, not straight from `AppConfig`.
 - **`src/retrieval/search.ts`** — `searchProject` (the same project-filtered topK search an agent hits, unchanged) plus `searchProjectMultiQuery` (chat-only, additive: runs `searchProject` per query variant and merges/dedupes).
 - **`src/retrieval/query-rewrite.ts`** — `rewriteQuery`: generates alternative phrasings before retrieval, chat-only; now history-aware via an optional `ConversationTurn[]` parameter.
@@ -145,6 +157,7 @@ interface StoredMsg {
   sources?: { file: string; section: string; score: number }[]
   images?: string[]
   attachments?: { name: string; text: string }[]
+  feedback?: 'up' | 'down'  // 2026-08-13 — persisted locally, also reported to POST .../chat/feedback
 }
 ```
 
@@ -170,6 +183,7 @@ This is the `localStorage` shape only. The server keeps no chat records; message
 - `src/retrieval/bm25.ts`
 - `src/retrieval/bm25-index.ts`
 - `src/retrieval/rerank.ts`
+- `src/history/chat-feedback.ts`
 - `web/src/pages/ai-chat.tsx`
 - `web/src/components/formatted-chat-message.tsx`
 - `web/src/lib/api-client.ts`

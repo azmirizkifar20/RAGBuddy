@@ -305,4 +305,31 @@ export function registerChatRoutes(router: Router, deps: AppDeps): void {
       res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
     }
   });
+
+  // 👍/👎 on a chat answer — logged so which queries the RAG pipeline is failing on is reviewable
+  // across sessions/devices instead of living only in one browser's localStorage.
+  router.post('/:id/chat/feedback', (req, res) => {
+    const project = deps.registry.find(req.params.id);
+    if (!project) {
+      res.status(404).json({ error: `Project "${req.params.id}" is not registered` });
+      return;
+    }
+    const body = (req.body ?? {}) as { query?: string; answer?: string; rating?: string; sources?: Source[] };
+    if (!body.query || !body.answer || (body.rating !== 'up' && body.rating !== 'down')) {
+      res.status(400).json({ error: 'query, answer, and rating ("up" or "down") are required' });
+      return;
+    }
+    try {
+      const record = deps.chatFeedback.append({
+        project: project.id,
+        query: body.query,
+        answer: body.answer,
+        rating: body.rating,
+        sources: Array.isArray(body.sources) ? body.sources : [],
+      });
+      res.json({ id: record.id });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
 }

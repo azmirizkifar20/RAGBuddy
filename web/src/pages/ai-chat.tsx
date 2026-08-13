@@ -11,6 +11,8 @@ import {
   Pencil,
   Plus,
   Square,
+  ThumbsDown,
+  ThumbsUp,
   Trash2,
   TriangleAlert,
   X,
@@ -25,6 +27,7 @@ import {
   getProject,
   streamProjectChat,
   generateChatTitle,
+  postChatFeedback,
   type ChatContentPart,
   type ChatMessage,
   type ChatSource,
@@ -43,6 +46,8 @@ interface StoredMsg {
   images?: string[]
   attachments?: { name: string; text: string }[]
   error?: boolean
+  /** 👍/👎 the user gave this answer — persisted locally and reported to the server for review. */
+  feedback?: 'up' | 'down'
 }
 
 interface ChatSession {
@@ -375,6 +380,31 @@ function ChatWithProject({ project }: { project: Project }) {
     stickToBottomRef.current = true
     setShowJumpToBottom(false)
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  /** Toggles a 👍/👎 on one assistant message: clicking the active rating again clears it
+   *  (locally only — clearing isn't reported, only a positive rating is worth logging). Reports
+   *  best-effort to the server so which queries the RAG pipeline fails on is reviewable across
+   *  sessions, using the nearest preceding user message as the "query". */
+  function rateMessage(sessionId: string, index: number, rating: 'up' | 'down') {
+    const session = sessions.find((s) => s.id === sessionId)
+    const msg = session?.messages[index]
+    if (!session || !msg || msg.role !== 'assistant') return
+    const nextRating = msg.feedback === rating ? undefined : rating
+
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === sessionId
+          ? { ...s, messages: s.messages.map((m, i) => (i === index ? { ...m, feedback: nextRating } : m)) }
+          : s,
+      ),
+    )
+
+    if (!nextRating) return
+    const query = [...session.messages.slice(0, index)].reverse().find((m) => m.role === 'user')?.content ?? ''
+    postChatFeedback(project.id, { query, answer: msg.content, rating: nextRating, sources: msg.sources }).catch(() => {
+      // Best-effort — a failed rating write must never disrupt the chat UI.
+    })
   }
 
   const activeSession = sessions.find((s) => s.id === activeId)
@@ -783,6 +813,30 @@ function ChatWithProject({ project }: { project: Project }) {
                       </div>
                     )}
                     {msg.sources && msg.sources.length > 0 && <SourcesList sources={msg.sources} />}
+                    <div className="mt-2 flex items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label="Good answer"
+                        onClick={() => activeSession && rateMessage(activeSession.id, i, 'up')}
+                        className={cn(
+                          'rounded-md p-1 transition-colors hover:bg-muted',
+                          msg.feedback === 'up' ? 'text-brand' : 'text-muted-foreground',
+                        )}
+                      >
+                        <ThumbsUp className="size-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Bad answer"
+                        onClick={() => activeSession && rateMessage(activeSession.id, i, 'down')}
+                        className={cn(
+                          'rounded-md p-1 transition-colors hover:bg-muted',
+                          msg.feedback === 'down' ? 'text-destructive' : 'text-muted-foreground',
+                        )}
+                      >
+                        <ThumbsDown className="size-3.5" />
+                      </button>
+                    </div>
                   </div>
                 )
               })}

@@ -4,6 +4,7 @@ import type { QdrantClient } from '@qdrant/js-client-rest';
 import type { ProjectRegistry } from '../projects/project-registry';
 import { createEmbeddingProvider, type EmbeddingProvider } from '../embedding/embedding-provider';
 import type { SyncHistoryStore } from '../history/sync-history';
+import type { ChatFeedbackStore } from '../history/chat-feedback';
 import type { CredentialsStore } from '../config/credentials-store';
 import type { ProjectStatsStore } from '../projects/project-stats';
 import { registerProjectsRoutes } from './routes/projects';
@@ -42,6 +43,8 @@ export interface AppDeps {
   runtime: RuntimeInfo;
   /** Cached per-project file/chunk/upload counts for the dashboard list — see `src/projects/project-stats.ts`. */
   statsStore: ProjectStatsStore;
+  /** 👍/👎 ratings on chat answers — see `src/history/chat-feedback.ts`. */
+  chatFeedback: ChatFeedbackStore;
 }
 
 /** Resolves the currently active embedding credential + model into a ready-to-use provider —

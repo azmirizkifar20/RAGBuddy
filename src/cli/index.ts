@@ -9,6 +9,7 @@ loadDotenv({ path: path.resolve(__dirname, '../../.env') });
 import { loadConfig } from '../config/config';
 import { ProjectRegistry } from '../projects/project-registry';
 import { SyncHistoryStore, recordRun, type RunTrigger } from '../history/sync-history';
+import { ChatFeedbackStore } from '../history/chat-feedback';
 import { createQdrantClient, dropCollection } from '../qdrant/qdrant-client';
 import { createEmbeddingProvider, type EmbeddingProvider } from '../embedding/embedding-provider';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -43,6 +44,7 @@ async function main(): Promise<void> {
   const registry = new ProjectRegistry(config.projectRegistryPath);
   const history = new SyncHistoryStore(path.join(config.dataDir, 'sync-history.json'));
   const projectStats = new ProjectStatsStore(path.join(config.dataDir, 'project-stats.json'));
+  const chatFeedback = new ChatFeedbackStore(path.join(config.dataDir, 'chat-feedback.json'));
   // The post-commit hook shells out to this same CLI; it sets this env var so
   // the history page can tell an automatic sync from one you typed yourself.
   const trigger: RunTrigger = process.env.RAGBUDDY_TRIGGER === 'hook' ? 'hook' : 'cli';
@@ -140,6 +142,7 @@ async function main(): Promise<void> {
       dataDir: config.dataDir,
       history,
       statsStore: projectStats,
+      chatFeedback,
       runtime: {
         nodePath: process.execPath,
         // Same entrypoint the git hook installer writes into post-commit, so

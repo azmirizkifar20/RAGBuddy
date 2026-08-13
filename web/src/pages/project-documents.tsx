@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { FilesIcon, SearchIcon } from 'lucide-react'
+import { FilesIcon, SearchIcon, TriangleAlert } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -84,6 +84,7 @@ export function ProjectDocuments() {
                   <TableHead className="w-20">Type</TableHead>
                   <TableHead className="w-28">Source</TableHead>
                   <TableHead className="w-20 text-right">Chunks</TableHead>
+                  <TableHead className="w-32">Staleness</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -96,6 +97,19 @@ export function ProjectDocuments() {
                       {doc.source === 'upload' ? 'uploaded' : 'repository'}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">{doc.chunkCount}</TableCell>
+                    <TableCell>
+                      {doc.stale ? (
+                        <span
+                          title={`The repo has moved ${doc.commitsBehind} commits since this file was last indexed — it may be out of date`}
+                          className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning"
+                        >
+                          <TriangleAlert className="size-3" />
+                          {doc.commitsBehind} behind
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
