@@ -7,6 +7,7 @@ import {
   computeProjectDataStats,
   deleteFileVectors,
   searchPoints,
+  getProjectChunks,
 } from '../../src/qdrant/qdrant-repository';
 import type { DocumentPoint } from '../../src/qdrant/qdrant-repository';
 
@@ -252,6 +253,48 @@ describe('deleteFileVectors', () => {
         ],
       },
     });
+  });
+});
+
+describe('getProjectChunks', () => {
+  it('returns file/section/content for every chunk with a scope of all sources', async () => {
+    const client = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'docs' }] }),
+      scroll: vi.fn().mockResolvedValue({
+        points: [
+          { id: '1', payload: { file: 'docs/a.md', section: 'Intro', content: 'hello' } },
+          { id: '2', payload: { file: 'uploads/n.md', section: '', content: 'world', source: 'upload' } },
+        ],
+        next_page_offset: null,
+      }),
+    } as any;
+
+    const chunks = await getProjectChunks(client, 'docs', 'sample');
+
+    expect(chunks).toEqual([
+      { file: 'docs/a.md', section: 'Intro', content: 'hello' },
+      { file: 'uploads/n.md', section: '', content: 'world' },
+    ]);
+    expect(client.scroll.mock.calls[0][1].filter).toEqual({ must: [{ key: 'project', match: { value: 'sample' } }] });
+  });
+
+  it('skips a point missing file or content', async () => {
+    const client = {
+      getCollections: vi.fn().mockResolvedValue({ collections: [{ name: 'docs' }] }),
+      scroll: vi.fn().mockResolvedValue({
+        points: [{ id: '1', payload: { section: 'Intro' } }],
+        next_page_offset: null,
+      }),
+    } as any;
+
+    expect(await getProjectChunks(client, 'docs', 'sample')).toEqual([]);
+  });
+
+  it('returns an empty array without scrolling when the collection does not exist yet', async () => {
+    const client = { getCollections: vi.fn().mockResolvedValue({ collections: [] }), scroll: vi.fn() } as any;
+
+    expect(await getProjectChunks(client, 'docs', 'sample')).toEqual([]);
+    expect(client.scroll).not.toHaveBeenCalled();
   });
 });
 

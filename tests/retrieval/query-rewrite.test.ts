@@ -57,4 +57,43 @@ describe('rewriteQuery', () => {
 
     expect(queries).toEqual(['how does auto-sync work?']);
   });
+
+  it('sends recent conversation history ahead of the query, so the model can resolve follow-up references', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ message: { content: 'how does the git hook trigger sync\nexplain hook-triggered sync' } }), {
+        status: 200,
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const history = [
+      { role: 'user' as const, content: 'tell me about the git hook' },
+      { role: 'assistant' as const, content: 'it runs ragbuddy sync after every commit' },
+    ];
+    const queries = await rewriteQuery('how does that work internally?', SETTINGS, history);
+
+    expect(queries[0]).toBe('how does that work internally?');
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.messages).toEqual([
+      { role: 'system', content: expect.any(String) },
+      { role: 'user', content: 'tell me about the git hook' },
+      { role: 'assistant', content: 'it runs ragbuddy sync after every commit' },
+      { role: 'user', content: 'how does that work internally?' },
+    ]);
+  });
+
+  it('omits history entirely from the request when none is passed (default behavior unchanged)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ message: { content: 'variant one\nvariant two' } }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await rewriteQuery('plain query', SETTINGS);
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.messages).toEqual([
+      { role: 'system', content: expect.any(String) },
+      { role: 'user', content: 'plain query' },
+    ]);
+  });
 });

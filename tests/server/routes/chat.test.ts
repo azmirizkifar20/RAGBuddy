@@ -283,6 +283,40 @@ describe('POST /api/projects/:id/chat', () => {
     expect(res.text).toContain('event: sources\ndata: {"sources":[{"file":"docs/b.md","section":"B","score":0.8}]}');
   });
 
+  it('sends recent conversation history to the query-rewrite call, so follow-up references can resolve', async () => {
+    const fetchMock = vi.fn(async (url: string, init?: any) => {
+      if (url.endsWith('/api/embeddings')) {
+        return new Response(JSON.stringify({ embedding: [0.1, 0.2] }), { status: 200 });
+      }
+      const payload = init?.body ? JSON.parse(init.body) : {};
+      if (payload.stream === false) {
+        // The query-rewrite call: no extra variants, so exactly one Qdrant query runs.
+        return new Response(JSON.stringify({ message: { content: '' } }), { status: 200 });
+      }
+      return new Response(ollamaStreamBody(['answer']), { status: 200, headers: { 'Content-Type': 'application/x-ndjson' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const qdrantClient = { query: vi.fn().mockResolvedValue({ points: [] }) };
+    const app = createApp(chatDeps({ qdrantClient }));
+
+    const res = await request(app).post('/api/projects/sample/chat').send({
+      messages: [
+        { role: 'user', content: 'tell me about the git hook' },
+        { role: 'assistant', content: 'it runs ragbuddy sync after every commit' },
+        { role: 'user', content: 'how does that work internally?' },
+      ],
+    });
+
+    expect(res.status).toBe(200);
+    const rewriteCall = fetchMock.mock.calls.find(
+      (call: any[]) => call[0].endsWith('/api/chat') && JSON.parse(call[1].body).stream === false,
+    );
+    const rewriteMessages = JSON.parse(rewriteCall![1].body).messages;
+    expect(rewriteMessages).toContainEqual({ role: 'user', content: 'tell me about the git hook' });
+    expect(rewriteMessages).toContainEqual({ role: 'assistant', content: 'it runs ragbuddy sync after every commit' });
+    expect(rewriteMessages[rewriteMessages.length - 1]).toEqual({ role: 'user', content: 'how does that work internally?' });
+  });
+
   it('surfaces a ragError on the sources event when retrieval throws (e.g. embedding dimension mismatch), and still answers', async () => {
     const fetchMock = vi.fn(async (url: string) => {
       if (url.endsWith('/api/embeddings')) {

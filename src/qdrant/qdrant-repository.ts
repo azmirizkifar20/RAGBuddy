@@ -188,6 +188,30 @@ export async function deleteFileVectors(
   });
 }
 
+export interface ProjectChunk {
+  file: string;
+  section: string;
+  content: string;
+}
+
+/** Full-corpus scroll of a project's chunk text — feeds the in-memory BM25 lexical index
+ *  (`src/retrieval/bm25-index.ts`). Callers must cache the result themselves; scrolling on every
+ *  call would repeat the mistake fixed in docs/issue/2026-08-11_dashboard-slow-project-list.md. */
+export async function getProjectChunks(
+  client: QdrantClient,
+  collectionName: string,
+  project: string,
+): Promise<ProjectChunk[]> {
+  const payloads = await scrollPayloads(client, collectionName, project, 'all');
+  const chunks: ProjectChunk[] = [];
+  for (const payload of payloads) {
+    if (typeof payload.file === 'string' && typeof payload.content === 'string') {
+      chunks.push({ file: payload.file, section: payload.section ?? '', content: payload.content });
+    }
+  }
+  return chunks;
+}
+
 export interface SearchHit {
   score: number;
   payload: ChunkPayload;

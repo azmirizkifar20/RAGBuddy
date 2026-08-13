@@ -3,7 +3,7 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-13
-**Recent**: Fixed the packaged Electron app popping its window open on every commit in a project whose auto-sync hook was installed from inside the desktop app — `process.execPath` there is always Electron's own binary, and the hook script never forced `ELECTRON_RUN_AS_NODE=1`, so it relaunched the full GUI instead of syncing headlessly. See [2026-08-13_electron-hook-launches-gui.md](../issue/2026-08-13_electron-hook-launches-gui.md) — **already-installed hooks must be reinstalled** (toggle auto-sync off/on) to pick up the fix.
+**Recent**: Chat RAG retrieval got two additions, both chat-only (CLI/MCP `searchProject` unchanged): `rewriteQuery` now takes recent conversation history so follow-up questions ("how does that work?") resolve correctly instead of losing their referent; and a new `hybridSearch` (`src/retrieval/hybrid-search.ts`) fuses vector search with a lexical BM25 pass (`src/retrieval/bm25.ts`, cached per-project in `src/retrieval/bm25-index.ts`) via Reciprocal Rank Fusion, so exact-term matches (function names, error codes) that cosine similarity misses can still surface. See [09-project-chat.md](./09-project-chat.md#query-rewriting-hybrid-search--reranking).
 
 ## Index
 

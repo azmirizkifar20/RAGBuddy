@@ -1,8 +1,8 @@
 import type { Router } from 'express';
 import { type AppDeps, resolveEmbeddingProvider } from '../app';
 import { startSse, sendSseEvent } from '../sse';
-import { searchProjectMultiQuery } from '../../retrieval/search';
-import { rewriteQuery } from '../../retrieval/query-rewrite';
+import { hybridSearch } from '../../retrieval/hybrid-search';
+import { rewriteQuery, type ConversationTurn } from '../../retrieval/query-rewrite';
 import { rerank } from '../../retrieval/rerank';
 import type { ActiveConnection as ChatSettings } from '../../config/credentials-store';
 import { completeOnce, toProviderMessages, type ContentPart, type LlmMessage } from '../../chat/complete-once';
@@ -18,9 +18,14 @@ interface Source {
   score: number;
 }
 
-/** How much larger a candidate pool `searchProjectMultiQuery` fetches than the final `ragTopK`,
+/** How much larger a candidate pool `hybridSearch` fetches than the final `ragTopK`,
  * giving `rerank` something to actually reorder instead of just re-scoring the same top few. */
 const RERANK_POOL_MULTIPLIER = 3;
+
+/** How many of the most recent messages (before the current query) get sent to `rewriteQuery` for
+ * follow-up reference resolution — a small window, not the full conversation, since this call is
+ * only meant to disambiguate "that"/"it"-style references, not re-read the whole session. */
+const REWRITE_HISTORY_TURNS = 4;
 
 const RAG_SYSTEM_PROMPT =
   'You are a helpful assistant. Project documents may be attached as extra context below — treat them as a ' +
@@ -51,6 +56,15 @@ function lastUserText(messages: ChatMsg[]): string {
     if (messages[i].role === 'user') return flattenContent(messages[i].content).text;
   }
   return '';
+}
+
+/** The conversation turns preceding the current query (assumed to be the final message), capped
+ * to a small trailing window — see `REWRITE_HISTORY_TURNS`. */
+function recentHistory(messages: ChatMsg[]): ConversationTurn[] {
+  return messages
+    .slice(0, -1)
+    .slice(-REWRITE_HISTORY_TURNS)
+    .map((m) => ({ role: m.role, content: flattenContent(m.content).text }));
 }
 
 async function summarize(messages: ChatMsg[], settings: ChatSettings): Promise<string> {
@@ -217,16 +231,18 @@ export function registerChatRoutes(router: Router, deps: AppDeps): void {
         const query = lastUserText(messages);
         if (query.trim()) {
           try {
-            // Broaden recall with a couple of rewritten phrasings, over-fetch a candidate
-            // pool, then let the LLM reorder it — each step degrades to the plain single-query
-            // behavior on its own failure (see rewriteQuery/rerank), so a flaky rewrite/rerank
-            // call never blocks RAG, it just falls back to the original ranking.
-            const queries = await rewriteQuery(query, settings);
-            const candidates = await searchProjectMultiQuery(project.id, queries, {
+            // Broaden recall with a couple of history-aware rewritten phrasings, run both dense
+            // vector search and a lexical BM25 pass over the project corpus (fused by
+            // hybridSearch), over-fetch a candidate pool, then let the LLM reorder it — each step
+            // degrades to a simpler behavior on its own failure (see rewriteQuery/hybridSearch/
+            // rerank), so a flaky call never blocks RAG, it just falls back the next step down.
+            const queries = await rewriteQuery(query, settings, recentHistory(messages));
+            const candidates = await hybridSearch(project.id, queries, query, {
               qdrantClient: deps.qdrantClient,
               qdrantCollection: deps.qdrantCollection,
               embeddingProvider: resolveEmbeddingProvider(deps),
               topK: deps.ragTopK * RERANK_POOL_MULTIPLIER,
+              bm25VersionKey: deps.statsStore.get(project.id)?.updatedAt ?? '',
             });
             const results = await rerank(query, candidates, settings, deps.ragTopK);
             sources = results.map((r) => ({ file: r.file, section: r.section, score: r.score }));
