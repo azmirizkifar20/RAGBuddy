@@ -36,6 +36,19 @@ describe('installHook', () => {
     }
   });
 
+  it('always sets ELECTRON_RUN_AS_NODE=1 on the sync invocation, even for a plain node path', () => {
+    // Critical when `nodePath` is actually the packaged Electron binary (true whenever the
+    // hook was installed from inside the desktop app, since `process.execPath` there always
+    // reports Electron's own executable) — without it, the hook launches the full GUI on
+    // every commit instead of running the CLI headlessly. A no-op for a real `node` binary.
+    installHook(repo, 'bidubadu', { nodePath: '/usr/bin/node', cliEntrypoint: '/opt/ragbuddy/dist/cli/index.js' });
+
+    for (const hookName of HOOK_NAMES) {
+      const content = readFileSync(path.join(hooksDir, hookName), 'utf8');
+      expect(content).toContain('ELECTRON_RUN_AS_NODE=1 "/usr/bin/node"');
+    }
+  });
+
   it('guards post-checkout to skip single-file checkouts (branch-flag $3)', () => {
     installHook(repo, 'bidubadu', { nodePath: 'node', cliEntrypoint: '/x/index.js' });
 

@@ -39,6 +39,7 @@ Web dashboard: `HookToggle` (`web/src/components/hook-toggle.tsx`) shows one swi
 - The sync process itself must never create another commit (no recursive Git operations) (`init.md` §12)
 - Installing must never destroy a pre-existing user `post-commit`/`post-merge`/`post-checkout` hook (`init.md` §13)
 - `post-checkout` fires on every checkout, including single-file (`git checkout -- file.md`) — the branch-flag guard (`$3 = 1`) prevents a sync on those
+- **The hook's own invocation always sets `ELECTRON_RUN_AS_NODE=1`**, unconditionally — a no-op for a real `node` binary, but required whenever `nodePath` is actually the packaged Electron executable (true whenever the hook was installed from inside the desktop app: `process.execPath` there always reports Electron's own binary path, never a plain Node one). Without it, every commit/merge/checkout would relaunch the full Electron GUI instead of running the sync headlessly — see [2026-08-13_electron-hook-launches-gui.md](../issue/2026-08-13_electron-hook-launches-gui.md).
 
 ## Related Files
 

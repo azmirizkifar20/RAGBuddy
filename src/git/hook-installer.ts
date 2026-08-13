@@ -101,8 +101,14 @@ function buildHookBlock(
   lines.push(
     'echo "[ragbuddy] Sync started..."',
     // RAGBUDDY_TRIGGER lets the sync history distinguish this automatic run
-    // from a `ragbuddy sync` you typed yourself.
-    `RAGBUDDY_TRIGGER=hook "${nodePath}" "${cliEntrypoint}" sync ${projectId} || echo "[ragbuddy] Warning: RAG sync failed. Git ${label} remains successful."`,
+    // from a `ragbuddy sync` you typed yourself. ELECTRON_RUN_AS_NODE is a no-op
+    // for a real `node` binary, but critical when `nodePath` is actually the
+    // Electron executable (true whenever this hook was installed from inside
+    // the packaged desktop app, since `process.execPath` there always reports
+    // Electron's own binary — see docs/features/11-electron-desktop-app.md):
+    // without it, this line launches the full GUI on every commit instead of
+    // running the CLI headlessly.
+    `RAGBUDDY_TRIGGER=hook ELECTRON_RUN_AS_NODE=1 "${nodePath}" "${cliEntrypoint}" sync ${projectId} || echo "[ragbuddy] Warning: RAG sync failed. Git ${label} remains successful."`,
     MARKER_END,
   );
   return lines.join('\n');

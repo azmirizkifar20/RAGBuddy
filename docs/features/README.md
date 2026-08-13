@@ -2,8 +2,8 @@
 
 This folder contains documentation for implemented features and current state.
 
-**Updated**: 2026-08-12
-**Recent**: Per-project chat's RAG retrieval now rewrites the query into alternative phrasings, searches across all of them, and reranks the merged candidate pool before answering — chat-only additions (`src/retrieval/query-rewrite.ts`, `src/retrieval/rerank.ts`, `searchProjectMultiQuery`) that leave `searchProject`/CLI/MCP unchanged — see [09-project-chat.md](./09-project-chat.md).
+**Updated**: 2026-08-13
+**Recent**: Fixed the packaged Electron app popping its window open on every commit in a project whose auto-sync hook was installed from inside the desktop app — `process.execPath` there is always Electron's own binary, and the hook script never forced `ELECTRON_RUN_AS_NODE=1`, so it relaunched the full GUI instead of syncing headlessly. See [2026-08-13_electron-hook-launches-gui.md](../issue/2026-08-13_electron-hook-launches-gui.md) — **already-installed hooks must be reinstalled** (toggle auto-sync off/on) to pick up the fix.
 
 ## Index
 
