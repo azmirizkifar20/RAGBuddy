@@ -20,7 +20,8 @@ Compose message (text + optional attachments/images)
       → validate project + messages (400/404 on failure)
       → optional auto-compaction: if message count > CHAT_CONTEXT_LIMIT,
         summarize the pruned prefix and inject the summary as a system message
-      → optional RAG: rewriteQuery(text, history) → hybridSearch(pool=topK*3) → rerank(topK)
+      → optional RAG: getRagResults(text, history) — shared with `ragbuddy ask`, see 04-retrieval-search.md
+          = rewriteQuery(text, history) → hybridSearch(pool=topK*3) → rerank(topK)
           hybridSearch = searchProjectMultiQuery (vector) + BM25 lexical pass, fused by RRF
         → inject retrieved chunks as a system context message
       → route to LLM provider (OpenAI chat/completions vs Ollama /api/chat),
@@ -46,7 +47,7 @@ When the incoming `messages` array exceeds `CHAT_CONTEXT_LIMIT` (default `10`), 
 
 ### Query rewriting, hybrid search & reranking
 
-Chat-only additions on top of the plain `searchProject` that CLI/MCP still use unchanged (see [04-retrieval-search.md](./04-retrieval-search.md)):
+Additions on top of the plain `searchProject` that CLI `search`/MCP still use unchanged (see [04-retrieval-search.md](./04-retrieval-search.md)), chained together by the shared `getRagResults` (`src/retrieval/rag-context.ts`) — extracted out of this route so `ragbuddy ask` (2026-08-13) could reuse the exact same pipeline instead of re-implementing it:
 
 1. **`rewriteQuery`** (`src/retrieval/query-rewrite.ts`) — one blocking LLM call (`completeOnce`) asks for 2 alternative phrasings of the user's question, to broaden recall for short/ambiguous chat queries. It also receives the last `REWRITE_HISTORY_TURNS` (4) messages preceding the query, so a follow-up like "how does that work?" gets resolved against the conversation instead of rewritten as a context-free fragment. The original query is always kept first in the returned list, and any failure (timeout, empty/unusable response) falls back to `[originalQuery]` — a bad rewrite never blocks or replaces the real query.
 2. **`hybridSearch`** (`src/retrieval/hybrid-search.ts`) — runs `searchProjectMultiQuery` (dense vector search, one call per rewritten variant, over-fetching a pool of `ragTopK * 3`) **and** a lexical BM25 pass (`src/retrieval/bm25.ts`) over the project's full chunk corpus against the *original* query only (the rewritten variants are semantic paraphrases meant for vector recall — running BM25 against them too would just dilute exact-term matching). The two ranked lists are fused by Reciprocal Rank Fusion, so a chunk that BM25 finds (an exact function name, error code, or file path that never scores high on cosine similarity) can surface even when vector search missed it entirely. Each result keeps its *original* score (vector score when present in both lists) rather than the RRF value, so the "% match" the UI shows stays meaningful. The BM25 index itself is built lazily per project and cached in-process, invalidated only when the project's cached stats `updatedAt` changes (`src/retrieval/bm25-index.ts` — reuses the same cache-invalidation signal as `ProjectStatsStore`, so it never re-scrolls the full corpus on every chat message). Any failure in the BM25 pass (index build, Qdrant scroll) falls back to vector-only results.
@@ -107,18 +108,19 @@ The provider/base URL/model/API key come from `deps.chatCredentials.get()` (reso
 
 ## 4) Domain
 
-- **`src/server/routes/chat.ts`** — `registerChatRoutes`; the endpoint, auto-compaction, RAG injection (rewrite → hybrid search → rerank), provider routing, the OpenAI/Ollama streaming paths, and the feedback endpoint. Helpers `flattenContent`, `lastUserText`, `summarize`, `recentHistory` (the trailing conversation window fed to `rewriteQuery`). Provider/base URL/model/API key come from `deps.chatCredentials.get()` — see [10-chat-provider-settings.md](./10-chat-provider-settings.md) — not from the embedding config.
+- **`src/server/routes/chat.ts`** — `registerChatRoutes`; the endpoint, auto-compaction, RAG injection (one `getRagResults` call), provider routing, the OpenAI/Ollama streaming paths, and the feedback endpoint. Helpers `flattenContent`, `lastUserText`, `summarize`, `recentHistory` (the trailing conversation window fed to `rewriteQuery` via `getRagResults`). Provider/base URL/model/API key come from `deps.chatCredentials.get()` — see [10-chat-provider-settings.md](./10-chat-provider-settings.md) — not from the embedding config.
+- **`src/retrieval/rag-context.ts`** — `getRagResults`: the shared rewrite → hybrid search → rerank pipeline, used by this route and by `ragbuddy ask` (2026-08-13, see [04-retrieval-search.md](./04-retrieval-search.md)).
 - **`src/history/chat-feedback.ts`** — `ChatFeedbackStore`: append/list/cap-at-500 JSON store for 👍/👎 ratings, same shape as `SyncHistoryStore`.
 - **`src/chat/complete-once.ts`** — `completeOnce` (one blocking, non-streaming completion), `toProviderMessages`, `ContentPart`/`LlmMessage` types. Shared by `summarize`/title generation here and by `rewriteQuery`/`rerank` in the retrieval layer, so neither depends on `server/routes`.
 - **`src/server/app.ts`** — mounts the chat router at `/api/projects`, threads `chatCredentials`/`embeddingCredentials` (both `CredentialsStore`) / `chatContextLimit` / `statsStore` / `chatFeedback` through `AppDeps` and mounts the generic credential routes twice at `/api/settings/{embedding,chat}`.
 - **`src/config/config.ts`** — `chatModel` (default `gpt-4o-mini` for OpenAI, `llama3` for Ollama) and `chatContextLimit` (default `10`), validated against `CHAT_MODEL` / `CHAT_CONTEXT_LIMIT`; `chatModel` (plus the embedding provider/base URL/API key) only seeds `chatCredentials`' first (`"Default (.env)"`) credential now — the values actually used per request come from whichever credential+model is active in that store, not straight from `AppConfig`.
-- **`src/retrieval/search.ts`** — `searchProject` (the same project-filtered topK search an agent hits, unchanged) plus `searchProjectMultiQuery` (chat-only, additive: runs `searchProject` per query variant and merges/dedupes).
-- **`src/retrieval/query-rewrite.ts`** — `rewriteQuery`: generates alternative phrasings before retrieval, chat-only; now history-aware via an optional `ConversationTurn[]` parameter.
-- **`src/retrieval/hybrid-search.ts`** — `hybridSearch`: fuses `searchProjectMultiQuery` (vector) with a BM25 lexical pass via Reciprocal Rank Fusion, chat-only.
+- **`src/retrieval/search.ts`** — `searchProject` (the same project-filtered topK search an agent hits, unchanged) plus `searchProjectMultiQuery` (additive: runs `searchProject` per query variant and merges/dedupes, used via `getRagResults`).
+- **`src/retrieval/query-rewrite.ts`** — `rewriteQuery`: generates alternative phrasings before retrieval, history-aware via an optional `ConversationTurn[]` parameter.
+- **`src/retrieval/hybrid-search.ts`** — `hybridSearch`: fuses `searchProjectMultiQuery` (vector) with a BM25 lexical pass via Reciprocal Rank Fusion.
 - **`src/retrieval/bm25.ts`** — `buildBm25Index`/`bm25Search`: pure, dependency-free BM25 (k1=1.5, b=0.75) over a project's chunk corpus, no stopword list (IDF already downweights ubiquitous terms).
 - **`src/retrieval/bm25-index.ts`** — `getBm25Index`: in-memory per-project cache for the BM25 index, invalidated by a `versionKey` (the project's cached stats `updatedAt`).
 - **`src/qdrant/qdrant-repository.ts`** — `getProjectChunks`: full-corpus `{file, section, content}` scroll feeding the BM25 index build.
-- **`src/retrieval/rerank.ts`** — `rerank`: reorders/truncates a candidate pool by relevance, chat-only.
+- **`src/retrieval/rerank.ts`** — `rerank`: reorders/truncates a candidate pool by relevance.
 
 ## 5) UI
 
@@ -178,12 +180,14 @@ This is the `localStorage` shape only. The server keeps no chat records; message
 - `src/config/config.ts`
 - `src/config/chat-settings-store.ts`
 - `src/retrieval/search.ts`
+- `src/retrieval/rag-context.ts`
 - `src/retrieval/query-rewrite.ts`
 - `src/retrieval/hybrid-search.ts`
 - `src/retrieval/bm25.ts`
 - `src/retrieval/bm25-index.ts`
 - `src/retrieval/rerank.ts`
 - `src/history/chat-feedback.ts`
+- `src/cli/ask-command.ts` (reuses `rag-context.ts`, see [04-retrieval-search.md](./04-retrieval-search.md))
 - `web/src/pages/ai-chat.tsx`
 - `web/src/components/formatted-chat-message.tsx`
 - `web/src/lib/api-client.ts`

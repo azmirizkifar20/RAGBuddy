@@ -1,9 +1,8 @@
 import type { Router } from 'express';
 import { type AppDeps, resolveEmbeddingProvider } from '../app';
 import { startSse, sendSseEvent } from '../sse';
-import { hybridSearch } from '../../retrieval/hybrid-search';
-import { rewriteQuery, type ConversationTurn } from '../../retrieval/query-rewrite';
-import { rerank } from '../../retrieval/rerank';
+import { getRagResults } from '../../retrieval/rag-context';
+import type { ConversationTurn } from '../../retrieval/query-rewrite';
 import type { ActiveConnection as ChatSettings } from '../../config/credentials-store';
 import { completeOnce, toProviderMessages, type ContentPart, type LlmMessage } from '../../chat/complete-once';
 
@@ -17,10 +16,6 @@ interface Source {
   section: string;
   score: number;
 }
-
-/** How much larger a candidate pool `hybridSearch` fetches than the final `ragTopK`,
- * giving `rerank` something to actually reorder instead of just re-scoring the same top few. */
-const RERANK_POOL_MULTIPLIER = 3;
 
 /** How many of the most recent messages (before the current query) get sent to `rewriteQuery` for
  * follow-up reference resolution — a small window, not the full conversation, since this call is
@@ -230,33 +225,26 @@ export function registerChatRoutes(router: Router, deps: AppDeps): void {
       if (useRag) {
         const query = lastUserText(messages);
         if (query.trim()) {
-          try {
-            // Broaden recall with a couple of history-aware rewritten phrasings, run both dense
-            // vector search and a lexical BM25 pass over the project corpus (fused by
-            // hybridSearch), over-fetch a candidate pool, then let the LLM reorder it — each step
-            // degrades to a simpler behavior on its own failure (see rewriteQuery/hybridSearch/
-            // rerank), so a flaky call never blocks RAG, it just falls back the next step down.
-            const queries = await rewriteQuery(query, settings, recentHistory(messages));
-            const candidates = await hybridSearch(project.id, queries, query, {
-              qdrantClient: deps.qdrantClient,
-              qdrantCollection: deps.qdrantCollection,
-              embeddingProvider: resolveEmbeddingProvider(deps),
-              topK: deps.ragTopK * RERANK_POOL_MULTIPLIER,
-              bm25VersionKey: deps.statsStore.get(project.id)?.updatedAt ?? '',
+          // Broaden recall with a couple of history-aware rewritten phrasings, run both dense
+          // vector search and a lexical BM25 pass over the project corpus (fused by hybridSearch),
+          // over-fetch a candidate pool, then let the LLM reorder it — each step degrades to a
+          // simpler behavior on its own failure (see getRagResults), so a flaky call never blocks
+          // RAG, it just falls back the next step down.
+          const { results, error } = await getRagResults(project.id, query, settings, recentHistory(messages), {
+            qdrantClient: deps.qdrantClient,
+            qdrantCollection: deps.qdrantCollection,
+            embeddingProvider: resolveEmbeddingProvider(deps),
+            ragTopK: deps.ragTopK,
+            bm25VersionKey: deps.statsStore.get(project.id)?.updatedAt ?? '',
+          });
+          ragError = error;
+          sources = results.map((r) => ({ file: r.file, section: r.section, score: r.score }));
+          if (results.length > 0) {
+            const context = results.map((r) => `File: ${r.file}\nContent: ${r.content}`).join('\n---\n');
+            llmMessages.push({
+              role: 'system',
+              content: `Relevant project documents (supplementary context — use your own knowledge too if these don't fully cover the question):\n---\n${context}\n---`,
             });
-            const results = await rerank(query, candidates, settings, deps.ragTopK);
-            sources = results.map((r) => ({ file: r.file, section: r.section, score: r.score }));
-            if (results.length > 0) {
-              const context = results
-                .map((r) => `File: ${r.file}\nContent: ${r.content}`)
-                .join('\n---\n');
-              llmMessages.push({
-                role: 'system',
-                content: `Relevant project documents (supplementary context — use your own knowledge too if these don't fully cover the question):\n---\n${context}\n---`,
-              });
-            }
-          } catch (error) {
-            ragError = error instanceof Error ? error.message : String(error);
           }
         }
       }

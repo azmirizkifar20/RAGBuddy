@@ -1,7 +1,9 @@
 export type ParsedArgs =
   | { command: 'ingest'; projectId: string }
   | { command: 'sync'; projectId: string }
+  | { command: 'sync-all' }
   | { command: 'search'; projectId: string; query: string }
+  | { command: 'ask'; projectId: string; query: string }
   | { command: 'mcp' }
   | { command: 'hook'; action: 'install' | 'uninstall'; projectId: string }
   | { command: 'project'; action: 'list' }
@@ -56,12 +58,20 @@ export function parseArgs(argv: string[]): ParsedArgs {
     return { command: 'unknown' };
   }
 
+  if (command === 'sync-all') {
+    return { command: 'sync-all' };
+  }
+
   if ((command === 'ingest' || command === 'sync') && restArgs[0]) {
     return { command, projectId: restArgs[0] };
   }
 
   if (command === 'search' && restArgs[0] && restArgs.length > 1) {
     return { command: 'search', projectId: restArgs[0], query: restArgs.slice(1).join(' ') };
+  }
+
+  if (command === 'ask' && restArgs[0] && restArgs.length > 1) {
+    return { command: 'ask', projectId: restArgs[0], query: restArgs.slice(1).join(' ') };
   }
 
   return { command: 'unknown' };

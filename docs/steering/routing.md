@@ -10,7 +10,9 @@
 |---------|---------|---------|
 | `ragbuddy ingest <project>` | Full rebuild of a project's index | `src/cli/ingest-command.ts` → `src/ingestion/indexer.ts` |
 | `ragbuddy sync <project>` | Incremental sync (added/modified/deleted/unchanged) | `src/cli/sync-command.ts` → `src/ingestion/sync.ts` |
+| `ragbuddy sync-all` | Syncs every registered project in sequence, isolating per-project failures — a scheduled-cron fallback for when the git hook was skipped or never installed, not run by ragbuddy itself | `src/cli/sync-all-command.ts` → `src/ingestion/sync.ts` |
 | `ragbuddy search <project> "<query>"` | Query a project's indexed docs | `src/cli/search-command.ts` → `src/retrieval/search.ts` |
+| `ragbuddy ask <project> "<query>"` | One-shot RAG-grounded answer, printed to the terminal (rewrite → hybrid search → rerank → one LLM completion) | `src/cli/ask-command.ts` → `src/retrieval/rag-context.ts` |
 | `ragbuddy hook install <project>` | Install the Git auto-sync hooks (`post-commit`/`post-merge`/`post-checkout`) | `src/cli/hook-command.ts` → `src/git/hook-installer.ts` |
 | `ragbuddy hook uninstall <project>` | Remove the Git auto-sync hooks | `src/cli/hook-command.ts` → `src/git/hook-installer.ts` |
 | `ragbuddy mcp` | Start the MCP server (stdio transport) | `src/cli/index.ts` → `src/mcp/server.ts` |

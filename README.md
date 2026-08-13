@@ -8,7 +8,7 @@ A multi-project RAG (Retrieval-Augmented Generation) platform for **coding agent
 
 **RAGBuddy** indexes the `docs/` folder (configurable) of one or more registered Git repositories into [Qdrant](https://qdrant.tech), a vector database, and exposes that index three ways:
 
-- **CLI** — `ragbuddy ingest/sync/search/hook/project/mcp/web`
+- **CLI** — `ragbuddy ingest/sync/sync-all/search/ask/hook/project/mcp/web`
 - **Web dashboard** — register projects, browse indexed files, upload extra documents, search, chat with a project's indexed docs, run ingest/sync with a live log, review sync history, toggle auto-sync, and copy per-project MCP config, all from a browser
 - **MCP server** — a coding agent working in your repo can call `get_project_context` for a quick orientation, then `search_project_docs` to find the architecture doc, feature spec, or issue writeup relevant to what it's doing right now, instead of relying on whatever happened to fit in its context window
 
@@ -133,7 +133,31 @@ Install Git auto-sync:
 ragbuddy hook install <project-id>
 ```
 
+Scheduled re-sync fallback — syncs every registered project, isolating per-project failures; run this periodically from cron/Task Scheduler as a safety net for projects where the git hook was skipped or never installed:
+
+```bash
+ragbuddy sync-all
+```
+
 RAGBuddy uses the Git repository as the source of truth. Qdrant acts as a rebuildable search index.
+
+## Search & Ask
+
+Query a project's indexed docs directly, without opening the dashboard or a chat session:
+
+```bash
+ragbuddy search <project-id> "<query>"
+```
+
+Or get a one-shot, RAG-grounded answer straight in the terminal (rewrite → hybrid vector+BM25 search → rerank → one LLM completion, same pipeline the web chat uses):
+
+```bash
+ragbuddy ask <project-id> "<query>"
+```
+
+```bash
+ragbuddy ask my-project "how does auto-sync work?"
+```
 
 ## Web Dashboard
 

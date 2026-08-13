@@ -50,6 +50,34 @@ describe('parseArgs', () => {
     expect(parseArgs(['search'])).toEqual({ command: 'unknown' });
   });
 
+  it('parses sync-all with no project id needed', () => {
+    expect(parseArgs(['sync-all'])).toEqual({ command: 'sync-all' });
+  });
+
+  it('parses an ask command with a project id and single-word query', () => {
+    expect(parseArgs(['ask', 'bidubadu', 'auth'])).toEqual({
+      command: 'ask',
+      projectId: 'bidubadu',
+      query: 'auth',
+    });
+  });
+
+  it('joins a multi-word query into a single string for ask', () => {
+    expect(parseArgs(['ask', 'bidubadu', 'how', 'does', 'auth', 'work'])).toEqual({
+      command: 'ask',
+      projectId: 'bidubadu',
+      query: 'how does auth work',
+    });
+  });
+
+  it('returns unknown when ask is missing a query', () => {
+    expect(parseArgs(['ask', 'bidubadu'])).toEqual({ command: 'unknown' });
+  });
+
+  it('returns unknown when ask is missing a project id', () => {
+    expect(parseArgs(['ask'])).toEqual({ command: 'unknown' });
+  });
+
   it('parses the mcp command with no project id needed', () => {
     expect(parseArgs(['mcp'])).toEqual({ command: 'mcp' });
   });

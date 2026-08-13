@@ -25,6 +25,17 @@ edit docs → git commit / git pull (merge) / git checkout <branch>
 
 `ragbuddy hook uninstall <project>` removes the chained call from all three hook files (restoring any prior hook content).
 
+### Scheduled re-sync fallback (`ragbuddy sync-all`, 2026-08-13)
+
+The git hook is the primary mechanism, but it has no safety net of its own: a project re-cloned onto a new machine, or one where the hook was never installed or got accidentally removed, silently drifts out of sync with no signal that anything is wrong. `ragbuddy sync-all` (`src/cli/sync-all-command.ts`) is a plain CLI command — not an internal scheduler — meant to be invoked periodically by whatever job runner the host already has (cron, systemd timer, Windows Task Scheduler). It:
+
+1. Lists every registered project (`registry.list()`).
+2. Calls the same `syncProject` + `recordRun` path `ragbuddy sync <project>` already uses, once per project, in sequence.
+3. Isolates failures per project — one project throwing (Qdrant down, repo path gone) is recorded and skipped, never aborting the rest, mirroring the same resilience principle the git hook itself follows (§ above: a sync failure must never break the underlying operation, here "the rest of the batch" instead of "the commit").
+4. Prints a per-project summary line and a final `Synced N project(s), M failure(s).`, setting a non-zero exit code if any project failed — so a cron job's own failure alerting (email on non-zero exit, log scraping, etc.) picks it up without ragbuddy needing its own notification system.
+
+No internal timer/daemon was added — `ragbuddy web` stays a plain HTTP server with no background scheduling loop. Scheduling is the host's job; `ragbuddy sync-all` is just the syncable unit.
+
 ## 3) Domain & Data
 
 No new data — this feature is purely operational glue around [incremental sync](./03-incremental-sync.md). All three hooks call the same `ragbuddy sync <project>`, which is already incremental (hash-diff) — firing more often costs nothing extra for unchanged files.
@@ -43,6 +54,7 @@ Web dashboard: `HookToggle` (`web/src/components/hook-toggle.tsx`) shows one swi
 
 ## Related Files
 
+- `src/cli/sync-all-command.ts` — `runSyncAllCommand`: the scheduled re-sync fallback (2026-08-13)
 - `src/git/hook-installer.ts` — `installHook`/`uninstallHook`: marker-delimited block written into `.git/hooks/{post-commit,post-merge,post-checkout}`, bakes in an absolute path to this installation's `dist/cli/index.js` (no reliance on `ragbuddy` being on `PATH`, since this is a local dev tool, not a globally published package)
 - `src/cli/hook-command.ts` — `runHookCommand`: registry lookup + delegate, mirrors `ingest-command.ts`/`sync-command.ts`/`search-command.ts`
 - `src/cli/args.ts`, `src/cli/index.ts` — extended for `hook install|uninstall <project>`

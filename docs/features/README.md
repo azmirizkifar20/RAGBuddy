@@ -3,7 +3,7 @@
 This folder contains documentation for implemented features and current state.
 
 **Updated**: 2026-08-13
-**Recent**: Added chat answer feedback (👍/👎 buttons, logged server-side to `ChatFeedbackStore` — see [09-project-chat.md](./09-project-chat.md#answer-feedback-2026-08-13)) and doc staleness detection (`GET /api/projects/:id/knowledge` flags a document once the repo has moved `STALE_COMMIT_THRESHOLD` commits past its indexed commit, surfaced as a warning badge in the Documents tab — see [08-dashboard-redesign-uploads-and-history.md](./08-dashboard-redesign-uploads-and-history.md#doc-staleness-detection-2026-08-13)).
+**Recent**: Added `ragbuddy sync-all` (a cron-invocable fallback that syncs every registered project, isolating per-project failures — see [06-git-hook-auto-sync.md](./06-git-hook-auto-sync.md#scheduled-re-sync-fallback-ragbuddy-sync-all-2026-08-13)) and `ragbuddy ask <project> "<query>"` (one-shot RAG-grounded terminal answer, reusing the chat route's rewrite → hybrid search → rerank pipeline via a newly extracted `getRagResults` — see [04-retrieval-search.md](./04-retrieval-search.md#ragbuddy-ask-project-query-2026-08-13)).
 
 ## Index
 

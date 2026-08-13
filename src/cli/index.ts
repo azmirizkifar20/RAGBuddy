@@ -26,15 +26,20 @@ import { searchProject } from '../retrieval/search';
 import { parseArgs } from './args';
 import { runIngestCommand } from './ingest-command';
 import { runSyncCommand } from './sync-command';
+import { runSyncAllCommand } from './sync-all-command';
 import { runSearchCommand } from './search-command';
+import { runAskCommand } from './ask-command';
 import { runQdrantDropCollection } from './qdrant-command';
+import { getRagResults } from '../retrieval/rag-context';
+import { completeOnce } from '../chat/complete-once';
 
 async function main(): Promise<void> {
   const parsed = parseArgs(process.argv.slice(2));
   if (parsed.command === 'unknown') {
     console.error(
-      'Usage: ragbuddy <ingest|sync> <project>  |  ragbuddy search <project> "<query>"  |  ragbuddy mcp  |  ' +
-        'ragbuddy hook <install|uninstall> <project>  |  ragbuddy qdrant drop-collection --yes',
+      'Usage: ragbuddy <ingest|sync> <project>  |  ragbuddy sync-all  |  ragbuddy search <project> "<query>"  |  ' +
+        'ragbuddy ask <project> "<query>"  |  ragbuddy mcp  |  ragbuddy hook <install|uninstall> <project>  |  ' +
+        'ragbuddy qdrant drop-collection --yes',
     );
     process.exitCode = 1;
     return;
@@ -255,6 +260,52 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (parsed.command === 'sync-all') {
+    const results = await runSyncAllCommand({
+      registry,
+      sync: (project) =>
+        recordRun(
+          history,
+          { project: project.id, kind: 'sync', trigger },
+          () =>
+            syncProject(project, {
+              qdrantClient,
+              qdrantUrl: config.qdrantUrl,
+              qdrantCollection: config.qdrantCollection,
+              embeddingProvider: resolveEmbeddingProvider(),
+              onLog,
+              statsStore: projectStats,
+            }),
+          (r) => ({
+            added: r.added.length,
+            modified: r.modified.length,
+            deleted: r.deleted.length,
+            unchanged: r.unchanged.length,
+          }),
+        ),
+    });
+
+    if (results.length === 0) {
+      console.log('No projects registered.');
+      return;
+    }
+    let failures = 0;
+    for (const r of results) {
+      if (r.status === 'success' && r.result) {
+        const { added, modified, deleted, unchanged } = r.result;
+        console.log(
+          `${r.projectId}\tok\tadded=${added.length} modified=${modified.length} deleted=${deleted.length} unchanged=${unchanged.length}`,
+        );
+      } else {
+        failures++;
+        console.log(`${r.projectId}\tFAILED\t${r.error}`);
+      }
+    }
+    console.log(`\nSynced ${results.length} project(s), ${failures} failure(s).`);
+    if (failures > 0) process.exitCode = 1;
+    return;
+  }
+
   if (parsed.command === 'qdrant') {
     const result = await runQdrantDropCollection(parsed.confirmed, {
       registry,
@@ -273,6 +324,47 @@ async function main(): Promise<void> {
     }
     console.log(`\n[ragbuddy] Dropped collection "${config.qdrantCollection}".`);
     console.log('Run "ragbuddy ingest <project>" for each project above to rebuild it at the new dimension.');
+    return;
+  }
+
+  if (parsed.command === 'ask') {
+    const result = await runAskCommand(parsed.projectId, parsed.query, {
+      registry,
+      ask: async (project, query) => {
+        const settings = chatCredentials.get();
+        const { results, error } = await getRagResults(project.id, query, settings, [], {
+          qdrantClient,
+          qdrantCollection: config.qdrantCollection,
+          embeddingProvider: resolveEmbeddingProvider(),
+          ragTopK: config.ragTopK,
+          bm25VersionKey: projectStats.get(project.id)?.updatedAt ?? '',
+        });
+        const context =
+          results.length > 0 ? results.map((r) => `File: ${r.file}\nContent: ${r.content}`).join('\n---\n') : null;
+        const systemPrompt = context
+          ? 'You are a helpful assistant. Project documents may be attached as extra context below — prefer ' +
+            "them when relevant, but if they don't cover the question, answer normally using your own general " +
+            `knowledge instead of refusing.\n---\n${context}\n---`
+          : 'You are a helpful assistant.';
+        const answer = await completeOnce(systemPrompt, [{ role: 'user', content: query }], settings, 'Ask', 30_000);
+        return {
+          answer,
+          sources: results.map((r) => ({ file: r.file, section: r.section, score: r.score })),
+          ragError: error,
+        };
+      },
+    });
+
+    console.log(`Project: ${result.projectName}`);
+    console.log(`Query: "${result.query}"\n`);
+    console.log(result.answer);
+    if (result.ragError) {
+      console.log(`\n[ragbuddy] Warning: RAG lookup failed, answered without project context: ${result.ragError}`);
+    }
+    if (result.sources.length > 0) {
+      console.log('\nSources:');
+      result.sources.forEach((s) => console.log(`  [${s.score.toFixed(4)}] ${s.file} — ${s.section}`));
+    }
     return;
   }
 
