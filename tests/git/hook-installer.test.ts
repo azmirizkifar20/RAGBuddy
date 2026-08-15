@@ -36,6 +36,17 @@ describe('installHook', () => {
     }
   });
 
+  it('launches the sync in the background so the git operation is never blocked', () => {
+    installHook(repo, 'bidubadu', { nodePath: '/usr/bin/node', cliEntrypoint: '/opt/ragbuddy/dist/cli/index.js' });
+
+    for (const hookName of HOOK_NAMES) {
+      const content = readFileSync(path.join(hooksDir, hookName), 'utf8');
+      expect(content).toContain('nohup env RAGBUDDY_TRIGGER=hook');
+      expect(content).toMatch(/sync bidubadu > ".*ragbuddy-sync\.log" 2>&1 &/);
+      expect(content).toContain('disown');
+    }
+  });
+
   it('always sets ELECTRON_RUN_AS_NODE=1 on the sync invocation, even for a plain node path', () => {
     // Critical when `nodePath` is actually the packaged Electron binary (true whenever the
     // hook was installed from inside the desktop app, since `process.execPath` there always

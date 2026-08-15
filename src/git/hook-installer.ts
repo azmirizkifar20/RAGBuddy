@@ -34,8 +34,10 @@ export function installHook(
   const nodePath = options.nodePath ?? process.execPath;
   const cliEntrypoint = options.cliEntrypoint ?? path.resolve(__dirname, '../cli/index.js');
 
+  const logPath = path.join(gitDir, 'ragbuddy-sync.log');
+
   for (const hookName of HOOK_NAMES) {
-    const block = buildHookBlock(hookName, projectId, nodePath, cliEntrypoint);
+    const block = buildHookBlock(hookName, projectId, nodePath, cliEntrypoint, logPath);
     const hookPath = path.join(gitDir, 'hooks', hookName);
     if (existsSync(hookPath)) {
       const existing = readFileSync(hookPath, 'utf8');
@@ -85,12 +87,13 @@ function buildHookBlock(
   projectId: string,
   nodePath: string,
   cliEntrypoint: string,
+  logPath: string,
 ): string {
   const label = HOOK_LABELS[hookName];
   const lines = [
     MARKER_START,
     '# Auto-sync installed by `ragbuddy hook install` — safe to remove via `ragbuddy hook uninstall`.',
-    `# This never blocks the ${label}: any sync failure only prints a warning below.`,
+    `# This never blocks the ${label}: sync runs in the background, its output goes to the log below.`,
   ];
   if (hookName === 'post-checkout') {
     // Git passes post-checkout: <prev-head> <new-head> <branch-flag>.
@@ -99,7 +102,7 @@ function buildHookBlock(
     lines.push('[ "$3" = "1" ] || exit 0');
   }
   lines.push(
-    'echo "[ragbuddy] Sync started..."',
+    `echo "[ragbuddy] Sync launched in background (log: ${logPath})"`,
     // RAGBUDDY_TRIGGER lets the sync history distinguish this automatic run
     // from a `ragbuddy sync` you typed yourself. ELECTRON_RUN_AS_NODE is a no-op
     // for a real `node` binary, but critical when `nodePath` is actually the
@@ -108,7 +111,12 @@ function buildHookBlock(
     // Electron's own binary — see docs/features/11-electron-desktop-app.md):
     // without it, this line launches the full GUI on every commit instead of
     // running the CLI headlessly.
-    `RAGBUDDY_TRIGGER=hook ELECTRON_RUN_AS_NODE=1 "${nodePath}" "${cliEntrypoint}" sync ${projectId} || echo "[ragbuddy] Warning: RAG sync failed. Git ${label} remains successful."`,
+    // `nohup ... &` backgrounds the sync so the git operation returns immediately
+    // (previously this line blocked the commit until embedding finished); output
+    // (including any failure) is redirected to the log file instead of the
+    // terminal, since nothing is left waiting to read it.
+    `nohup env RAGBUDDY_TRIGGER=hook ELECTRON_RUN_AS_NODE=1 "${nodePath}" "${cliEntrypoint}" sync ${projectId} > "${logPath}" 2>&1 &`,
+    'disown 2>/dev/null || true',
     MARKER_END,
   );
   return lines.join('\n');

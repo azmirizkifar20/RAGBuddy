@@ -19,9 +19,13 @@ edit docs → git commit / git pull (merge) / git checkout <branch>
 
 `ragbuddy hook install <project>`:
 1. Validate the Git repository
-2. Create/update `.git/hooks/post-commit`, `.git/hooks/post-merge`, and `.git/hooks/post-checkout`, each calling `ragbuddy sync <project>`
+2. Create/update `.git/hooks/post-commit`, `.git/hooks/post-merge`, and `.git/hooks/post-checkout`, each launching `ragbuddy sync <project>` **in the background** (`nohup ... &`, output redirected to `.git/ragbuddy-sync.log`) so the underlying `git commit`/`git merge`/`git checkout` returns immediately instead of waiting for embedding to finish
 3. If any of those hooks already exists, chain into it rather than overwriting it
 4. `post-checkout` additionally guards on Git's branch-flag argument (`$3 = 1`) so it only fires on an actual branch switch, not a single-file checkout (`git checkout -- file`)
+
+### Background sync (2026-08-15)
+
+The hook originally ran `ragbuddy sync` synchronously — the git operation blocked until embedding finished, which could take seconds on a large doc change. The hook block now backgrounds the sync with `nohup env RAGBUDDY_TRIGGER=hook ELECTRON_RUN_AS_NODE=1 "<node>" "<cli>" sync <project> > "<gitDir>/ragbuddy-sync.log" 2>&1 &` followed by `disown`, and prints `[ragbuddy] Sync launched in background (log: <path>)` immediately. The git operation itself is never blocked, and both success output and any failure warning land in the log file instead of the terminal (since nothing is left waiting to read it synchronously) — check `.git/ragbuddy-sync.log` in the project's repo to see the outcome of the last auto-sync.
 
 `ragbuddy hook uninstall <project>` removes the chained call from all three hook files (restoring any prior hook content).
 
@@ -46,7 +50,7 @@ Web dashboard: `HookToggle` (`web/src/components/hook-toggle.tsx`) shows one swi
 
 ## 5) Edge Cases & Rules
 
-- Every hook must catch and warn on failures (Qdrant down, embedding provider down, ragbuddy unavailable) and still let the underlying Git operation succeed (`init.md` §12)
+- Every hook must catch and warn on failures (Qdrant down, embedding provider down, ragbuddy unavailable) and still let the underlying Git operation succeed (`init.md` §12) — since the sync now runs in the background, the warning is written to `.git/ragbuddy-sync.log` rather than the terminal
 - The sync process itself must never create another commit (no recursive Git operations) (`init.md` §12)
 - Installing must never destroy a pre-existing user `post-commit`/`post-merge`/`post-checkout` hook (`init.md` §13)
 - `post-checkout` fires on every checkout, including single-file (`git checkout -- file.md`) — the branch-flag guard (`$3 = 1`) prevents a sync on those
@@ -59,7 +63,7 @@ Web dashboard: `HookToggle` (`web/src/components/hook-toggle.tsx`) shows one swi
 - `src/cli/hook-command.ts` — `runHookCommand`: registry lookup + delegate, mirrors `ingest-command.ts`/`sync-command.ts`/`search-command.ts`
 - `src/cli/args.ts`, `src/cli/index.ts` — extended for `hook install|uninstall <project>`
 - `web/src/components/hook-toggle.tsx`, `src/server/routes/hook.ts` — web dashboard toggle + REST endpoints for the same install/uninstall
-- Manually verified end-to-end (not just unit-tested): installed the hooks in a scratch repo, made a real commit with `QDRANT_URL`/`EMBEDDING_PROVIDER` pointing at unreachable services — the hook printed `[ragbuddy] Sync started...`, then a warning on failure, and the commit still succeeded (`git commit` exit code 0)
+- Manually verified end-to-end (not just unit-tested): installed the hooks in a scratch repo, made a real commit with `QDRANT_URL`/`EMBEDDING_PROVIDER` pointing at unreachable services — the hook printed `[ragbuddy] Sync launched in background (log: ...)` and the commit returned immediately (`git commit` exit code 0); the failure warning appeared in `.git/ragbuddy-sync.log` once the backgrounded process finished
 - Spec source: [`../../init.md`](../../init.md) §12, §13
 
 ## Cross-References

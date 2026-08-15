@@ -2,8 +2,8 @@
 
 This folder contains documentation for implemented features and current state.
 
-**Updated**: 2026-08-13
-**Recent**: Added `ragbuddy sync-all` (a cron-invocable fallback that syncs every registered project, isolating per-project failures — see [06-git-hook-auto-sync.md](./06-git-hook-auto-sync.md#scheduled-re-sync-fallback-ragbuddy-sync-all-2026-08-13)) and `ragbuddy ask <project> "<query>"` (one-shot RAG-grounded terminal answer, reusing the chat route's rewrite → hybrid search → rerank pipeline via a newly extracted `getRagResults` — see [04-retrieval-search.md](./04-retrieval-search.md#ragbuddy-ask-project-query-2026-08-13)).
+**Updated**: 2026-08-15
+**Recent**: The git auto-sync hooks (`post-commit`/`post-merge`/`post-checkout`) now launch `ragbuddy sync` in the background (`nohup ... &`, output to `.git/ragbuddy-sync.log`) instead of blocking the git operation until embedding finishes — see [06-git-hook-auto-sync.md](./06-git-hook-auto-sync.md#background-sync-2026-08-15).
 
 ## Index
 
