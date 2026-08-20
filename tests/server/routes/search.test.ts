@@ -32,6 +32,7 @@ describe('POST /api/projects/:id/search', () => {
       query: vi.fn().mockResolvedValue({
         points: [{ id: '1', score: 0.9, payload: { file: 'docs/a.md', section: 'Intro', content: 'hi' } }],
       }),
+      scroll: vi.fn().mockResolvedValue({ points: [] }),
     };
     const app = createApp(baseDeps({ registry, qdrantClient }));
 
@@ -39,5 +40,36 @@ describe('POST /api/projects/:id/search', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ results: [{ file: 'docs/a.md', section: 'Intro', score: 0.9, content: 'hi' }] });
+  });
+
+  it('accepts optional conversation history for query-rewrite without failing', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ embedding: [0.1, 0.2] }) }));
+    const registry = { list: vi.fn(), find: vi.fn().mockReturnValue({ id: 'sample', name: 'Sample', repository: '/r', paths: ['docs'] }) };
+    const qdrantClient = {
+      query: vi.fn().mockResolvedValue({
+        points: [{ id: '1', score: 0.9, payload: { file: 'docs/a.md', section: 'Intro', content: 'hi' } }],
+      }),
+      scroll: vi.fn().mockResolvedValue({ points: [] }),
+    };
+    const app = createApp(baseDeps({ registry, qdrantClient }));
+
+    const res = await request(app)
+      .post('/api/projects/sample/search')
+      .send({ query: 'what about that?', history: [{ role: 'user', content: 'Tell me about incremental sync' }] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.results).toEqual([{ file: 'docs/a.md', section: 'Intro', score: 0.9, content: 'hi' }]);
+  });
+
+  it('surfaces a retrieval error instead of a raw 500 when the embedding call fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('embedding provider unreachable')));
+    const registry = { list: vi.fn(), find: vi.fn().mockReturnValue({ id: 'sample', name: 'Sample', repository: '/r', paths: ['docs'] }) };
+    const app = createApp(baseDeps({ registry, qdrantClient: { scroll: vi.fn().mockResolvedValue({ points: [] }) } }));
+
+    const res = await request(app).post('/api/projects/sample/search').send({ query: 'hello' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.results).toEqual([]);
+    expect(res.body.error).toContain('embedding provider unreachable');
   });
 });

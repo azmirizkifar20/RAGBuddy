@@ -6,6 +6,7 @@ import request from 'supertest';
 import { createApp } from '../../../src/server/app';
 import { baseDeps } from '../test-deps';
 import { CredentialsStore, type CredentialSeed } from '../../../src/config/credentials-store';
+import { ApiKeyStore } from '../../../src/config/api-key-store';
 
 const SEED: CredentialSeed = { name: 'Default', provider: 'ollama', baseUrl: 'http://localhost:11434', models: ['llama3'] };
 const tempDirs: string[] = [];
@@ -14,6 +15,12 @@ function freshChatStore(seed: CredentialSeed = SEED) {
   const dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-chat-creds-'));
   tempDirs.push(dir);
   return new CredentialsStore(path.join(dir, 'creds.json'), seed);
+}
+
+function freshApiKeyStore(seed?: string) {
+  const dir = mkdtempSync(path.join(tmpdir(), 'ragbuddy-api-key-'));
+  tempDirs.push(dir);
+  return new ApiKeyStore(path.join(dir, 'api-key.json'), seed);
 }
 
 afterEach(() => {
@@ -194,6 +201,73 @@ describe('POST /api/settings/embedding/test', () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('http://localhost:11434/api/embeddings');
     expect(JSON.parse(init.body).prompt).toBe('ping');
+  });
+});
+
+describe('GET/POST/DELETE /api/settings/api-key', () => {
+  it('reports not configured by default, never exposing the raw key', async () => {
+    const app = createApp(baseDeps({ apiKeyStore: freshApiKeyStore() }));
+
+    const res = await request(app).get('/api/settings/api-key');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ configured: false });
+  });
+
+  it('reports configured: true once a key is seeded, still without exposing it', async () => {
+    const app = createApp(baseDeps({ apiKeyStore: freshApiKeyStore('seeded-key') }));
+
+    // Once a key is configured, checking its status requires the key too, like every other
+    // /api endpoint — this route gets no special bypass, or anyone could probe/reset it unauthenticated.
+    const res = await request(app).get('/api/settings/api-key').set('X-API-Key', 'seeded-key');
+
+    expect(res.body).toEqual({ configured: true });
+  });
+
+  it('rejects checking the key status without presenting the already-configured key', async () => {
+    const app = createApp(baseDeps({ apiKeyStore: freshApiKeyStore('seeded-key') }));
+
+    const res = await request(app).get('/api/settings/api-key');
+
+    expect(res.status).toBe(401);
+  });
+
+  it('generates a new key, returns it once, and immediately requires it on other requests', async () => {
+    const apiKeyStore = freshApiKeyStore();
+    const app = createApp(baseDeps({ apiKeyStore }));
+
+    const generated = await request(app).post('/api/settings/api-key/generate').send({});
+    expect(generated.status).toBe(200);
+    expect(typeof generated.body.apiKey).toBe('string');
+    expect(generated.body.apiKey.length).toBeGreaterThan(0);
+
+    const unauthenticated = await request(app).get('/api/config');
+    expect(unauthenticated.status).toBe(401);
+
+    const authenticated = await request(app).get('/api/config').set('X-API-Key', generated.body.apiKey);
+    expect(authenticated.status).toBe(200);
+  });
+
+  it('rejects removing the key without presenting it first', async () => {
+    const apiKeyStore = freshApiKeyStore('seeded-key');
+    const app = createApp(baseDeps({ apiKeyStore }));
+
+    const res = await request(app).delete('/api/settings/api-key');
+
+    expect(res.status).toBe(401);
+  });
+
+  it('removes a configured key when the current key is presented, reopening the API without auth', async () => {
+    const apiKeyStore = freshApiKeyStore('seeded-key');
+    const app = createApp(baseDeps({ apiKeyStore }));
+
+    expect((await request(app).get('/api/config')).status).toBe(401);
+
+    const res = await request(app).delete('/api/settings/api-key').set('X-API-Key', 'seeded-key');
+    expect(res.status).toBe(204);
+
+    expect((await request(app).get('/api/config')).status).toBe(200);
+    expect((await request(app).get('/api/settings/api-key')).body).toEqual({ configured: false });
   });
 });
 

@@ -252,6 +252,23 @@ Before implementing a non-trivial feature in this project:
 Don't force `get_project_context` for trivial tasks where it adds no value.
 ```
 
+## Integrating with Your Own Web App
+
+Besides the bundled dashboard, IDE/MCP, and CLI, RAGBuddy's REST API can be called directly from a separate web app or chatbot — no need to run your own vector database, embedding model, or retrieval pipeline.
+
+- **Just need RAG context** (you already have your own chat/LLM): `POST /api/projects/:id/search` — returns the most relevant chunks, ranked with the same hybrid vector+BM25 search, query rewriting, and reranking pipeline the dashboard's own chat uses.
+- **Don't have a chat feature yet**: `POST /api/projects/:id/chat` — a full RAG-grounded chat endpoint, streamed via Server-Sent Events, with source citations.
+
+```bash
+curl -X POST http://localhost:4300/api/projects/<project-id>/search \
+  -H "Content-Type: application/json" \
+  -d '{"query":"How does incremental sync work?"}'
+```
+
+Both endpoints are open by default (local-trust model, same as the rest of the API) — optionally lock them down with an API key (generated from the dashboard's Settings page) and a CORS allowlist before exposing them beyond localhost.
+
+See [`docs/features/12-external-web-app-integration.md`](docs/features/12-external-web-app-integration.md) for full request/response formats, JavaScript/curl examples, and hardening options.
+
 ## Knowledge Sources
 
 RAGBuddy can index:

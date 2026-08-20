@@ -22,7 +22,7 @@ describe('ProjectRegistry', () => {
 
   it('registers a project and persists it', () => {
     const registry = new ProjectRegistry(registryPath);
-    const project = registry.register('sample', repoPath);
+    const project = registry.register('sample', repoPath, { paths: ['docs'] });
     expect(project).toEqual({ id: 'sample', name: 'sample', repository: repoPath, paths: ['docs'] });
 
     const reloaded = new ProjectRegistry(registryPath);
@@ -31,34 +31,44 @@ describe('ProjectRegistry', () => {
 
   it('finds a registered project by id', () => {
     const registry = new ProjectRegistry(registryPath);
-    registry.register('sample', repoPath);
+    registry.register('sample', repoPath, { paths: ['docs'] });
     expect(registry.find('sample')?.id).toBe('sample');
     expect(registry.find('missing')).toBeUndefined();
   });
 
   it('rejects a repository path that does not exist', () => {
     const registry = new ProjectRegistry(registryPath);
-    expect(() => registry.register('sample', path.join(dir, 'nope'))).toThrow('does not exist');
+    expect(() => registry.register('sample', path.join(dir, 'nope'), { paths: ['docs'] })).toThrow('does not exist');
   });
 
   it('rejects a repository that is not a Git repository', () => {
     const nonGitRepo = path.join(dir, 'not-git');
     mkdirSync(nonGitRepo, { recursive: true });
     const registry = new ProjectRegistry(registryPath);
-    expect(() => registry.register('sample', nonGitRepo)).toThrow('Not a Git repository');
+    expect(() => registry.register('sample', nonGitRepo, { paths: ['docs'] })).toThrow('Not a Git repository');
   });
 
   it('rejects registering a duplicate project id', () => {
     const registry = new ProjectRegistry(registryPath);
-    registry.register('sample', repoPath);
-    expect(() => registry.register('sample', repoPath)).toThrow('already registered');
+    registry.register('sample', repoPath, { paths: ['docs'] });
+    expect(() => registry.register('sample', repoPath, { paths: ['docs'] })).toThrow('already registered');
   });
 
   it('removes a registered project', () => {
     const registry = new ProjectRegistry(registryPath);
-    registry.register('sample', repoPath);
+    registry.register('sample', repoPath, { paths: ['docs'] });
     registry.remove('sample');
     expect(registry.find('sample')).toBeUndefined();
     expect(() => registry.remove('sample')).toThrow('is not registered');
+  });
+
+  it('rejects registering with no paths', () => {
+    const registry = new ProjectRegistry(registryPath);
+    expect(() => registry.register('sample', repoPath)).toThrow('At least one path to index is required');
+  });
+
+  it('rejects registering with an empty paths array', () => {
+    const registry = new ProjectRegistry(registryPath);
+    expect(() => registry.register('sample', repoPath, { paths: [] })).toThrow('At least one path to index is required');
   });
 });

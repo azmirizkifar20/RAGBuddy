@@ -5,6 +5,7 @@ dist/
 config/projects.json
 config/chat-settings.json
 config/embedding-credentials.json
+config/api-key.json
 data/
 opencode.jsonc
 .omo/

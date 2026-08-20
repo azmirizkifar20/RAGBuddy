@@ -19,7 +19,7 @@ Project Detail (/projects/:id)             → GET /api/projects/:id, /knowledge
 ```
 
 CLI subcommands (`src/cli/project-command.ts`, wired in `src/cli/index.ts`):
-- `ragbuddy project register <id> <repository> [--name <name>] [--paths <p1,p2>]`
+- `ragbuddy project register <id> <repository> --paths <p1,p2> [--name <name>]` — `--paths` is required (2026-08-20): registration is rejected without at least one path, see [01-project-registry-and-multi-project-support.md](./01-project-registry-and-multi-project-support.md#5-edge-cases--rules). The dashboard's Add Project modal enforces the same rule client-side (`paths` is a required field, no default).
 - `ragbuddy project list`
 - `ragbuddy project remove <id>`
 
@@ -56,7 +56,7 @@ No new persisted data — the API is a thin read/write layer over the existing `
 
 - **Repository folder picker**: `AddProjectModal`'s "Browse" button opens `FolderPicker`, which walks the server's filesystem via `GET /api/fs/roots` (drive letters on Windows / `/` on POSIX, plus the home directory) and `GET /api/fs/list?path=` (subdirectories of an absolute path, each flagged `isGitRepo`). This exists because the dashboard runs on the same machine as the process it's browsing — the trust model is unchanged (localhost, no auth, the CLI already accepts an arbitrary absolute path typed by hand); the picker only makes that easier, it doesn't expose anything new. Only directories are listed (never file contents), and dotfolders are hidden from the list but a `.git` folder is still detected to flag the parent as a repo.
 - The ingest/sync SSE endpoints are triggered by `POST`, so the browser's native `EventSource` (GET-only, no body) can't consume them — `api-client.ts`'s `streamRun` parses the `event:`/`data:` wire format directly off a streamed `fetch` response body instead.
-- Solo-user, localhost only — no authentication, matching the CLI's own trust model (`init.md` §27).
+- Solo-user, localhost only by default — no authentication, matching the CLI's own trust model (`init.md` §27). Opt-in hardening for exposing the API beyond localhost: an API key generated/rotated/removed from the Settings page's "API access" section (`RAGBUDDY_API_KEY` only seeds it before first run), plus `RAGBUDDY_ALLOWED_ORIGINS` for CORS — see [12-external-web-app-integration.md](./12-external-web-app-integration.md#4-hardening-for-external-callers-optional).
 - Nothing in `src/ingestion/`, `src/qdrant/`, `src/embedding/`, `src/retrieval/`, `src/mcp/`, or any existing CLI command (`ingest`/`sync`/`hook install`/`hook uninstall`/`search`/`mcp`) was modified by this feature — it only adds new callers on top of those, unchanged.
 - No automated frontend test suite in v1 (explicit YAGNI) — verified via `npm run build` (TypeScript + Vite build) at every step, `oxlint`, and a live manual check of the full stack (`ragbuddy web` serving both the built SPA and the API together — confirmed `GET /`, a hashed JS asset, the SPA client-route fallback, and `GET /api/projects` all respond correctly). A real interactive browser click-through (register → sync → search → toggle hook → remove) was not performed — no browser automation tool was available in the implementing session; do a quick manual pass via `npm run dev` before considering this fully done.
 

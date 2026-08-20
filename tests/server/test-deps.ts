@@ -51,6 +51,12 @@ export function baseDeps(overrides: Record<string, unknown> = {}): any {
     history: { append: vi.fn(), list: vi.fn().mockReturnValue([]) },
     statsStore: { get: vi.fn().mockReturnValue(undefined), set: vi.fn(), remove: vi.fn() },
     chatFeedback: { append: vi.fn().mockReturnValue({ id: 'feedback-1' }), list: vi.fn().mockReturnValue([]) },
+    apiKeyStore: {
+      get: vi.fn().mockReturnValue(undefined),
+      isConfigured: vi.fn().mockReturnValue(false),
+      generate: vi.fn().mockReturnValue('generated-key'),
+      remove: vi.fn(),
+    },
     runtime: {
       nodePath: '/usr/bin/node',
       cliEntrypoint: '/opt/ragbuddy/dist/cli/index.js',

@@ -28,11 +28,14 @@ export class ProjectRegistry {
     if (data.projects.some((p) => p.id === id)) {
       throw new Error(`Project "${id}" is already registered`);
     }
+    if (!opts.paths || opts.paths.length === 0) {
+      throw new Error('At least one path to index is required');
+    }
     const project: ProjectConfig = {
       id,
       name: opts.name ?? id,
       repository,
-      paths: opts.paths ?? ['docs'],
+      paths: opts.paths,
     };
     data.projects.push(project);
     this.save(data);

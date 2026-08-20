@@ -15,6 +15,7 @@ import { createEmbeddingProvider, type EmbeddingProvider } from '../embedding/em
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createMcpServer } from '../mcp/server';
 import { CredentialsStore } from '../config/credentials-store';
+import { ApiKeyStore } from '../config/api-key-store';
 import { installHook, uninstallHook } from '../git/hook-installer';
 import { runHookCommand } from './hook-command';
 import { ProjectStatsStore } from '../projects/project-stats';
@@ -72,6 +73,10 @@ async function main(): Promise<void> {
     apiKey: config.embeddingApiKey,
     models: [config.chatModel],
   });
+  // Seeded from RAGBUDDY_API_KEY on first read only — once the Settings page generates or removes
+  // a key, config/api-key.json is authoritative and the env var is ignored (same seed-once pattern
+  // as the credential stores above).
+  const apiKeyStore = new ApiKeyStore(config.apiKeyStorePath, config.apiKey);
   const resolveEmbeddingProvider = (): EmbeddingProvider => createEmbeddingProvider(embeddingCredentials.get());
   const onLog = (message: string) => console.log(`[INFO] ${message}`);
 
@@ -148,6 +153,8 @@ async function main(): Promise<void> {
       history,
       statsStore: projectStats,
       chatFeedback,
+      allowedOrigins: config.allowedOrigins,
+      apiKeyStore,
       runtime: {
         nodePath: process.execPath,
         // Same entrypoint the git hook installer writes into post-commit, so

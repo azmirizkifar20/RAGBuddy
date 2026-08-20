@@ -330,6 +330,19 @@ export function dropQdrantCollection(): Promise<{ dropped: boolean; affectedProj
   }).then(parseJsonResponse<{ dropped: boolean; affectedProjectIds: string[] }>)
 }
 
+export function getApiKeyStatus(): Promise<{ configured: boolean }> {
+  return fetch('/api/settings/api-key').then(parseJsonResponse<{ configured: boolean }>)
+}
+
+/** Returns the new key in plaintext once — it is never retrievable again after this call. */
+export function generateApiKey(): Promise<{ apiKey: string }> {
+  return fetch('/api/settings/api-key/generate', { method: 'POST' }).then(parseJsonResponse<{ apiKey: string }>)
+}
+
+export function removeApiKey(): Promise<void> {
+  return fetch('/api/settings/api-key', { method: 'DELETE' }).then(expectNoContent)
+}
+
 export interface FsEntry {
   name: string
   path: string

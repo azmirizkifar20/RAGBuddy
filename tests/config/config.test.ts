@@ -108,4 +108,37 @@ describe('loadConfig', () => {
       } as NodeJS.ProcessEnv),
     ).toThrow('Unknown EMBEDDING_PROVIDER');
   });
+
+  it('defaults allowedOrigins to empty and apiKey to undefined when unset', () => {
+    const config = loadConfig({
+      QDRANT_URL: 'http://localhost:6333',
+      EMBEDDING_PROVIDER: 'ollama',
+      EMBEDDING_MODEL: 'bge-m3',
+    } as NodeJS.ProcessEnv);
+
+    expect(config.allowedOrigins).toEqual([]);
+    expect(config.apiKey).toBeUndefined();
+  });
+
+  it('parses a comma-separated RAGBUDDY_ALLOWED_ORIGINS, trimming whitespace and dropping blanks', () => {
+    const config = loadConfig({
+      QDRANT_URL: 'http://localhost:6333',
+      EMBEDDING_PROVIDER: 'ollama',
+      EMBEDDING_MODEL: 'bge-m3',
+      RAGBUDDY_ALLOWED_ORIGINS: 'http://a.test, http://b.test ,,',
+    } as NodeJS.ProcessEnv);
+
+    expect(config.allowedOrigins).toEqual(['http://a.test', 'http://b.test']);
+  });
+
+  it('reads RAGBUDDY_API_KEY when set', () => {
+    const config = loadConfig({
+      QDRANT_URL: 'http://localhost:6333',
+      EMBEDDING_PROVIDER: 'ollama',
+      EMBEDDING_MODEL: 'bge-m3',
+      RAGBUDDY_API_KEY: 'secret-key',
+    } as NodeJS.ProcessEnv);
+
+    expect(config.apiKey).toBe('secret-key');
+  });
 });

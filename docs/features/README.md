@@ -2,8 +2,8 @@
 
 This folder contains documentation for implemented features and current state.
 
-**Updated**: 2026-08-15
-**Recent**: The git auto-sync hooks (`post-commit`/`post-merge`/`post-checkout`) now launch `ragbuddy sync` in the background (`nohup ... &`, output to `.git/ragbuddy-sync.log`) instead of blocking the git operation until embedding finishes — see [06-git-hook-auto-sync.md](./06-git-hook-auto-sync.md#background-sync-2026-08-15).
+**Updated**: 2026-08-20
+**Recent**: Settings page gained an "API access" section to generate/rotate/remove the shared API key (backed by `ApiKeyStore`/`config/api-key.json`, no restart needed) instead of only via `RAGBUDDY_API_KEY` env var; the dashboard itself stores the key client-side and attaches it automatically once one exists. Also, `ragbuddy project register`/the Add Project modal now require at least one `paths` entry — no more silent default to `docs/` (`ProjectRegistry.register` throws `At least one path to index is required` otherwise). See [01-project-registry-and-multi-project-support.md](./01-project-registry-and-multi-project-support.md) and [12-external-web-app-integration.md](./12-external-web-app-integration.md#4-hardening-for-external-callers-optional).
 
 ## Index
 
@@ -18,6 +18,7 @@ This folder contains documentation for implemented features and current state.
 9. [Per-Project Chat](./09-project-chat.md) — Implemented
 10. [Provider Credentials (Embedding & Chat)](./10-chat-provider-settings.md) — Implemented
 11. [Electron Desktop Shell](./11-electron-desktop-app.md) — Implemented (first cut — packaging not yet verified)
+12. [External Web App Integration (Chat / RAG API)](./12-external-web-app-integration.md) — Implemented
 
 ---
 

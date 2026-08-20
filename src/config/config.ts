@@ -19,6 +19,15 @@ export interface AppConfig {
   chatModel: string;
   /** Max chat messages kept verbatim; older ones are auto-summarized. */
   chatContextLimit: number;
+  /** Origins allowed to call the API cross-origin (browser CORS). Empty = no CORS headers sent
+   *  (current same-origin/localhost behavior, unchanged). `'*'` allows any origin. */
+  allowedOrigins: string[];
+  /** Seeds `ApiKeyStore` on first read only — once a key is generated/removed via the Settings
+   *  page, `apiKeyStorePath` is the source of truth and this is ignored. Unset (default) keeps
+   *  the existing no-auth local-trust-model behavior. */
+  apiKey?: string;
+  /** Where the Settings page's generated/removed API key is persisted. */
+  apiKeyStorePath: string;
 }
 
 const DEFAULT_EMBEDDING_BASE_URL: Record<string, string> = {
@@ -57,6 +66,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     dataDir: path.resolve(__dirname, '../../', env.RAGBUDDY_DATA_DIR ?? './data'),
     chatModel: embeddingProvider === 'openai' ? (env.CHAT_MODEL ?? 'gpt-4o-mini') : (env.CHAT_MODEL ?? 'llama3'),
     chatContextLimit: env.CHAT_CONTEXT_LIMIT ? (Number.isNaN(Number(env.CHAT_CONTEXT_LIMIT)) ? 10 : Number(env.CHAT_CONTEXT_LIMIT)) : 10,
+    allowedOrigins: (env.RAGBUDDY_ALLOWED_ORIGINS ?? '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+    apiKey: env.RAGBUDDY_API_KEY || undefined,
+    apiKeyStorePath: path.resolve(__dirname, '../../', env.API_KEY_STORE_PATH ?? './config/api-key.json'),
   };
 }
 

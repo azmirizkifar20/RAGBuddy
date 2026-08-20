@@ -206,6 +206,21 @@ export function registerSettingsRoutes(router: Router, deps: AppDeps): void {
     res.json(await getQdrantInfo(deps));
   });
 
+  // Write-only, like the embedding/chat credential keys: the plaintext key is only ever sent back
+  // once, in the response of `generate` — every other read only reports whether one is configured.
+  router.get('/api-key', (_req, res) => {
+    res.json({ configured: deps.apiKeyStore.isConfigured() });
+  });
+
+  router.post('/api-key/generate', (_req, res) => {
+    res.json({ apiKey: deps.apiKeyStore.generate() });
+  });
+
+  router.delete('/api-key', (_req, res) => {
+    deps.apiKeyStore.remove();
+    res.status(204).end();
+  });
+
   // Destructive across every registered project — the collection is shared, not per-project —
   // so this requires an explicit `confirm: true` rather than just a bare POST.
   router.post('/qdrant/drop-collection', async (req, res) => {

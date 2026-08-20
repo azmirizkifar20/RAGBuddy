@@ -33,7 +33,7 @@ A one-shot, RAG-grounded question answered directly in the terminal — no dashb
 - Project filter is enforced at the retrieval layer itself, never left to the LLM/caller to apply (`init.md` §16, §21.7)
 - Collection: `ragbuddy_documents`, project isolation via payload metadata (`init.md` §6)
 - Designed so metadata filters or per-project collections can be added later without a retrieval rewrite (`init.md` §17) — neither is in v1
-- Query rewriting, hybrid (vector + BM25) search, and reranking now exist (`src/retrieval/query-rewrite.ts`, `src/retrieval/hybrid-search.ts`, `src/retrieval/bm25.ts`, `src/retrieval/bm25-index.ts`, `src/retrieval/rerank.ts`, `src/retrieval/rag-context.ts`, plus `searchProjectMultiQuery` here) but only as additive functions that **chat** and **`ragbuddy ask`** opt into (see [09-project-chat.md](./09-project-chat.md)) — `searchProject` itself, and every consumer of it below (CLI `search`, the plain `/api/search` route, the MCP tool), are unchanged. The BM25 lexical index is built from the same chunk corpus via `getProjectChunks` (`src/qdrant/qdrant-repository.ts`) but is an in-memory, lazily-cached structure scoped to whichever process builds it (the `web` server for chat, or the short-lived CLI process for `ask`) — it is not written back to Qdrant and doesn't change how `searchPoints` itself queries.
+- Query rewriting, hybrid (vector + BM25) search, and reranking now exist (`src/retrieval/query-rewrite.ts`, `src/retrieval/hybrid-search.ts`, `src/retrieval/bm25.ts`, `src/retrieval/bm25-index.ts`, `src/retrieval/rerank.ts`, `src/retrieval/rag-context.ts`, plus `searchProjectMultiQuery` here) as additive functions layered on top of `searchProject`, used by **chat**, **`ragbuddy ask`**, and (since 2026-08-20) the **`POST /api/projects/:id/search` route** — see [09-project-chat.md](./09-project-chat.md) and [12-external-web-app-integration.md](./12-external-web-app-integration.md). Only the CLI `search` command and the MCP tool still call bare `searchProject` (dense-vector only, no rewrite/rerank). The BM25 lexical index is built from the same chunk corpus via `getProjectChunks` (`src/qdrant/qdrant-repository.ts`) but is an in-memory, lazily-cached structure scoped to whichever process builds it (the `web` server for chat/search/`ask`, or the short-lived CLI process for `ask`) — it is not written back to Qdrant and doesn't change how `searchPoints` itself queries.
 
 ## 4) UI
 
@@ -51,8 +51,9 @@ Not applicable — CLI + MCP only.
 - `src/cli/search-command.ts` — `runSearchCommand`: registry lookup + delegate, mirrors `ingest-command.ts`/`sync-command.ts`
 - `src/cli/ask-command.ts` — `runAskCommand`: same registry-lookup-then-delegate shape, for the RAG-grounded one-shot answer (2026-08-13)
 - `src/cli/args.ts`, `src/cli/index.ts` — extended for the `search <project> "<query>"` and `ask <project> "<query>"` commands (multi-word queries are joined even if the shell doesn't quote them)
-- `src/retrieval/rag-context.ts` — `getRagResults`: the shared rewrite → hybrid search → rerank pipeline behind both the chat route and `ragbuddy ask`
+- `src/retrieval/rag-context.ts` — `getRagResults`: the shared rewrite → hybrid search → rerank pipeline behind the chat route, `ragbuddy ask`, and the `/api/projects/:id/search` route
 - `src/retrieval/query-rewrite.ts`, `src/retrieval/hybrid-search.ts`, `src/retrieval/bm25.ts`, `src/retrieval/bm25-index.ts`, `src/retrieval/rerank.ts` — query enhancement used via `getRagResults`, see [09-project-chat.md](./09-project-chat.md)
+- `src/server/routes/search.ts` — `registerSearchRoutes`: the external-facing retrieval-only endpoint, upgraded (2026-08-20) from bare `searchProject` to `getRagResults` so external callers get the same retrieval quality as chat without needing the chat feature itself; accepts an optional `history` field for query-rewrite
 - Spec source: [`../../init.md`](../../init.md) §16, §17
 
 ## Cross-References
@@ -60,4 +61,4 @@ Not applicable — CLI + MCP only.
 - System flow: [../steering/system-flow.md](../steering/system-flow.md)
 - Architecture: [../steering/architecture.md](../steering/architecture.md)
 - Depends on: [02-ingestion-full-index.md](./02-ingestion-full-index.md)
-- Consumed by: [05-mcp-server.md](./05-mcp-server.md), [09-project-chat.md](./09-project-chat.md) (query rewriting + hybrid search + reranking via `getRagResults`, shared by chat and `ragbuddy ask`, on top of the same `searchProject`)
+- Consumed by: [05-mcp-server.md](./05-mcp-server.md), [09-project-chat.md](./09-project-chat.md), [12-external-web-app-integration.md](./12-external-web-app-integration.md) (query rewriting + hybrid search + reranking via `getRagResults`, shared by chat, `ragbuddy ask`, and the external `/search` route, on top of the same `searchProject`)

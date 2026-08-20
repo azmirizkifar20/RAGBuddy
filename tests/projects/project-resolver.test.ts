@@ -18,8 +18,8 @@ describe('resolveProject', () => {
     mkdirSync(path.join(repoA, '.git'), { recursive: true });
     mkdirSync(path.join(repoB, '.git'), { recursive: true });
     registry = new ProjectRegistry(path.join(dir, 'projects.json'));
-    registry.register('project-a', repoA);
-    registry.register('project-b', repoB);
+    registry.register('project-a', repoA, { paths: ['docs'] });
+    registry.register('project-b', repoB, { paths: ['docs'] });
   });
 
   afterEach(() => {
@@ -56,7 +56,7 @@ describe('resolveProject', () => {
   it('throws a clear error when cwd is ambiguous between nested projects', () => {
     const nestedRepo = path.join(repoA, 'nested-repo');
     mkdirSync(path.join(nestedRepo, '.git'), { recursive: true });
-    registry.register('nested', nestedRepo);
+    registry.register('nested', nestedRepo, { paths: ['docs'] });
     expect(() => resolveProject(registry, nestedRepo, undefined)).toThrow('Ambiguous project');
   });
 });

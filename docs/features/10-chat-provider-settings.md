@@ -97,7 +97,7 @@ Persisted at `config/embedding-credentials.json` (new, path from `EMBEDDING_CRED
 
 - The API key is write-only end-to-end, per credential: accepted in `POST`/`PUT`/`.../test` bodies, never present in any `GET` response.
 - Both credential files can contain real API keys on disk — same trust boundary as `.env` (local, single-user, not committed).
-- This is a local-only dashboard (no auth layer, per the rest of the app) — settings changes and connection tests are reachable by anything that can reach `localhost:4300`.
+- This is a local-only dashboard by default (no auth layer, per the rest of the app) — settings changes and connection tests are reachable by anything that can reach `localhost:4300`, unless an API key is generated from the Settings page's "API access" section (see [12-external-web-app-integration.md](./12-external-web-app-integration.md#4-hardening-for-external-callers-optional)) — note that once one is set, the Settings page itself also requires it, including from the browser that generated it (handled automatically via that browser's local storage).
 
 ## Related Files
 

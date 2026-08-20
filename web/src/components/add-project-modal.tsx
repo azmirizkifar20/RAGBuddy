@@ -15,11 +15,12 @@ import { Label } from '@/components/ui/label'
 import { FolderPicker } from '@/components/folder-picker'
 import { registerProject, type Project } from '@/lib/api-client'
 
-function fieldForError(message: string): 'id' | 'repository' | 'general' {
+function fieldForError(message: string): 'id' | 'repository' | 'paths' | 'general' {
   if (message.includes('already registered')) return 'id'
   if (message.includes('Repository path does not exist') || message.includes('Not a Git repository')) {
     return 'repository'
   }
+  if (message.includes('path to index is required')) return 'paths'
   return 'general'
 }
 
@@ -33,7 +34,7 @@ export function AddProjectModal({
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [repository, setRepository] = useState('')
-  const [errors, setErrors] = useState<{ id?: string; repository?: string; general?: string }>({})
+  const [errors, setErrors] = useState<{ id?: string; repository?: string; paths?: string; general?: string }>({})
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -47,13 +48,20 @@ export function AddProjectModal({
     const id = String(form.get('id') ?? '').trim()
     const name = String(form.get('name') ?? '').trim()
     const pathsRaw = String(form.get('paths') ?? '').trim()
+    const paths = pathsRaw.split(',').map((p) => p.trim()).filter(Boolean)
+
+    if (paths.length === 0) {
+      setErrors({ paths: 'At least one path to index is required.' })
+      setSubmitting(false)
+      return
+    }
 
     try {
       const project = await registerProject({
         id,
         repository: repository.trim(),
         name: name || undefined,
-        paths: pathsRaw ? pathsRaw.split(',').map((p) => p.trim()).filter(Boolean) : undefined,
+        paths,
       })
       toast.success(`Registered "${project.name}".`)
       onRegistered(project)
@@ -115,9 +123,12 @@ export function AddProjectModal({
               <Input id="name" name="name" placeholder="My Project" />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="paths">Paths to index (optional, comma-separated)</Label>
-              <Input id="paths" name="paths" placeholder="docs,notes" />
-              <p className="text-xs text-muted-foreground">Defaults to `docs`.</p>
+              <Label htmlFor="paths">Paths to index</Label>
+              <Input id="paths" name="paths" required placeholder="docs,notes" />
+              <p className="text-xs text-muted-foreground">
+                Comma-separated, relative to the repository root. At least one is required.
+              </p>
+              {errors.paths && <p className="text-sm text-destructive">{errors.paths}</p>}
             </div>
             {errors.general && <p className="text-sm text-destructive">{errors.general}</p>}
           </div>
