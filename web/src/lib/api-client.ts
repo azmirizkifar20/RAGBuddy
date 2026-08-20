@@ -343,6 +343,50 @@ export function removeApiKey(): Promise<void> {
   return fetch('/api/settings/api-key', { method: 'DELETE' }).then(expectNoContent)
 }
 
+export function getAuthStatus(): Promise<{ enabled: boolean; authenticated: boolean }> {
+  return fetch('/api/auth/status').then(parseJsonResponse<{ enabled: boolean; authenticated: boolean }>)
+}
+
+export function login(code: string): Promise<void> {
+  return fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  })
+    .then((res) => parseJsonResponse<{ ok: boolean }>(res))
+    .then(() => undefined)
+}
+
+export function logout(): Promise<void> {
+  return fetch('/api/auth/logout', { method: 'POST' }).then(expectNoContent)
+}
+
+export function getDashboardAuthStatus(): Promise<{ enabled: boolean }> {
+  return fetch('/api/settings/dashboard-auth').then(parseJsonResponse<{ enabled: boolean }>)
+}
+
+export function enableDashboardAuth(code: string): Promise<void> {
+  return fetch('/api/settings/dashboard-auth/enable', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  })
+    .then((res) => parseJsonResponse<{ enabled: boolean }>(res))
+    .then(() => undefined)
+}
+
+export function disableDashboardAuth(): Promise<void> {
+  return fetch('/api/settings/dashboard-auth/disable', { method: 'POST' }).then(expectNoContent)
+}
+
+export function changeDashboardAuthCode(code: string): Promise<void> {
+  return fetch('/api/settings/dashboard-auth/change-code', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  }).then(expectNoContent)
+}
+
 export interface FsEntry {
   name: string
   path: string

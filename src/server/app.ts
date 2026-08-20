@@ -7,6 +7,7 @@ import type { SyncHistoryStore } from '../history/sync-history';
 import type { ChatFeedbackStore } from '../history/chat-feedback';
 import type { CredentialsStore } from '../config/credentials-store';
 import type { ApiKeyStore } from '../config/api-key-store';
+import type { DashboardAuthStore } from '../config/dashboard-auth-store';
 import type { ProjectStatsStore } from '../projects/project-stats';
 import { registerProjectsRoutes } from './routes/projects';
 import { registerSettingsRoutes, registerCredentialsRoutes, testChatConnection, testEmbeddingConnection } from './routes/settings';
@@ -19,6 +20,8 @@ import { registerSyncRoutes } from './routes/sync';
 import { registerUploadRoutes } from './routes/uploads';
 import { registerHistoryRoutes } from './routes/history';
 import { registerFsRoutes } from './routes/fs';
+import { registerAuthRoutes } from './routes/auth';
+import { parseCookies, SESSION_COOKIE_NAME } from './cookie-utils';
 
 /** Everything the MCP setup page needs to print a copy-pasteable config. Never includes the API key. */
 export interface RuntimeInfo {
@@ -53,6 +56,10 @@ export interface AppDeps {
    *  present it via `Authorization: Bearer <key>` or `X-API-Key`, or get a 401. Unconfigured
    *  (default) = no auth, matching the existing trust model. Resolved fresh per request. */
   apiKeyStore: ApiKeyStore;
+  /** When enabled (via Settings only — no env seed), every `/api` request must present either a
+   *  valid session cookie (browser login) or a valid API key (external caller bypass). Unconfigured
+   *  (default) = no auth, matching the existing trust model. Resolved fresh per request. */
+  dashboardAuthStore: DashboardAuthStore;
 }
 
 /** Resolves the currently active embedding credential + model into a ready-to-use provider —
@@ -86,18 +93,35 @@ function corsMiddleware(allowedOrigins: string[]) {
  *  is, every `/api` request must present it via `Authorization: Bearer <key>` or `X-API-Key`.
  *  Reads `apiKeyStore.get()` fresh per request so a Settings-page change (generate/remove) takes
  *  effect immediately, no restart needed. */
+function extractApiKey(req: express.Request): string | string[] | undefined {
+  const authHeader = req.headers.authorization;
+  const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+  return bearer ?? req.headers['x-api-key'];
+}
+
 function apiKeyMiddleware(apiKeyStore: ApiKeyStore) {
   return (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const apiKey = apiKeyStore.get();
     if (!apiKey || req.method === 'OPTIONS') return next();
-    const authHeader = req.headers.authorization;
-    const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
-    const provided = bearer ?? req.headers['x-api-key'];
-    if (provided !== apiKey) {
+    if (extractApiKey(req) !== apiKey) {
       res.status(401).json({ error: 'Missing or invalid API key' });
       return;
     }
     next();
+  };
+}
+
+/** No-op when the dashboard login gate is disabled (default). Once enabled, a request needs
+ *  either a valid session cookie (browser login, issued by `/api/auth/login`) or a valid API key
+ *  (so external integrations from `docs/features/12-...md` keep working unaffected). */
+function dashboardAuthMiddleware(authStore: DashboardAuthStore, apiKeyStore: ApiKeyStore) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (!authStore.isEnabled() || req.method === 'OPTIONS') return next();
+    const apiKey = apiKeyStore.get();
+    if (apiKey && extractApiKey(req) === apiKey) return next();
+    const cookies = parseCookies(req.headers.cookie);
+    if (authStore.validateSession(cookies[SESSION_COOKIE_NAME])) return next();
+    res.status(401).json({ error: 'Login required' });
   };
 }
 
@@ -108,7 +132,13 @@ export function createApp(deps: AppDeps): Express {
   // document size rather than the 100kb default.
   app.use(express.json({ limit: '32mb' }));
   app.use('/api', corsMiddleware(deps.allowedOrigins ?? []));
+
+  const authRouter = express.Router();
+  registerAuthRoutes(authRouter, deps);
+  app.use('/api/auth', authRouter); // always reachable — never gated, this IS how you gain access
+
   app.use('/api', apiKeyMiddleware(deps.apiKeyStore));
+  app.use('/api', dashboardAuthMiddleware(deps.dashboardAuthStore, deps.apiKeyStore));
 
   const apiRouter = express.Router();
   registerProjectsRoutes(apiRouter, deps);

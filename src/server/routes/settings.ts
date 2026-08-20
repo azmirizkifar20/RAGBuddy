@@ -3,6 +3,7 @@ import type { AppDeps } from '../app';
 import { dropCollection, getCollectionVectorSize } from '../../qdrant/qdrant-client';
 import { createEmbeddingProvider } from '../../embedding/embedding-provider';
 import type { CredentialsStore, CredentialInput, CredentialProvider } from '../../config/credentials-store';
+import { setSessionCookie, clearSessionCookie } from '../cookie-utils';
 
 export type ConnectionTestResult = { ok: true; latencyMs: number } | { ok: false; error: string };
 
@@ -218,6 +219,37 @@ export function registerSettingsRoutes(router: Router, deps: AppDeps): void {
 
   router.delete('/api-key', (_req, res) => {
     deps.apiKeyStore.remove();
+    res.status(204).end();
+  });
+
+  router.get('/dashboard-auth', (_req, res) => {
+    res.json({ enabled: deps.dashboardAuthStore.isEnabled() });
+  });
+
+  router.post('/dashboard-auth/enable', (req, res) => {
+    const code = req.body?.code;
+    if (!code || typeof code !== 'string') {
+      res.status(400).json({ error: 'code is required' });
+      return;
+    }
+    const token = deps.dashboardAuthStore.enable(code);
+    setSessionCookie(res, token);
+    res.json({ enabled: true });
+  });
+
+  router.post('/dashboard-auth/disable', (_req, res) => {
+    deps.dashboardAuthStore.disable();
+    clearSessionCookie(res);
+    res.status(204).end();
+  });
+
+  router.post('/dashboard-auth/change-code', (req, res) => {
+    const code = req.body?.code;
+    if (!code || typeof code !== 'string') {
+      res.status(400).json({ error: 'code is required' });
+      return;
+    }
+    deps.dashboardAuthStore.changeCode(code);
     res.status(204).end();
   });
 

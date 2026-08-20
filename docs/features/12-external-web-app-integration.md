@@ -8,6 +8,8 @@ Once a project is set up in RAGBuddy, your app can send a query and get back the
 
 Base URL: `http://<host-running-ragbuddy>:4300` (default port `4300`; the person running RAGBuddy may have changed it with `--port`).
 
+Everything in this doc is also presented live inside the dashboard itself — sidebar → **RAG Integration** (`web/src/pages/rag-integration.tsx`, route `/integration`): the actual base URL, registered project ids (copy-button ready), the same `/search`/`/chat` request/response shapes with curl + JS examples, and a live API-key/dashboard-login status summary. Point whoever is integrating at that page instead of this file if they have dashboard access — it stays in sync with the real server state.
+
 ## 2) Before You Start (one-time, done by whoever administers RAGBuddy)
 
 Someone must have already, in the RAGBuddy dashboard or CLI:
@@ -122,6 +124,8 @@ By default RAGBuddy assumes a trusted caller on a private network — no authent
 - **CORS allowlist** — set via the `RAGBUDDY_ALLOWED_ORIGINS` environment variable (no dashboard toggle for this one yet). Once your origin (e.g. `https://your-app.example.com`) is added, calling this endpoint directly from your app's browser-side JavaScript works normally; origins not on the list are still blocked by the browser as before.
 
 If neither is enabled on the RAGBuddy instance you're integrating with, you still have two options: call from your own app's **backend** instead of browser JS (sidesteps the CORS restriction entirely, since CORS only applies to browsers), or ask the administrator to turn on the API key / allowlist above.
+
+Separately, RAGBuddy's dashboard itself can require a login code for human/browser access (see [13-dashboard-login-auth.md](./13-dashboard-login-auth.md)) — that gate is bypassed by a valid API key, so turning it on never breaks your integration above.
 
 **Still true regardless of these options:** there's no per-caller rate limiting — a single RAGBuddy instance serves all callers with shared capacity — and the API key is a single shared secret for the whole instance, not one per integrating app.
 

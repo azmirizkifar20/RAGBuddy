@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Trash2Icon, KeyRoundIcon } from 'lucide-react'
+import { Trash2Icon, KeyRoundIcon, ShieldIcon, LogOutIcon } from 'lucide-react'
 import { PageHeader } from '@/components/layout/page-header'
 import { CopyButton } from '@/components/copy-button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -28,6 +28,11 @@ import {
   getApiKeyStatus,
   generateApiKey,
   removeApiKey,
+  getDashboardAuthStatus,
+  enableDashboardAuth,
+  disableDashboardAuth,
+  changeDashboardAuthCode,
+  logout,
   type RuntimeConfig,
   type CredentialsList,
   type QdrantCollectionInfo,
@@ -271,22 +276,193 @@ function ApiAccessPanel({ initialConfigured }: { initialConfigured: boolean }) {
   )
 }
 
+function DashboardAuthPanel({ initialEnabled }: { initialEnabled: boolean }) {
+  const [enabled, setEnabled] = useState(initialEnabled)
+  const [pendingCode, setPendingCode] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function handleEnable() {
+    setBusy(true)
+    try {
+      await enableDashboardAuth(pendingCode)
+      setEnabled(true)
+      setPendingCode('')
+      toast.success('Dashboard login enabled. Anyone opening this dashboard now needs the code.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleChangeCode() {
+    setBusy(true)
+    try {
+      await changeDashboardAuthCode(pendingCode)
+      setPendingCode('')
+      toast.success('Access code updated.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleDisable() {
+    setBusy(true)
+    try {
+      await disableDashboardAuth()
+      setEnabled(false)
+      toast.success('Dashboard login disabled. The dashboard is open again.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleLogout() {
+    setBusy(true)
+    try {
+      await logout()
+      toast.success('Logged out of this browser.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section>
+      <h2 className="mb-2 text-sm font-medium">Dashboard login</h2>
+      <div className="flex flex-col gap-3 rounded-lg border p-4">
+        <p className="text-sm text-muted-foreground">
+          By default anyone who can reach this server sees the dashboard directly — no login (local-only trust
+          model, same as the rest of the app). Enabling this requires an access code before a browser can see
+          anything here. This is separate from the API key above, which gates programmatic access — a valid API key
+          always bypasses this login, so external integrations keep working unaffected.
+        </p>
+
+        <div className="flex items-center gap-2">
+          <span className="text-sm">
+            Status:{' '}
+            <span className={enabled ? 'font-medium text-success' : 'text-muted-foreground'}>
+              {enabled ? 'Enabled' : 'Not enabled'}
+            </span>
+          </span>
+        </div>
+
+        {!enabled ? (
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="dashboard-auth-enable-code">Access code</Label>
+              <Input
+                id="dashboard-auth-enable-code"
+                type="password"
+                value={pendingCode}
+                onChange={(e) => setPendingCode(e.target.value)}
+                className="w-56"
+              />
+            </div>
+            <Button size="sm" onClick={handleEnable} disabled={busy || !pendingCode} className="gap-1.5">
+              <ShieldIcon className="size-3.5" />
+              Enable
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="dashboard-auth-change-code">New access code</Label>
+                <Input
+                  id="dashboard-auth-change-code"
+                  type="password"
+                  value={pendingCode}
+                  onChange={(e) => setPendingCode(e.target.value)}
+                  className="w-56"
+                />
+              </div>
+              <Button size="sm" variant="outline" onClick={handleChangeCode} disabled={busy || !pendingCode}>
+                Change code
+              </Button>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={handleLogout} disabled={busy} className="w-fit gap-1.5">
+                <LogOutIcon className="size-3.5" />
+                Log out
+              </Button>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    className="w-fit gap-1.5 text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2Icon className="size-3.5" />
+                    Disable
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Disable dashboard login?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      The dashboard becomes directly accessible again to anything that can reach this server, with no
+                      login prompt.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDisable}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Disable
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Locked out? Delete <code className="font-mono">config/dashboard-auth.json</code> on the server and
+              restart it to reopen access.
+            </p>
+          </>
+        )}
+      </div>
+    </section>
+  )
+}
+
 export function Settings() {
   const [config, setConfig] = useState<RuntimeConfig | null>(null)
   const [embeddingCredentials, setEmbeddingCredentials] = useState<CredentialsList | null>(null)
   const [chatCredentials, setChatCredentials] = useState<CredentialsList | null>(null)
   const [qdrantInfo, setQdrantInfo] = useState<QdrantCollectionInfo | null>(null)
   const [apiKeyConfigured, setApiKeyConfigured] = useState<boolean | null>(null)
+  const [dashboardAuthEnabled, setDashboardAuthEnabled] = useState<boolean | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([getRuntimeConfig(), getCredentials('embedding'), getCredentials('chat'), getQdrantInfo(), getApiKeyStatus()])
-      .then(([runtimeConfig, embedding, chat, qdrant, apiKey]) => {
+    Promise.all([
+      getRuntimeConfig(),
+      getCredentials('embedding'),
+      getCredentials('chat'),
+      getQdrantInfo(),
+      getApiKeyStatus(),
+      getDashboardAuthStatus(),
+    ])
+      .then(([runtimeConfig, embedding, chat, qdrant, apiKey, dashboardAuth]) => {
         setConfig(runtimeConfig)
         setEmbeddingCredentials(embedding)
         setChatCredentials(chat)
         setQdrantInfo(qdrant)
         setApiKeyConfigured(apiKey.configured)
+        setDashboardAuthEnabled(dashboardAuth.enabled)
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)))
   }, [])
@@ -300,11 +476,18 @@ export function Settings() {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      {!config || !embeddingCredentials || !chatCredentials || !qdrantInfo || apiKeyConfigured === null ? (
+      {!config ||
+      !embeddingCredentials ||
+      !chatCredentials ||
+      !qdrantInfo ||
+      apiKeyConfigured === null ||
+      dashboardAuthEnabled === null ? (
         <Skeleton className="h-96" />
       ) : (
         <div className="flex flex-col gap-6">
           <ApiAccessPanel initialConfigured={apiKeyConfigured} />
+
+          <DashboardAuthPanel initialEnabled={dashboardAuthEnabled} />
 
           <Group
             title="Vector store"

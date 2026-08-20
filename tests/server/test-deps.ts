@@ -57,6 +57,15 @@ export function baseDeps(overrides: Record<string, unknown> = {}): any {
       generate: vi.fn().mockReturnValue('generated-key'),
       remove: vi.fn(),
     },
+    dashboardAuthStore: {
+      isEnabled: vi.fn().mockReturnValue(false),
+      enable: vi.fn().mockReturnValue('generated-session-token'),
+      disable: vi.fn(),
+      changeCode: vi.fn(),
+      login: vi.fn().mockReturnValue(null),
+      logout: vi.fn(),
+      validateSession: vi.fn().mockReturnValue(false),
+    },
     runtime: {
       nodePath: '/usr/bin/node',
       cliEntrypoint: '/opt/ragbuddy/dist/cli/index.js',

@@ -271,6 +271,84 @@ describe('GET/POST/DELETE /api/settings/api-key', () => {
   });
 });
 
+function dashboardAuthStoreWith(overrides: Record<string, unknown> = {}) {
+  return {
+    isEnabled: vi.fn().mockReturnValue(false),
+    enable: vi.fn().mockReturnValue('generated-session-token'),
+    disable: vi.fn(),
+    changeCode: vi.fn(),
+    login: vi.fn().mockReturnValue(null),
+    logout: vi.fn(),
+    validateSession: vi.fn().mockReturnValue(false),
+    ...overrides,
+  };
+}
+
+describe('GET/POST /api/settings/dashboard-auth', () => {
+  it('reports enabled: false by default', async () => {
+    const app = createApp(baseDeps({ dashboardAuthStore: dashboardAuthStoreWith() }));
+
+    const res = await request(app).get('/api/settings/dashboard-auth');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ enabled: false });
+  });
+
+  it('rejects checking status once enabled without an API key or session (same self-consistency as API key settings)', async () => {
+    const app = createApp(baseDeps({ dashboardAuthStore: dashboardAuthStoreWith({ isEnabled: vi.fn().mockReturnValue(true) }) }));
+
+    const res = await request(app).get('/api/settings/dashboard-auth');
+
+    expect(res.status).toBe(401);
+  });
+
+  it('enable requires a code', async () => {
+    const app = createApp(baseDeps({ dashboardAuthStore: dashboardAuthStoreWith() }));
+
+    const res = await request(app).post('/api/settings/dashboard-auth/enable').send({});
+
+    expect(res.status).toBe(400);
+  });
+
+  it('enabling sets a session cookie for the enabling browser and reports enabled: true', async () => {
+    const dashboardAuthStore = dashboardAuthStoreWith({ enable: vi.fn().mockReturnValue('fresh-token') });
+    const app = createApp(baseDeps({ dashboardAuthStore }));
+
+    const res = await request(app).post('/api/settings/dashboard-auth/enable').send({ code: 'my-code' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ enabled: true });
+    expect(dashboardAuthStore.enable).toHaveBeenCalledWith('my-code');
+    expect(res.headers['set-cookie']?.[0]).toContain('ragbuddy_session=fresh-token');
+  });
+
+  it('disable clears the cookie', async () => {
+    const dashboardAuthStore = dashboardAuthStoreWith({ isEnabled: vi.fn().mockReturnValue(true), validateSession: vi.fn().mockReturnValue(true) });
+    const app = createApp(baseDeps({ dashboardAuthStore }));
+
+    const res = await request(app).post('/api/settings/dashboard-auth/disable').set('Cookie', 'ragbuddy_session=valid');
+
+    expect(res.status).toBe(204);
+    expect(dashboardAuthStore.disable).toHaveBeenCalled();
+    expect(res.headers['set-cookie']?.[0]).toContain('Max-Age=0');
+  });
+
+  it('change-code requires a code and forwards it to the store', async () => {
+    const dashboardAuthStore = dashboardAuthStoreWith({ isEnabled: vi.fn().mockReturnValue(true), validateSession: vi.fn().mockReturnValue(true) });
+    const app = createApp(baseDeps({ dashboardAuthStore }));
+
+    const missing = await request(app).post('/api/settings/dashboard-auth/change-code').set('Cookie', 'ragbuddy_session=valid').send({});
+    expect(missing.status).toBe(400);
+
+    const res = await request(app)
+      .post('/api/settings/dashboard-auth/change-code')
+      .set('Cookie', 'ragbuddy_session=valid')
+      .send({ code: 'new-code' });
+    expect(res.status).toBe(204);
+    expect(dashboardAuthStore.changeCode).toHaveBeenCalledWith('new-code');
+  });
+});
+
 describe('GET /api/settings/qdrant', () => {
   it('reports exists: false without calling getCollection when the collection is missing', async () => {
     const qdrantClient = {

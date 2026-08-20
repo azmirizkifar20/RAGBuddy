@@ -17,6 +17,7 @@ function useCrumbs(): { label: string; to?: string }[] {
 
   if (parts.length === 0) return [{ label: 'Dashboard' }]
   if (parts[0] === 'flow') return [{ label: 'How RAG works' }]
+  if (parts[0] === 'integration') return [{ label: 'RAG Integration' }]
   if (parts[0] === 'settings') return [{ label: 'Settings' }]
   if (parts[0] === 'chat') {
     const crumbs: { label: string; to?: string }[] = [{ label: 'AI Chat', to: '/chat' }]

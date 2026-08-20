@@ -4,6 +4,7 @@ import {
   LayoutDashboardIcon,
   MessageSquareIcon,
   PanelLeftIcon,
+  PlugIcon,
   SettingsIcon,
   WorkflowIcon,
   XIcon,
@@ -18,6 +19,7 @@ const MAIN_NAV = [
   { to: '/chat', label: 'AI Chat', icon: MessageSquareIcon, end: false },
   { to: '/projects', label: 'Projects', icon: BoxesIcon, end: true },
   { to: '/flow', label: 'How RAG works', icon: WorkflowIcon, end: false },
+  { to: '/integration', label: 'RAG Integration', icon: PlugIcon, end: false },
   { to: '/settings', label: 'Settings', icon: SettingsIcon, end: false },
 ]
 

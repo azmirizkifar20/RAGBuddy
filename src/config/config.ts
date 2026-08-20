@@ -28,6 +28,9 @@ export interface AppConfig {
   apiKey?: string;
   /** Where the Settings page's generated/removed API key is persisted. */
   apiKeyStorePath: string;
+  /** Where the Settings page's dashboard-login enable/disable/change-code state is persisted.
+   *  No env seed — the Settings page is the only way to configure this (unlike the API key). */
+  dashboardAuthStorePath: string;
 }
 
 const DEFAULT_EMBEDDING_BASE_URL: Record<string, string> = {
@@ -72,6 +75,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       .filter(Boolean),
     apiKey: env.RAGBUDDY_API_KEY || undefined,
     apiKeyStorePath: path.resolve(__dirname, '../../', env.API_KEY_STORE_PATH ?? './config/api-key.json'),
+    dashboardAuthStorePath: path.resolve(
+      __dirname,
+      '../../',
+      env.DASHBOARD_AUTH_STORE_PATH ?? './config/dashboard-auth.json',
+    ),
   };
 }
 

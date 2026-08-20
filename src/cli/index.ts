@@ -16,6 +16,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { createMcpServer } from '../mcp/server';
 import { CredentialsStore } from '../config/credentials-store';
 import { ApiKeyStore } from '../config/api-key-store';
+import { DashboardAuthStore } from '../config/dashboard-auth-store';
 import { installHook, uninstallHook } from '../git/hook-installer';
 import { runHookCommand } from './hook-command';
 import { ProjectStatsStore } from '../projects/project-stats';
@@ -77,6 +78,8 @@ async function main(): Promise<void> {
   // a key, config/api-key.json is authoritative and the env var is ignored (same seed-once pattern
   // as the credential stores above).
   const apiKeyStore = new ApiKeyStore(config.apiKeyStorePath, config.apiKey);
+  // No env seed (unlike apiKeyStore above) — the Settings page is the only way to enable this.
+  const dashboardAuthStore = new DashboardAuthStore(config.dashboardAuthStorePath);
   const resolveEmbeddingProvider = (): EmbeddingProvider => createEmbeddingProvider(embeddingCredentials.get());
   const onLog = (message: string) => console.log(`[INFO] ${message}`);
 
@@ -155,6 +158,7 @@ async function main(): Promise<void> {
       chatFeedback,
       allowedOrigins: config.allowedOrigins,
       apiKeyStore,
+      dashboardAuthStore,
       runtime: {
         nodePath: process.execPath,
         // Same entrypoint the git hook installer writes into post-commit, so

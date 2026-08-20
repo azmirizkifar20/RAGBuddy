@@ -6,6 +6,7 @@ config/projects.json
 config/chat-settings.json
 config/embedding-credentials.json
 config/api-key.json
+config/dashboard-auth.json
 data/
 opencode.jsonc
 .omo/

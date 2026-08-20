@@ -3,6 +3,7 @@ import { ThemeProvider } from 'next-themes'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AppShell } from '@/components/layout/app-shell'
+import { AuthGate } from '@/components/auth-gate'
 import { ProjectsProvider } from '@/lib/projects-context'
 import { Dashboard } from '@/pages/dashboard'
 import { Projects } from '@/pages/projects'
@@ -14,6 +15,7 @@ import { AiChat } from '@/pages/ai-chat'
 import { ProjectHistory } from '@/pages/project-history'
 import { ProjectMcp } from '@/pages/project-mcp'
 import { RagFlow } from '@/pages/rag-flow'
+import { RagIntegration } from '@/pages/rag-integration'
 import { Settings } from '@/pages/settings'
 
 function App() {
@@ -24,7 +26,13 @@ function App() {
           <ProjectsProvider>
             <Toaster position="bottom-right" />
             <Routes>
-              <Route element={<AppShell />}>
+              <Route
+                element={
+                  <AuthGate>
+                    <AppShell />
+                  </AuthGate>
+                }
+              >
                 <Route index element={<Dashboard />} />
                 <Route path="projects" element={<Projects />} />
                 <Route path="projects/:id" element={<ProjectLayout />}>
@@ -37,6 +45,7 @@ function App() {
                 <Route path="chat" element={<AiChat />} />
                 <Route path="chat/:projectId" element={<AiChat />} />
                 <Route path="flow" element={<RagFlow />} />
+                <Route path="integration" element={<RagIntegration />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
