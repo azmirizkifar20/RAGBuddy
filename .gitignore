@@ -10,3 +10,4 @@ config/dashboard-auth.json
 data/
 opencode.jsonc
 .omo/
+.zcode/
