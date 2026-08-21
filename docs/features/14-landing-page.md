@@ -47,7 +47,7 @@ landing/
 | How it works | `#how-it-works` | 3 numbered steps: Register & index → Sync automatically → Ask anywhere |
 | Screens | `#screens` | 7 screenshot cards with captions (AI chat, Retrieval search, Documents, Sync history, MCP setup, How RAG works, Project overview) + lightbox |
 | MCP | `#mcp` | The 4 MCP tools (mono) + `claude mcp add ragbuddy` and `opencode` JSON configuration blocks with copy buttons |
-| API | `#api` | The 2 RAG API endpoints (`/api/search` and `/api/chat`) with curl examples for integration into external apps |
+| API | `#api` | The 2 RAG API endpoints (`/api/search` and `/api/chat`) with curl request and JSON/SSE response examples for integration into external apps |
 | Quick start | `#quick-start` | Terminal block: clone → `npm install`/`npm run build` → `cp .env.example .env` → `docker compose up -d` → `ollama pull bge-m3` → `project register` → `ingest` → `ask`, with copy button |
 | Footer | — | Landscape logo (no text), MIT note, GitHub / Documentation / Quick start links, stack line (`TypeScript · React · Qdrant · Ollama`) |
 

@@ -859,7 +859,7 @@ img { display: block; max-width: 100%; }
     &quot;projectId&quot;: &quot;my-project&quot;,
     &quot;query&quot;: &quot;how to set up auth&quot;,
     &quot;limit&quot;: 5
-  }'" aria-label="Copy search API command">Copy</button></div>
+  }'" aria-label="Copy search API command">Copy Request</button></div>
 <pre><span class="cmt"># Search document segments for any project</span>
 <span class="cmd">curl</span> -X POST http://localhost:4300/api/search \
   -H <span class="cmd">'Content-Type: application/json'</span> \
@@ -871,24 +871,67 @@ img { display: block; max-width: 100%; }
   }'</pre>
       </div>
 
+      <div class="codeblock" style="margin-top:0.6rem">
+        <div class="codehead"><span>Response</span><button class="copy-btn" data-copy="{
+  &quot;results&quot;: [
+    {
+      &quot;file&quot;: &quot;docs/auth.md&quot;,
+      &quot;section&quot;: &quot;## Implementation&quot;,
+      &quot;score&quot;: 0.92,
+      &quot;content&quot;: &quot;To set up authentication...&quot;
+    }
+  ]
+}" aria-label="Copy search API response">Copy Response</button></div>
+<pre>{
+  <span class="cmd">"results"</span>: [
+    {
+      "file": <span class="cmd">"docs/auth.md"</span>,
+      "section": <span class="cmd">"## Implementation"</span>,
+      "score": 0.92,
+      "content": "To set up authentication..."
+    }
+  ]
+}</pre>
+      </div>
+
       <div class="codeblock" style="margin-top:1.2rem">
         <div class="codehead"><span>curl /api/chat</span><button class="copy-btn" data-copy="curl -X POST http://localhost:4300/api/chat \
   -H 'Content-Type: application/json' \
   -H 'X-API-Key: your_key' \
   -d '{
     &quot;projectId&quot;: &quot;my-project&quot;,
-    &quot;message&quot;: &quot;how does the sync work?&quot;,
+    &quot;messages&quot;: [{ &quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;how does the sync work?&quot; }],
     &quot;stream&quot;: false
-  }'" aria-label="Copy chat API command">Copy</button></div>
+  }'" aria-label="Copy chat API command">Copy Request</button></div>
 <pre><span class="cmt"># Get a cited answer from your docs</span>
 <span class="cmd">curl</span> -X POST http://localhost:4300/api/chat \
   -H <span class="cmd">'Content-Type: application/json'</span> \
   -H <span class="cmd">'X-API-Key: your_key'</span> \
   -d '{
     "projectId": "my-project",
-    "message": "how does the sync work?",
+    "messages": [{ "role": "user", "content": "how does the sync work?" }],
     "stream": false
   }'</pre>
+      </div>
+
+      <div class="codeblock" style="margin-top:0.6rem">
+        <div class="codehead"><span>Response (SSE events)</span><button class="copy-btn" data-copy="event: token
+data: {&quot;text&quot;:&quot;The sync process...&quot;}
+
+event: sources
+data: {&quot;sources&quot;:[{&quot;file&quot;:&quot;sync.md&quot;,&quot;section&quot;:&quot;## Flow&quot;,&quot;score&quot;:0.85}]}
+
+event: done
+data: {}" aria-label="Copy chat API response">Copy Response</button></div>
+<pre><span class="cmt"># Streaming tokens followed by sources metadata</span>
+event: <span class="cmd">token</span>
+data: {"text": "The sync process..."}
+
+event: <span class="cmd">sources</span>
+data: {"sources": [{"file": "sync.md", "section": "## Flow", "score": 0.85}]}
+
+event: <span class="cmd">done</span>
+data: {}</pre>
       </div>
     </div>
   </section>
