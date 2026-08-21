@@ -14,15 +14,22 @@
 ## 2) Flow / Behavior
 
 ```
-Browser loads the dashboard (any route)
+Browser loads any /dashboard/* route
   → AuthGate (web/src/components/auth-gate.tsx) calls GET /api/auth/status
   → { enabled: false }                → renders the dashboard normally (unchanged default)
-  → { enabled: true, authenticated: false } → renders a full-page login screen instead
+  → { enabled: true, authenticated: false } → hard redirect to /login
   → { enabled: true, authenticated: true }  → renders the dashboard normally
 
+/login is a standalone mount (web/src/main.tsx), outside the router's /dashboard basename
+  → LoginEntry (web/src/components/login-entry.tsx) calls GET /api/auth/status
+  → gate disabled or already authenticated → redirects to /dashboard
+  → otherwise                              → shows the LoginScreen form
+
 Login screen submits POST /api/auth/login { code }
-  → right code  → 200 + Set-Cookie: ragbuddy_session=<fresh token>; the app then renders normally
+  → right code  → 200 + Set-Cookie: ragbuddy_session=<fresh token>; page redirects to /dashboard
   → wrong code  → 401, inline error shown, stays on the login screen
+
+Logout (Settings) clears the session, then redirects the browser to /login.
 
 Every other /api/* request, once enabled
   → dashboardAuthMiddleware (src/server/app.ts)
@@ -55,9 +62,10 @@ Every other /api/* request, once enabled
 
 ## 5) UI
 
-- **`web/src/components/auth-gate.tsx`** — `AuthGate`, wraps `<AppShell />` at the top of the route tree in `web/src/App.tsx` (the single choke point every route already renders through). Checks `/api/auth/status` once on mount; shows a full-page `Skeleton` while loading, the login screen when required, or `children` (the whole app) otherwise.
-- **`web/src/components/login-screen.tsx`** — `LoginScreen`, a full-page form (no sidebar/header chrome — rendered instead of `AppShell`, not inside it) with a password-style access-code input and inline error text on a wrong code.
-- **`web/src/pages/settings.tsx`** — `DashboardAuthPanel`, mirrors `ApiAccessPanel`'s structure (state/try-catch/toast pattern) as the settings section directly below it: enable (code input + button), change code, log out (ends just the current browser's session), and disable (behind the same `AlertDialog` confirmation pattern used for removing the API key).
+- **`web/src/components/auth-gate.tsx`** — `AuthGate`, wraps `<AppShell />` at the top of the route tree in `web/src/App.tsx` (the single choke point every route already renders through). Checks `/api/auth/status` once on mount; shows a full-page `Skeleton` while loading, hard-redirects to `/login` when login is required, or renders `children` (the whole app) otherwise.
+- **`web/src/main.tsx` + `web/src/components/login-entry.tsx`** — `/login` sits outside the router's `/dashboard` basename, so `main.tsx` mounts the standalone `LoginEntry` for that path instead of `<App/>`. `LoginEntry` re-checks `/api/auth/status` and bounces to `/dashboard` when there is nothing to log in for (gate disabled, or this browser already has a session).
+- **`web/src/components/login-screen.tsx`** — `LoginScreen`, a full-page form (no sidebar/header chrome) with a password-style access-code input and inline error text on a wrong code. On success its callback navigates to `/dashboard`.
+- **`web/src/pages/settings.tsx`** — `DashboardAuthPanel`, mirrors `ApiAccessPanel`'s structure (state/try-catch/toast pattern) as the settings section directly below it: enable (code input + button), change code, log out (ends the current browser's session and redirects to `/login`), and disable (behind the same `AlertDialog` confirmation pattern used for removing the API key).
 - **`web/src/lib/api-client.ts`** — `getAuthStatus`, `login`, `logout`, `getDashboardAuthStatus`, `enableDashboardAuth`, `disableDashboardAuth`, `changeDashboardAuthCode`.
 - No `fetch`-patching needed (unlike the API key's `web/src/lib/api-key.ts`) — the browser attaches cookies to same-origin requests automatically.
 

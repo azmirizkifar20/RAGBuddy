@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getAuthStatus } from '@/lib/api-client'
-import { LoginScreen } from '@/components/login-screen'
 
 interface AuthStatus {
   enabled: boolean
@@ -19,7 +18,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (!status) return <Skeleton className="h-svh w-full" />
   if (status.enabled && !status.authenticated) {
-    return <LoginScreen onSuccess={() => setStatus({ ...status, authenticated: true })} />
+    // The login form lives at `/login`, outside the router's `/dashboard` basename, so this is a
+    // hard navigation rather than a <Navigate>. The skeleton stays up until the browser leaves.
+    window.location.replace('/login')
+    return <Skeleton className="h-svh w-full" />
   }
   return <>{children}</>
 }

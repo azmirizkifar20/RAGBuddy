@@ -42,6 +42,10 @@ export interface AppDeps {
   chatCredentials: CredentialsStore;
   chatContextLimit: number;
   staticDir: string;
+  /** Optional static landing page served at `/` (mounted before `staticDir`, so its own
+   *  `index.html` wins for `/` while SPA assets fall through to `staticDir`). Unset = `/`
+   *  serves the SPA shell, matching the pre-landing behavior. */
+  landingDir?: string;
   dataDir: string;
   history: SyncHistoryStore;
   runtime: RuntimeInfo;
@@ -184,6 +188,9 @@ export function createApp(deps: AppDeps): Express {
     res.json({ runs: deps.history.list({ limit: Number.isFinite(limit) && limit > 0 ? Math.min(limit, 200) : 20 }) });
   });
 
+  // The landing page (when present) is mounted first so its `index.html` answers `/` and its
+  // `images/`+`fonts/` assets resolve; anything it doesn't have falls through to the SPA bundle.
+  if (deps.landingDir) app.use(express.static(deps.landingDir));
   app.use(express.static(deps.staticDir));
   // Express 5 no longer accepts a bare '*' route pattern for a catch-all —
   // a path-less middleware matches everything and sidesteps that entirely.

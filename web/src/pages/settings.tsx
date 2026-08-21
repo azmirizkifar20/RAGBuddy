@@ -325,10 +325,11 @@ function DashboardAuthPanel({ initialEnabled }: { initialEnabled: boolean }) {
     setBusy(true)
     try {
       await logout()
-      toast.success('Logged out of this browser.')
+      // The session cookie is gone server-side; bounce to the login page so the UI state matches
+      // immediately instead of waiting for the next full page load to re-run the auth gate.
+      window.location.href = '/login'
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err))
-    } finally {
       setBusy(false)
     }
   }

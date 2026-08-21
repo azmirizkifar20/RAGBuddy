@@ -22,7 +22,7 @@ its own topbar and a second, native one on top of it would be redundant.
 electron/main.js (app.whenReady)
   → spawn(<backend entrypoint> web --port 4300)  same backend as `ragbuddy web`
   → poll http://localhost:4300/api/config        until it answers (no fixed delay, no stdout parsing)
-  → BrowserWindow.loadURL(http://localhost:4300)  same web/dist the browser would show
+  → BrowserWindow.loadURL(http://localhost:4300/dashboard)  same web/dist the browser would show (`/` serves the landing page)
   → on quit: kill the spawned backend process
 ```
 

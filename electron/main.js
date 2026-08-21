@@ -98,7 +98,8 @@ async function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
-  await mainWindow.loadURL(`http://localhost:${PORT}`);
+  // `/` serves the static landing page now — the desktop app wants the dashboard directly.
+  await mainWindow.loadURL(`http://localhost:${PORT}/dashboard`);
 }
 
 ipcMain.on('window:minimize', () => mainWindow?.minimize());

@@ -51,3 +51,16 @@ The web dashboard serves the `web/` React SPA statically and exposes a REST+SSE 
 All of the above are mounted under `/api/projects` in `src/server/app.ts`. Separate top-level routes: `GET /api/config` (runtime config, incl. `CHAT_CONTEXT_LIMIT`), `GET /api/activity` (activity feed), and `GET /api/fs/...` (filesystem browsing for the folder picker).
 
 SSE events are written via `src/server/sse.ts` (`startSse` + `sendSseEvent`). Chat streaming uses the same SSE transport.
+
+### Page routing (landing, login, SPA)
+
+Static/page serving is registered after all `/api` routers in `src/server/app.ts`:
+
+| URL | Served by | What |
+|-----|-----------|------|
+| `/` | `express.static(landingDir)` | The static landing page (`landing/index.html`, `landing/images/`, `landing/fonts/`) — see `docs/features/14-landing-page.md` |
+| `/login`, `/dashboard`, `/dashboard/*` | SPA fallback (`web/dist/index.html`) | The React app; the router uses `basename="/dashboard"`, and `main.tsx` mounts a standalone `LoginEntry` for `/login` (outside the basename) |
+| `/assets/*`, `/icon.png`, … | `express.static(staticDir)` | Built SPA assets (`web/dist`) |
+| any other path | SPA fallback | `index.html` → the client redirects pre-landing paths (e.g. old `/chat` bookmarks) to `/dashboard/<tail>` |
+
+`landingDir` is optional on `AppDeps` (`ragbuddy web` passes the repo's `landing/`): when absent, `/` falls through to the SPA exactly like before the landing existed. The landing static mount sits before the SPA static mount, so its own `index.html` wins for `/` while non-landing assets fall through to `web/dist`. Auth middlewares gate only `/api/*` — static pages are always served unauthenticated (the login gate is enforced by the frontend + `/api` responses, unchanged).

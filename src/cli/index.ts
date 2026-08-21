@@ -152,6 +152,7 @@ async function main(): Promise<void> {
       chatCredentials,
       chatContextLimit: config.chatContextLimit,
       staticDir: path.resolve(__dirname, '../../web/dist'),
+      landingDir: path.resolve(__dirname, '../../landing'),
       dataDir: config.dataDir,
       history,
       statsStore: projectStats,

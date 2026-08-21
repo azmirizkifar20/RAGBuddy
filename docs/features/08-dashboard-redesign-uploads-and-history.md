@@ -15,17 +15,23 @@ Four things, one release:
 
 ### Routes
 
+Every app route lives under the `/dashboard` router basename — `/` is the static landing page and `/login` the standalone login entry (both outside the SPA; see `docs/steering/routing.md`). The table lists the URL paths as seen in the browser.
+
 | Route | Page | Purpose |
 |-------|------|---------|
-| `/` | `pages/dashboard.tsx` | Totals row, project grid (first 3 projects, "View all N projects →" to `/projects` beyond that), a 7-day **activity chart** (`components/activity-chart.tsx`, stacked by run kind, with a table-view toggle), then the cross-project **recent activity table** below it |
-| `/projects` | `pages/projects.tsx` | Filterable project list |
-| `/projects/:id` | `pages/project-layout.tsx` → `project-overview.tsx` | Stats, ingest/sync console, hook toggle, indexed paths |
-| `/projects/:id/documents` | `project-documents.tsx` | Indexed-file browser (filter by source) + upload tab |
-| `/projects/:id/search` | `project-search.tsx` | Same retrieval path an agent hits |
-| `/projects/:id/history` | `project-history.tsx` | Run table + success/failure/duration stats |
-| `/projects/:id/mcp` | `project-mcp.tsx` | Copy-pasteable MCP config for Claude Code / OpenCode / Codex |
-| `/flow` | `rag-flow.tsx` | Three interactive pipeline diagrams |
-| `/settings` | `settings.tsx` | Read-only runtime configuration |
+| `/dashboard` | `pages/dashboard.tsx` | Totals row, project grid (first 3 projects, "View all N projects →" to `/dashboard/projects` beyond that), a 7-day **activity chart** (`components/activity-chart.tsx`, stacked by run kind, with a table-view toggle), then the cross-project **recent activity table** below it |
+| `/dashboard/projects` | `pages/projects.tsx` | Filterable project list |
+| `/dashboard/projects/:id` | `pages/project-layout.tsx` → `project-overview.tsx` | Stats, ingest/sync console, hook toggle, indexed paths |
+| `/dashboard/projects/:id/documents` | `project-documents.tsx` | Indexed-file browser (filter by source) + upload tab |
+| `/dashboard/projects/:id/search` | `project-search.tsx` | Same retrieval path an agent hits |
+| `/dashboard/projects/:id/history` | `project-history.tsx` | Run table + success/failure/duration stats |
+| `/dashboard/projects/:id/mcp` | `project-mcp.tsx` | Copy-pasteable MCP config for Claude Code / OpenCode / Codex |
+| `/dashboard/chat` (+ `/dashboard/chat/:projectId`) | `pages/ai-chat.tsx` | Per-project AI chat (see [09](./09-project-chat.md)) |
+| `/dashboard/flow` | `rag-flow.tsx` | Three interactive pipeline diagrams |
+| `/dashboard/integration` | `rag-integration.tsx` | REST/SSE snippets for external apps (see [12](./12-external-web-app-integration.md)) |
+| `/dashboard/settings` | `settings.tsx` | Runtime configuration + API access / credentials / dashboard login |
+
+`main.tsx` also keeps pre-landing URLs working: any non-`/login` path outside `/dashboard/*` that still loads the SPA shell (e.g. an old `/chat` bookmark) is redirected to `/dashboard/<same tail>` before the router mounts.
 
 `ProjectLayout` loads the project, its indexed documents and its uploads once, then hands them to every child tab via `Outlet` context — the tabs never re-fetch.
 

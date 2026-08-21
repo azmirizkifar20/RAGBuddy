@@ -1,0 +1,953 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAGBuddy — Project-aware RAG for coding agents</title>
+<meta name="description" content="RAGBuddy indexes the docs of every Git repository you work on and answers from them through a web dashboard with AI chat, a CLI, and an MCP server — all powered by the same core.">
+<link rel="icon" type="image/png" href="images/icon.png">
+<style>
+/* ============================================================
+   RAGBuddy landing — tokens mirror web/src/index.css (dark)
+   "data first, chrome last": brand blue accent, hairline borders
+   ============================================================ */
+@font-face {
+  font-family: 'Geist Variable';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/geist-latin-ext.woff2') format('woff2-variations');
+  unicode-range: U+0100-02AF, U+0304, U+0308, U+0329, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Geist Variable';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/geist-latin.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Geist Mono Variable';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/geist-mono-latin-ext.woff2') format('woff2-variations');
+  unicode-range: U+0100-02AF, U+0304, U+0308, U+0329, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Geist Mono Variable';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/geist-mono-latin.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  --background: oklch(0.16 0.012 285);
+  --foreground: oklch(0.96 0.005 285);
+  --card: oklch(0.2 0.014 285);
+  --card-hover: oklch(0.225 0.016 285);
+  --muted: oklch(0.25 0.015 285);
+  --muted-foreground: oklch(0.7 0.015 285);
+  --border: oklch(1 0 0 / 11%);
+  --border-strong: oklch(1 0 0 / 20%);
+  --brand: oklch(0.68 0.17 258);
+  --brand-soft: oklch(0.3 0.06 258);
+  --brand-foreground: oklch(0.16 0.012 285);
+  --success: oklch(0.72 0.16 152);
+  --radius: 0.5rem;
+  --font-sans: 'Geist Variable', system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+  --nav-h: 3.75rem;
+  --container: 72rem;
+}
+
+/* Mobile-first base type: everything in rem so one base-size step
+   shrinks the whole page on small screens. */
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+@media (max-width: 640px) {
+  html { font-size: 15px; }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3 {
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+p { margin: 0; }
+a { color: var(--brand); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, kbd, pre, .mono { font-family: var(--font-mono); }
+::selection { background: var(--brand-soft); }
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+img { display: block; max-width: 100%; }
+
+.container {
+  max-width: var(--container);
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+@media (min-width: 1024px) {
+  .container { padding-inline: 2rem; }
+}
+
+/* ---------- nav ---------- */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in oklab, var(--background) 82%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-inner {
+  height: var(--nav-h);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--foreground);
+  font-weight: 600;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; }
+.nav-brand img { width: 1.5rem; height: 1.5rem; }
+.nav-links {
+  display: none;
+  align-items: center;
+  gap: 1.4rem;
+  margin-left: auto;
+}
+.nav-links a {
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.nav-links a:hover { color: var(--foreground); text-decoration: none; }
+/* needs to beat .btn's display (both specificity 0,1,0 — order decides) */
+.nav-inner .nav-cta {
+  display: none;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+}
+.nav-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--foreground);
+  cursor: pointer;
+}
+.nav-toggle svg { width: 1.2rem; height: 1.2rem; }
+@media (min-width: 768px) {
+  .nav-links { display: flex; }
+  .nav-inner .nav-cta { display: inline-flex; }
+  .nav-toggle { display: none; }
+}
+
+/* mobile dropdown */
+.nav-mobile {
+  display: none;
+  border-top: 1px solid var(--border);
+  padding: 0.5rem 1.25rem 0.9rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: var(--background);
+}
+.nav-mobile.open { display: flex; }
+.nav-mobile a {
+  padding: 0.6rem 0.4rem;
+  border-radius: var(--radius);
+  color: var(--muted-foreground);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+.nav-mobile a:hover { background: var(--muted); color: var(--foreground); text-decoration: none; }
+.nav-mobile .btn { justify-content: center; margin-top: 0.5rem; }
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 1.1rem;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 550;
+  cursor: pointer;
+  text-decoration: none !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+.btn svg { width: 1.05rem; height: 1.05rem; }
+.btn-primary {
+  background: var(--brand);
+  color: var(--brand-foreground);
+}
+.btn-primary:hover { background: oklch(0.73 0.16 258); }
+.btn-outline {
+  background: transparent;
+  color: var(--foreground);
+  border-color: var(--border-strong);
+}
+.btn-outline:hover { border-color: oklch(1 0 0 / 40%); background: var(--muted); }
+@media (max-width: 640px) {
+  .btn { width: 100%; min-height: 3rem; }
+}
+
+/* ---------- hero ---------- */
+.hero {
+  padding: clamp(3rem, 8vw, 5.5rem) 0 clamp(2.5rem, 6vw, 4rem);
+  text-align: center;
+}
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  margin-bottom: 1.4rem;
+}
+.hero-badge .dot {
+  width: 0.45rem; height: 0.45rem;
+  border-radius: 50%;
+  background: var(--success);
+  flex: none;
+}
+.hero h1 {
+  font-size: clamp(1.95rem, 5.5vw, 3.4rem);
+  max-width: 18ch;
+  margin-inline: auto;
+}
+.hero h1 .accent { color: var(--brand); }
+.hero-sub {
+  margin: 1.1rem auto 0;
+  max-width: 54ch;
+  color: var(--muted-foreground);
+  font-size: clamp(0.95rem, 2vw, 1.125rem);
+}
+.hero-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 1.9rem;
+}
+.hero-workswith {
+  margin-top: 2.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  justify-content: center;
+}
+.hero-workswith b { color: oklch(0.85 0.01 285); font-weight: 550; }
+
+/* browser frame */
+.frame {
+  margin: clamp(2.2rem, 5vw, 3.2rem) auto 0;
+  max-width: 62rem;
+  border: 1px solid var(--border-strong);
+  border-radius: calc(var(--radius) + 0.35rem);
+  overflow: hidden;
+  background: var(--card);
+  box-shadow: 0 1px 0 0 oklch(1 0 0 / 4%) inset, 0 24px 60px -30px oklch(0 0 0 / 0.8);
+}
+.frame-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+.frame-dots { display: flex; gap: 0.4rem; flex: none; }
+.frame-dots span {
+  width: 0.7rem; height: 0.7rem;
+  border-radius: 50%;
+  background: var(--muted);
+  border: 1px solid var(--border-strong);
+}
+.frame-url {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.28rem 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.frame img { width: 100%; height: auto; }
+
+/* ---------- sections ---------- */
+.section { padding: clamp(2.8rem, 7vw, 5rem) 0; }
+.section + .section { border-top: 1px solid var(--border); }
+.section-head {
+  max-width: 42rem;
+  margin-bottom: clamp(1.8rem, 4vw, 2.8rem);
+}
+.section-head h2 {
+  font-size: clamp(1.35rem, 3vw, 1.9rem);
+}
+.section-head p {
+  margin-top: 0.6rem;
+  color: var(--muted-foreground);
+  font-size: 0.95rem;
+}
+
+/* features grid */
+.features {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.9rem;
+}
+@media (min-width: 641px) { .features { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .features { grid-template-columns: repeat(4, 1fr); } }
+.feature {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.25rem 1.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.feature:hover { border-color: oklch(1 0 0 / 25%); background: var(--card-hover); }
+.feature .tag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--brand);
+  letter-spacing: 0.02em;
+}
+.feature h3 { font-size: 1.02rem; }
+.feature p {
+  color: var(--muted-foreground);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+/* how it works */
+.steps {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.9rem;
+  counter-reset: step;
+}
+@media (min-width: 768px) { .steps { grid-template-columns: repeat(3, 1fr); } }
+.step {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.4rem 1.4rem 1.5rem;
+  position: relative;
+}
+.step .num {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--brand);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  width: 2rem; height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.9rem;
+}
+.step h3 { font-size: 1.05rem; margin-bottom: 0.4rem; }
+.step p { color: var(--muted-foreground); font-size: 0.9rem; line-height: 1.55; }
+.step code {
+  font-size: 0.78rem;
+  color: oklch(0.85 0.01 285);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  padding: 0.05rem 0.35rem;
+  white-space: nowrap;
+}
+
+/* screens gallery */
+.screens {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+@media (min-width: 641px) { .screens { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .screens { grid-template-columns: repeat(3, 1fr); } }
+.screen {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: zoom-in;
+  transition: border-color 0.15s ease;
+}
+.screen:hover { border-color: oklch(1 0 0 / 28%); }
+.screen img { width: 100%; height: auto; }
+.screen figcaption {
+  padding: 0.75rem 1rem 0.85rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  color: var(--muted-foreground);
+}
+.screen figcaption b { color: var(--foreground); font-weight: 550; display: block; font-size: 0.92rem; margin-bottom: 0.15rem; }
+
+/* lightbox */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: oklch(0.1 0.01 285 / 0.92);
+  backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+.lightbox.open { display: flex; }
+.lightbox img {
+  max-width: 100%;
+  max-height: 88vh;
+  border: 1px solid var(--border-strong);
+  border-radius: calc(var(--radius) + 0.2rem);
+  box-shadow: 0 30px 80px -20px oklch(0 0 0 / 0.9);
+}
+.lightbox .close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 1.2rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+/* MCP tools */
+.mcp-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.9rem;
+}
+@media (min-width: 641px) { .mcp-grid { grid-template-columns: repeat(2, 1fr); } }
+.mcp-tool {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.2rem;
+}
+.mcp-tool code {
+  font-size: 0.85rem;
+  color: var(--brand);
+}
+.mcp-tool p {
+  margin-top: 0.35rem;
+  color: var(--muted-foreground);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+/* code / terminal blocks */
+.codeblock {
+  position: relative;
+  background: oklch(0.13 0.012 285);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.codeblock .codehead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted-foreground);
+  background: var(--card);
+}
+.codeblock pre {
+  margin: 0;
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.65;
+  color: oklch(0.9 0.01 285);
+  tab-size: 2;
+}
+@media (max-width: 640px) {
+  .codeblock pre { font-size: 0.78rem; padding: 0.9rem 0.95rem; }
+}
+.codeblock pre .cmt { color: var(--muted-foreground); }
+.codeblock pre .cmd { color: var(--brand); }
+.copy-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--muted-foreground);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+  cursor: pointer;
+}
+.copy-btn:hover { color: var(--foreground); border-color: var(--border-strong); }
+.copy-btn.copied { color: var(--success); border-color: var(--success); }
+
+/* quick start terminal */
+.terminal { background: oklch(0.12 0.012 285); }
+.terminal .codehead { background: oklch(0.14 0.013 285); }
+.terminal pre { color: oklch(0.88 0.01 285); }
+
+/* footer */
+.footer {
+  border-top: 1px solid var(--border);
+  padding: 2.2rem 0 2.8rem;
+}
+.footer-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+}
+@media (min-width: 768px) {
+  .footer-inner { flex-direction: row; align-items: flex-start; justify-content: space-between; }
+}
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.footer-brand img { width: 1.4rem; height: 1.4rem; }
+.footer-brand:hover { text-decoration: none; }
+.footer p.note {
+  margin-top: 0.6rem;
+  font-size: 0.82rem;
+  color: var(--muted-foreground);
+  max-width: 32ch;
+}
+.footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.footer-links a { color: var(--muted-foreground); font-size: 0.88rem; }
+.footer-links a:hover { color: var(--foreground); }
+.footer-stack {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-start;
+}
+@media (min-width: 768px) { .footer-stack { align-items: flex-end; text-align: right; } }
+
+/* reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="#top">
+      <img src="images/logo.png" alt="RAGBuddy logo" width="24" height="24">
+      RAGBuddy
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How it works</a>
+      <a href="#screens">Screens</a>
+      <a href="#mcp">MCP</a>
+      <a href="#quick-start">Quick start</a>
+    </nav>
+    <a class="btn btn-outline nav-cta" href="https://github.com/azmirizkifar20/RAGBuddy" target="_blank" rel="noopener">
+      <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      GitHub
+    </a>
+    <button class="nav-toggle" aria-label="Toggle navigation menu" aria-expanded="false" id="navToggle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+  </div>
+  <nav class="nav-mobile" id="navMobile" aria-label="Mobile">
+    <a href="#features">Features</a>
+    <a href="#how-it-works">How it works</a>
+    <a href="#screens">Screens</a>
+    <a href="#mcp">MCP</a>
+    <a href="#quick-start">Quick start</a>
+    <a class="btn btn-outline" href="https://github.com/azmirizkifar20/RAGBuddy" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+
+<main id="top">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="container">
+      <span class="hero-badge"><span class="dot"></span> open source · MIT · local-first</span>
+      <h1>Project-aware RAG for <span class="accent">coding agents</span></h1>
+      <p class="hero-sub">
+        RAGBuddy indexes the docs of every Git repository you work on into one searchable knowledge
+        base — then answers from it through a web dashboard with AI chat, a CLI, and an MCP server,
+        all powered by the same core.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="https://github.com/azmirizkifar20/RAGBuddy" target="_blank" rel="noopener">
+          <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          Try it on GitHub
+        </a>
+        <a class="btn btn-outline" href="#quick-start">Quick start ↓</a>
+      </div>
+      <p class="hero-workswith">
+        <b>Works with</b>
+        <span>Claude Code</span>
+        <span>OpenCode</span>
+        <span>Codex</span>
+        <span>Ollama</span>
+        <span>OpenAI-compatible APIs</span>
+      </p>
+
+      <div class="frame" aria-hidden="true">
+        <div class="frame-bar">
+          <div class="frame-dots"><span></span><span></span><span></span></div>
+          <div class="frame-url">https://ragbuddy.dev</div>
+        </div>
+        <img src="images/dashboard.webp" alt="RAGBuddy dashboard showing project stats, activity chart and sync history" width="1600" height="1000">
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FEATURES ============ -->
+  <section class="section" id="features">
+    <div class="container">
+      <div class="section-head">
+        <h2>Everything your agents need, already wired up</h2>
+        <p>One core, four surfaces: a web dashboard, a CLI, an MCP server, and a REST API. Git stays the source of truth; Qdrant is a rebuildable index.</p>
+      </div>
+      <div class="features">
+        <div class="feature">
+          <span class="tag">multi-project</span>
+          <h3>Project-isolated RAG</h3>
+          <p>Index many repositories into a single Qdrant collection. Retrieval is always filtered by project — one project can never see another's documents.</p>
+        </div>
+        <div class="feature">
+          <span class="tag">auto-sync</span>
+          <h3>Git hook auto-sync</h3>
+          <p>Install hooks once; every <code>commit</code>, <code>pull</code> and branch <code>checkout</code> re-syncs in the background. Git is never blocked by embedding.</p>
+        </div>
+        <div class="feature">
+          <span class="tag">mcp</span>
+          <h3>MCP server</h3>
+          <p>One server serves Claude Code, OpenCode and Codex: <code>get_project_context</code>, <code>search_project_docs</code>, <code>get_project_document</code>, <code>list_project_knowledge</code>.</p>
+        </div>
+        <div class="feature">
+          <span class="tag">cli</span>
+          <h3>One-shot answers</h3>
+          <p><code>ragbuddy ask &lt;project&gt; "…"</code> runs the full pipeline — rewrite → hybrid vector+BM25 → rerank → one completion — straight in the terminal.</p>
+        </div>
+        <div class="feature">
+          <span class="tag">chat</span>
+          <h3>Web AI chat</h3>
+          <p>Streaming answers grounded in your docs, with cited sources, a Use-RAG toggle, file attachments and session history saved per project.</p>
+        </div>
+        <div class="feature">
+          <span class="tag">uploads</span>
+          <h3>Upload anything</h3>
+          <p>Drop in PDF, Word, Excel, Markdown, CSV or text documents outside the repo — extracted into the same searchable index.</p>
+        </div>
+        <div class="feature">
+          <span class="tag">privacy</span>
+          <h3>Local-first &amp; private</h3>
+          <p>Runs on your machine with Ollama for embeddings and chat. No cloud required — your docs never leave your network.</p>
+        </div>
+        <div class="feature">
+          <span class="tag">rest api</span>
+          <h3>RAG for your own apps</h3>
+          <p>Call <code>/search</code> or the SSE <code>/chat</code> endpoint from any web app — same retrieval pipeline, no vector database to run yourself.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HOW IT WORKS ============ -->
+  <section class="section" id="how-it-works">
+    <div class="container">
+      <div class="section-head">
+        <h2>How it works</h2>
+        <p>From a plain Git repository to grounded answers in three steps.</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <span class="num">01</span>
+          <h3>Register &amp; index</h3>
+          <p>Point RAGBuddy at a repository with <code>ragbuddy project register</code>, then <code>ragbuddy ingest</code> — its docs folder is scanned, chunked and embedded into Qdrant.</p>
+        </div>
+        <div class="step">
+          <span class="num">02</span>
+          <h3>Sync automatically</h3>
+          <p>Content-hash diffs re-embed only changed files. Git hooks fire on commit/pull/checkout, and <code>ragbuddy sync-all</code> is the cron safety net.</p>
+        </div>
+        <div class="step">
+          <span class="num">03</span>
+          <h3>Ask anywhere</h3>
+          <p>Chat in the dashboard, ask in the terminal, or let your coding agent query through MCP — every path uses the same retrieval pipeline.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SCREENS ============ -->
+  <section class="section" id="screens">
+    <div class="container">
+      <div class="section-head">
+        <h2>See it in action</h2>
+        <p>Real screens from the dashboard — click any shot to view it full size.</p>
+      </div>
+      <div class="screens">
+        <figure class="screen" data-src="images/chat.webp">
+          <img src="images/chat.webp" alt="AI chat answering with a mermaid diagram and related document sources" loading="lazy" width="1440" height="800">
+          <figcaption><b>AI chat</b>Streaming, source-cited answers with markdown, tables and diagrams.</figcaption>
+        </figure>
+        <figure class="screen" data-src="images/search.webp">
+          <img src="images/search.webp" alt="Ranked retrieval results in the Search panel" loading="lazy" width="1440" height="800">
+          <figcaption><b>Retrieval search</b>The exact path your agents hit — same embedding, same project filter, same top-K.</figcaption>
+        </figure>
+        <figure class="screen" data-src="images/documents.webp">
+          <img src="images/documents.webp" alt="Indexed documents table with staleness badges" loading="lazy" width="1440" height="800">
+          <figcaption><b>Documents</b>Browse indexed files, upload extras, and spot staleness at a glance.</figcaption>
+        </figure>
+        <figure class="screen" data-src="images/history.webp">
+          <img src="images/history.webp" alt="Sync history table with per-run status and duration" loading="lazy" width="1440" height="800">
+          <figcaption><b>Sync history</b>Every run, trigger and result — with durations and status dots.</figcaption>
+        </figure>
+        <figure class="screen" data-src="images/mcp.webp">
+          <img src="images/mcp.webp" alt="MCP setup wizard with per-agent configuration steps" loading="lazy" width="1440" height="800">
+          <figcaption><b>MCP setup</b>Copy-paste configuration for Claude Code, OpenCode and Codex.</figcaption>
+        </figure>
+        <figure class="screen" data-src="images/flow.webp">
+          <img src="images/flow.webp" alt="Interactive RAG pipeline diagrams" loading="lazy" width="1440" height="800">
+          <figcaption><b>How RAG works</b>Interactive pipeline diagrams for indexing, retrieval and auto-sync.</figcaption>
+        </figure>
+        <figure class="screen" data-src="images/overview.webp">
+          <img src="images/overview.webp" alt="Project overview with live ingest log stream" loading="lazy" width="1440" height="800">
+          <figcaption><b>Project overview</b>Live ingest and sync console, hook status and indexed paths.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MCP ============ -->
+  <section class="section" id="mcp">
+    <div class="container">
+      <div class="section-head">
+        <h2>One MCP server for every agent</h2>
+        <p>Connect it once — the current project is resolved automatically from the agent's working directory.</p>
+      </div>
+      <div class="mcp-grid">
+        <div class="mcp-tool"><code>get_project_context</code><p>Compact orientation: README, architecture summaries, git status, doc inventory.</p></div>
+        <div class="mcp-tool"><code>search_project_docs</code><p>Semantic search over the project's knowledge, same pipeline as the dashboard.</p></div>
+        <div class="mcp-tool"><code>get_project_document</code><p>Read a specific document — path-traversal-safe, returns the file you asked for.</p></div>
+        <div class="mcp-tool"><code>list_project_knowledge</code><p>See everything currently indexed when starting from scratch.</p></div>
+      </div>
+      <div class="codeblock" style="margin-top:1.2rem">
+        <div class="codehead"><span>claude mcp add ragbuddy</span><button class="copy-btn" data-copy="claude mcp add ragbuddy -- node /absolute/path/to/ragbuddy/dist/cli/index.js mcp" aria-label="Copy MCP command">Copy</button></div>
+<pre><span class="cmt"># connect RAGBuddy to Claude Code (OpenCode &amp; Codex supported too)</span>
+<span class="cmd">claude mcp add ragbuddy</span> -- node /absolute/path/to/ragbuddy/dist/cli/index.js mcp</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ QUICK START ============ -->
+  <section class="section" id="quick-start">
+    <div class="container">
+      <div class="section-head">
+        <h2>Quick start</h2>
+        <p>Node.js 18+, npm and Docker (for Qdrant). Ollama is optional — OpenAI-compatible embeddings work too.</p>
+      </div>
+      <div class="codeblock terminal">
+        <div class="codehead"><span>terminal</span><button class="copy-btn" data-copy="# requirements: Node.js 18+, npm, Docker (Qdrant), optional Ollama
+git clone git@github.com:azmirizkifar20/RAGBuddy.git
+cd RAGBuddy
+npm install
+npm run build
+cp .env.example .env
+docker compose up -d          # Qdrant
+ollama pull bge-m3            # local embeddings (optional)
+ragbuddy project register my-project /path/to/my-project
+ragbuddy ingest my-project
+ragbuddy ask my-project "how does auto-sync work?"" aria-label="Copy quick start commands">Copy</button></div>
+<pre><span class="cmt"># requirements: Node.js 18+, npm, Docker (Qdrant), optional Ollama</span>
+git clone git@github.com:azmirizkifar20/RAGBuddy.git
+cd RAGBuddy
+npm install
+npm run build
+cp .env.example .env
+docker compose up -d          <span class="cmt"># Qdrant</span>
+ollama pull bge-m3            <span class="cmt"># local embeddings (optional)</span>
+ragbuddy project register my-project /path/to/my-project
+ragbuddy ingest my-project
+ragbuddy ask my-project "how does auto-sync work?"</pre>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <div>
+      <a class="footer-brand" href="#top">
+        <img src="images/logo.png" alt="" width="22" height="22">
+        RAGBuddy
+      </a>
+      <p class="note">Multi-project RAG for coding agents and developers. MIT licensed.</p>
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/azmirizkifar20/RAGBuddy" target="_blank" rel="noopener">GitHub repository</a>
+      <a href="https://github.com/azmirizkifar20/RAGBuddy/tree/main/docs" target="_blank" rel="noopener">Documentation</a>
+      <a href="#quick-start">Quick start</a>
+    </div>
+    <div class="footer-stack">
+      <span>TypeScript · React · Qdrant · Ollama</span>
+      <span>© 2026 RAGBuddy</span>
+    </div>
+  </div>
+</footer>
+
+<!-- lightbox -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Screenshot preview">
+  <button class="close" aria-label="Close preview">✕</button>
+  <img src="" alt="Screenshot preview">
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // mobile nav toggle
+  var toggle = document.getElementById('navToggle');
+  var mobile = document.getElementById('navMobile');
+  toggle.addEventListener('click', function () {
+    var open = mobile.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  mobile.querySelectorAll('a').forEach(function (a) {
+    a.addEventListener('click', function () { mobile.classList.remove('open'); });
+  });
+
+  // lightbox
+  var lightbox = document.getElementById('lightbox');
+  var lightboxImg = lightbox.querySelector('img');
+  document.querySelectorAll('.screen').forEach(function (screen) {
+    screen.addEventListener('click', function () {
+      lightboxImg.src = screen.getAttribute('data-src');
+      lightboxImg.alt = screen.querySelector('img').alt;
+      lightbox.classList.add('open');
+    });
+  });
+  lightbox.querySelector('.close').addEventListener('click', function () { lightbox.classList.remove('open'); });
+  lightbox.addEventListener('click', function (e) {
+    if (e.target === lightbox) lightbox.classList.remove('open');
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') lightbox.classList.remove('open');
+  });
+
+  // copy buttons
+  document.querySelectorAll('.copy-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var text = btn.getAttribute('data-copy');
+      function done() {
+        btn.textContent = 'Copied';
+        btn.classList.add('copied');
+        setTimeout(function () {
+          btn.textContent = 'Copy';
+          btn.classList.remove('copied');
+        }, 1800);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
+      } else {
+        fallbackCopy(text);
+        done();
+      }
+    });
+  });
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) { /* noop */ }
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+</body>
+</html>

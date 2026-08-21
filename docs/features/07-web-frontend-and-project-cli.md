@@ -13,9 +13,10 @@ A visual layer over the exact same backend functions the CLI already uses (`Proj
 
 ```
 ragbuddy project register/list/remove   → ProjectRegistry (same registry the rest of the CLI uses)
-ragbuddy web [--port 4300]              → Express app: /api/* routes + serves web/dist statically
-Dashboard (/)                              → GET /api/projects → project cards, +Add Project modal
-Project Detail (/projects/:id)             → GET /api/projects/:id, /knowledge → file list, search, ingest/sync log stream, hook toggle, remove
+ragbuddy web [--port 4300]              → Express app: /api/* routes + landing page at / + serves web/dist at /dashboard/*
+Landing (/)                              → static landing/index.html (see 14-landing-page.md)
+Dashboard (/dashboard)                   → GET /api/projects → project cards, +Add Project modal
+Project Detail (/dashboard/projects/:id) → GET /api/projects/:id, /knowledge → file list, search, ingest/sync log stream, hook toggle, remove
 ```
 
 CLI subcommands (`src/cli/project-command.ts`, wired in `src/cli/index.ts`):
@@ -47,9 +48,9 @@ No new persisted data — the API is a thin read/write layer over the existing `
 
 ## 4) UI
 
-- **Dashboard (`/`)** — `web/src/pages/dashboard.tsx`: grid of `ProjectCard`s (name, repo path, indexed-file count, auto-sync badge, one-click Sync), `+ Add Project` button opening `AddProjectModal`.
-- **Project Detail (`/projects/:id`)** — `web/src/pages/project-detail.tsx`: indexed-file list, `SearchPanel`, `LogStream` (live Ingest/Sync log streaming), `HookToggle`, `DeleteConfirmModal` (clarifies it only unregisters — no Qdrant/Git deletion).
-- Built with Vite + React 19 + TypeScript, Tailwind CSS v4, shadcn/ui (Radix base, Nova preset), `sonner` toasts, `react-router` v8 for the two routes.
+- **Dashboard (`/dashboard`)** — `web/src/pages/dashboard.tsx`: grid of `ProjectCard`s (name, repo path, indexed-file count, auto-sync badge, one-click Sync), `+ Add Project` button opening `AddProjectModal`.
+- **Project Detail (`/dashboard/projects/:id`)** — `web/src/pages/project-detail.tsx`: indexed-file list, `SearchPanel`, `LogStream` (live Ingest/Sync log streaming), `HookToggle`, `DeleteConfirmModal` (clarifies it only unregisters — no Qdrant/Git deletion).
+- Built with Vite + React 19 + TypeScript, Tailwind CSS v4, shadcn/ui (Radix base, Nova preset), `sonner` toasts, `react-router` v8. The whole SPA sits under the `/dashboard` router basename (`/` is the landing page, `/login` the standalone login) — see [08](./08-dashboard-redesign-uploads-and-history.md) for the full route table.
 - `web/src/lib/api-client.ts` is the single fetch/SSE layer every component uses — no component calls `fetch` directly.
 
 ## 5) Edge Cases & Rules

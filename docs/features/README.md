@@ -2,8 +2,8 @@
 
 This folder contains documentation for implemented features and current state.
 
-**Updated**: 2026-08-20
-**Recent**: Added a "RAG Integration" sidebar page (`/integration`, right after "How RAG works") that presents [12-external-web-app-integration.md](./12-external-web-app-integration.md)'s `/search`/`/chat` integration guide live in-app — real base URL, registered project ids, curl/JS examples, and an API-key/dashboard-login status summary — so integrators with dashboard access don't need to read the markdown doc.
+**Updated**: 2026-08-21
+**Recent**: Production URL layout reworked: `ragbuddy web` now serves the landing page at `/`, the login screen moved to its own URL `/login` (standalone mount + redirects; logout returns there), and the whole SPA lives under `/dashboard/*` (router `basename="/dashboard"` — no internal links changed). Old pre-landing URLs redirect to `/dashboard/<tail>`, Electron loads `/dashboard`, the Vite dev server mirrors prod via a `serve-landing` plugin, and the new static-ordering behavior is locked by `tests/server/static-serving.test.ts`.
 
 ## Index
 
@@ -20,6 +20,7 @@ This folder contains documentation for implemented features and current state.
 11. [Electron Desktop Shell](./11-electron-desktop-app.md) — Implemented (first cut — packaging not yet verified)
 12. [External Web App Integration (Chat / RAG API)](./12-external-web-app-integration.md) — Implemented
 13. [Dashboard Login Auth (Opt-in Access Code Gate)](./13-dashboard-login-auth.md) — Implemented
+14. [Landing Page](./14-landing-page.md) — Implemented
 
 ---
 

@@ -22,7 +22,10 @@ function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
       <TooltipProvider>
-        <BrowserRouter>
+        {/* The whole app lives under `/dashboard` — `/` is the static landing page and `/login`
+            the standalone login entry (both outside this router, see main.tsx). The basename keeps
+            every internal Link/useLocation basename-stripped, so no route or link changes below. */}
+        <BrowserRouter basename="/dashboard">
           <ProjectsProvider>
             <Toaster position="bottom-right" />
             <Routes>

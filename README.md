@@ -201,7 +201,9 @@ npm run web
 Open:
 
 ```text
-http://localhost:4300
+http://localhost:4300              → landing page
+http://localhost:4300/dashboard    → the dashboard itself
+http://localhost:4300/login        → login screen (only when dashboard login is enabled)
 ```
 
 For frontend development:
@@ -295,6 +297,7 @@ All indexed knowledge is stored in a single Qdrant collection and isolated using
 | [`docs/features/`](docs/features/README.md)           | Feature documentation                                             |
 | [`docs/issue/`](docs/issue/README.md)                 | Issues and root-cause analysis                                    |
 | [`docs/design-system/`](docs/design-system/README.md) | Web UI design system                                              |
+| [`landing/`](landing/index.html)                       | Static landing page — served at `/` by `ragbuddy web`              |
 
 ## Development
 
