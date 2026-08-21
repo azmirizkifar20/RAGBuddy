@@ -481,19 +481,30 @@ img { display: block; max-width: 100%; }
   line-height: 1;
 }
 
-/* MCP tools */
-.mcp-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.9rem;
-}
-@media (min-width: 641px) { .mcp-grid { grid-template-columns: repeat(2, 1fr); } }
-.mcp-tool {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.1rem 1.2rem;
-}
+    /* MCP / API blocks */
+    .mcp-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.9rem;
+    }
+    @media (min-width: 641px) { .mcp-grid { grid-template-columns: repeat(2, 1fr); } }
+    
+    .api-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      margin-top: 1.2rem;
+    }
+    @media (min-width: 900px) {
+      .api-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    
+    .mcp-tool {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+    }
 .mcp-tool code {
   font-size: 0.85rem;
   color: var(--brand);
@@ -851,8 +862,9 @@ img { display: block; max-width: 100%; }
         </div>
       </div>
 
-      <div class="codeblock" style="margin-top:1.2rem">
-        <div class="codehead"><span>curl /api/search</span><button class="copy-btn" data-copy="curl -X POST http://localhost:4300/api/search \
+      <div class="api-grid">
+        <div class="codeblock">
+          <div class="codehead"><span>curl /api/search</span><button class="copy-btn" data-copy="curl -X POST http://localhost:4300/api/search \
   -H 'Content-Type: application/json' \
   -H 'X-API-Key: your_key' \
   -d '{
@@ -869,10 +881,10 @@ img { display: block; max-width: 100%; }
     "query": "how to set up auth",
     "limit": 5
   }'</pre>
-      </div>
+        </div>
 
-      <div class="codeblock" style="margin-top:0.6rem">
-        <div class="codehead"><span>Response</span><button class="copy-btn" data-copy="{
+        <div class="codeblock">
+          <div class="codehead"><span>Response</span><button class="copy-btn" data-copy="{
   &quot;results&quot;: [
     {
       &quot;file&quot;: &quot;docs/auth.md&quot;,
@@ -892,10 +904,10 @@ img { display: block; max-width: 100%; }
     }
   ]
 }</pre>
-      </div>
+        </div>
 
-      <div class="codeblock" style="margin-top:1.2rem">
-        <div class="codehead"><span>curl /api/chat</span><button class="copy-btn" data-copy="curl -X POST http://localhost:4300/api/chat \
+        <div class="codeblock">
+          <div class="codehead"><span>curl /api/chat</span><button class="copy-btn" data-copy="curl -X POST http://localhost:4300/api/chat \
   -H 'Content-Type: application/json' \
   -H 'X-API-Key: your_key' \
   -d '{
@@ -912,10 +924,10 @@ img { display: block; max-width: 100%; }
     "messages": [{ "role": "user", "content": "how does the sync work?" }],
     "stream": false
   }'</pre>
-      </div>
+        </div>
 
-      <div class="codeblock" style="margin-top:0.6rem">
-        <div class="codehead"><span>Response (SSE events)</span><button class="copy-btn" data-copy="event: token
+        <div class="codeblock">
+          <div class="codehead"><span>Response (SSE events)</span><button class="copy-btn" data-copy="event: token
 data: {&quot;text&quot;:&quot;The sync process...&quot;}
 
 event: sources
@@ -932,6 +944,7 @@ data: {"sources": [{"file": "sync.md", "section": "## Flow", "score": 0.85}]}
 
 event: <span class="cmd">done</span>
 data: {}</pre>
+        </div>
       </div>
     </div>
   </section>
