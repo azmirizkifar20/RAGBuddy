@@ -8,8 +8,9 @@
 <link rel="icon" type="image/png" href="images/icon.png">
 <style>
 /* ============================================================
-   RAGBuddy landing — tokens mirror web/src/index.css (dark)
-   "data first, chrome last": brand blue accent, hairline borders
+   RAGBuddy landing — light theme, same hue family as the dashboard
+   tokens (web/src/index.css): soft off-white background (never pure
+   white), brand blue accent, hairline borders, "data first, chrome last"
    ============================================================ */
 @font-face {
   font-family: 'Geist Variable';
@@ -45,18 +46,19 @@
 }
 
 :root {
-  --background: oklch(0.16 0.012 285);
-  --foreground: oklch(0.96 0.005 285);
-  --card: oklch(0.2 0.014 285);
-  --card-hover: oklch(0.225 0.016 285);
-  --muted: oklch(0.25 0.015 285);
-  --muted-foreground: oklch(0.7 0.015 285);
-  --border: oklch(1 0 0 / 11%);
-  --border-strong: oklch(1 0 0 / 20%);
-  --brand: oklch(0.68 0.17 258);
-  --brand-soft: oklch(0.3 0.06 258);
-  --brand-foreground: oklch(0.16 0.012 285);
-  --success: oklch(0.72 0.16 152);
+  color-scheme: light;
+  --background: oklch(0.965 0.006 285);      /* soft cool off-white — deliberately not pure white */
+  --foreground: oklch(0.24 0.02 285);        /* ink */
+  --card: oklch(0.985 0.004 285);            /* sits just above the page tint */
+  --card-hover: oklch(0.972 0.006 285);
+  --muted: oklch(0.93 0.008 285);            /* fills: code chips, URL pill, frame dots */
+  --muted-foreground: oklch(0.45 0.02 285);  /* secondary text, ≥4.5:1 on the page tint */
+  --border: oklch(0.25 0.02 285 / 12%);
+  --border-strong: oklch(0.25 0.02 285 / 22%);
+  --brand: oklch(0.55 0.19 258);             /* deeper blue for contrast on light */
+  --brand-soft: oklch(0.55 0.19 258 / 14%);
+  --brand-foreground: oklch(0.985 0.003 285);/* text on brand fills */
+  --success: oklch(0.55 0.14 152);
   --radius: 0.5rem;
   --font-sans: 'Geist Variable', system-ui, sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
@@ -224,13 +226,13 @@ img { display: block; max-width: 100%; }
   background: var(--brand);
   color: var(--brand-foreground);
 }
-.btn-primary:hover { background: oklch(0.73 0.16 258); }
+.btn-primary:hover { background: oklch(0.5 0.2 258); }
 .btn-outline {
   background: transparent;
   color: var(--foreground);
   border-color: var(--border-strong);
 }
-.btn-outline:hover { border-color: oklch(1 0 0 / 40%); background: var(--muted); }
+.btn-outline:hover { border-color: oklch(0 0 0 / 30%); background: var(--muted); }
 @media (max-width: 640px) {
   .btn { width: 100%; min-height: 3rem; }
 }
@@ -287,7 +289,7 @@ img { display: block; max-width: 100%; }
   gap: 0.35rem 1rem;
   justify-content: center;
 }
-.hero-workswith b { color: oklch(0.85 0.01 285); font-weight: 550; }
+.hero-workswith b { color: oklch(0.35 0.02 285); font-weight: 550; }
 
 /* browser frame */
 .frame {
@@ -297,7 +299,7 @@ img { display: block; max-width: 100%; }
   border-radius: calc(var(--radius) + 0.35rem);
   overflow: hidden;
   background: var(--card);
-  box-shadow: 0 1px 0 0 oklch(1 0 0 / 4%) inset, 0 24px 60px -30px oklch(0 0 0 / 0.8);
+  box-shadow: 0 24px 60px -30px oklch(0.3 0.05 285 / 35%);
 }
 .frame-bar {
   display: flex;
@@ -365,7 +367,7 @@ img { display: block; max-width: 100%; }
   gap: 0.45rem;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
-.feature:hover { border-color: oklch(1 0 0 / 25%); background: var(--card-hover); }
+.feature:hover { border-color: oklch(0.25 0.02 285 / 25%); background: var(--card-hover); }
 .feature .tag {
   font-family: var(--font-mono);
   font-size: 0.72rem;
@@ -410,7 +412,7 @@ img { display: block; max-width: 100%; }
 .step p { color: var(--muted-foreground); font-size: 0.9rem; line-height: 1.55; }
 .step code {
   font-size: 0.78rem;
-  color: oklch(0.85 0.01 285);
+  color: oklch(0.32 0.025 285);
   background: var(--muted);
   border: 1px solid var(--border);
   border-radius: 0.3rem;
@@ -434,7 +436,7 @@ img { display: block; max-width: 100%; }
   cursor: zoom-in;
   transition: border-color 0.15s ease;
 }
-.screen:hover { border-color: oklch(1 0 0 / 28%); }
+.screen:hover { border-color: oklch(0.25 0.02 285 / 28%); }
 .screen img { width: 100%; height: auto; }
 .screen figcaption {
   padding: 0.75rem 1rem 0.85rem;
@@ -506,7 +508,7 @@ img { display: block; max-width: 100%; }
 /* code / terminal blocks */
 .codeblock {
   position: relative;
-  background: oklch(0.13 0.012 285);
+  background: oklch(0.94 0.008 285);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
@@ -528,7 +530,7 @@ img { display: block; max-width: 100%; }
   overflow-x: auto;
   font-size: 0.85rem;
   line-height: 1.65;
-  color: oklch(0.9 0.01 285);
+  color: oklch(0.3 0.02 285);
   tab-size: 2;
 }
 @media (max-width: 640px) {
@@ -550,9 +552,9 @@ img { display: block; max-width: 100%; }
 .copy-btn.copied { color: var(--success); border-color: var(--success); }
 
 /* quick start terminal */
-.terminal { background: oklch(0.12 0.012 285); }
-.terminal .codehead { background: oklch(0.14 0.013 285); }
-.terminal pre { color: oklch(0.88 0.01 285); }
+.terminal { background: oklch(0.925 0.01 285); }
+.terminal .codehead { background: oklch(0.955 0.007 285); }
+.terminal pre { color: oklch(0.28 0.02 285); }
 
 /* footer */
 .footer {
@@ -615,8 +617,7 @@ img { display: block; max-width: 100%; }
 <header class="nav">
   <div class="container nav-inner">
     <a class="nav-brand" href="#top">
-      <img src="images/logo.png" alt="RAGBuddy logo" width="24" height="24">
-      RAGBuddy
+      <img src="images/logo.png" alt="RAGBuddy logo" style="height: 1.5rem; width: auto;">
     </a>
     <nav class="nav-links" aria-label="Primary">
       <a href="#features">Features</a>
@@ -676,7 +677,7 @@ img { display: block; max-width: 100%; }
           <div class="frame-dots"><span></span><span></span><span></span></div>
           <div class="frame-url">https://ragbuddy.dev</div>
         </div>
-        <img src="images/dashboard.webp" alt="RAGBuddy dashboard showing project stats, activity chart and sync history" width="1600" height="1000">
+        <img src="images/dashboard.png" alt="RAGBuddy dashboard showing project stats, activity chart and sync history" width="1600" height="1000">
       </div>
     </div>
   </section>
@@ -768,33 +769,29 @@ img { display: block; max-width: 100%; }
         <p>Real screens from the dashboard — click any shot to view it full size.</p>
       </div>
       <div class="screens">
-        <figure class="screen" data-src="images/chat.webp">
-          <img src="images/chat.webp" alt="AI chat answering with a mermaid diagram and related document sources" loading="lazy" width="1440" height="800">
+        <figure class="screen" data-src="images/chat.png">
+          <img src="images/chat.png" alt="AI chat answering with a mermaid diagram and related document sources" loading="lazy" width="1440" height="800">
           <figcaption><b>AI chat</b>Streaming, source-cited answers with markdown, tables and diagrams.</figcaption>
         </figure>
-        <figure class="screen" data-src="images/search.webp">
-          <img src="images/search.webp" alt="Ranked retrieval results in the Search panel" loading="lazy" width="1440" height="800">
+        <figure class="screen" data-src="images/overview.png">
+          <img src="images/overview.png" alt="Project overview with live ingest log stream" loading="lazy" width="1440" height="800">
+          <figcaption><b>Project overview</b>Live ingest and sync console, hook status and indexed paths.</figcaption>
+        </figure>
+        <figure class="screen" data-src="images/search.png">
+          <img src="images/search.png" alt="Ranked retrieval results in the Search panel" loading="lazy" width="1440" height="800">
           <figcaption><b>Retrieval search</b>The exact path your agents hit — same embedding, same project filter, same top-K.</figcaption>
         </figure>
-        <figure class="screen" data-src="images/documents.webp">
-          <img src="images/documents.webp" alt="Indexed documents table with staleness badges" loading="lazy" width="1440" height="800">
+        <figure class="screen" data-src="images/documents.png">
+          <img src="images/documents.png" alt="Indexed documents table with staleness badges" loading="lazy" width="1440" height="800">
           <figcaption><b>Documents</b>Browse indexed files, upload extras, and spot staleness at a glance.</figcaption>
         </figure>
-        <figure class="screen" data-src="images/history.webp">
-          <img src="images/history.webp" alt="Sync history table with per-run status and duration" loading="lazy" width="1440" height="800">
+        <figure class="screen" data-src="images/history.png">
+          <img src="images/history.png" alt="Sync history table with per-run status and duration" loading="lazy" width="1440" height="800">
           <figcaption><b>Sync history</b>Every run, trigger and result — with durations and status dots.</figcaption>
         </figure>
-        <figure class="screen" data-src="images/mcp.webp">
-          <img src="images/mcp.webp" alt="MCP setup wizard with per-agent configuration steps" loading="lazy" width="1440" height="800">
+        <figure class="screen" data-src="images/mcp.png">
+          <img src="images/mcp.png" alt="MCP setup wizard with per-agent configuration steps" loading="lazy" width="1440" height="800">
           <figcaption><b>MCP setup</b>Copy-paste configuration for Claude Code, OpenCode and Codex.</figcaption>
-        </figure>
-        <figure class="screen" data-src="images/flow.webp">
-          <img src="images/flow.webp" alt="Interactive RAG pipeline diagrams" loading="lazy" width="1440" height="800">
-          <figcaption><b>How RAG works</b>Interactive pipeline diagrams for indexing, retrieval and auto-sync.</figcaption>
-        </figure>
-        <figure class="screen" data-src="images/overview.webp">
-          <img src="images/overview.webp" alt="Project overview with live ingest log stream" loading="lazy" width="1440" height="800">
-          <figcaption><b>Project overview</b>Live ingest and sync console, hook status and indexed paths.</figcaption>
         </figure>
       </div>
     </div>
@@ -861,8 +858,7 @@ ragbuddy ask my-project "how does auto-sync work?"</pre>
   <div class="container footer-inner">
     <div>
       <a class="footer-brand" href="#top">
-        <img src="images/logo.png" alt="" width="22" height="22">
-        RAGBuddy
+        <img src="images/logo.png" alt="RAGBuddy logo" style="height: 1.4rem; width: auto;">
       </a>
       <p class="note">Multi-project RAG for coding agents and developers. MIT licensed.</p>
     </div>

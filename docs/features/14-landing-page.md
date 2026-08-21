@@ -5,8 +5,9 @@
 ## 1) What This Feature Is
 
 1. **Static, build-free, single-file** — `landing/index.html` holds the full page (semantic HTML + embedded CSS + minimal JS). No `package.json`, no `node_modules`, no bundler. Screenshots and fonts are served as plain static assets.
-2. **Brand-consistent** — the page mirrors the dashboard design system (`docs/design-system/README.md`): dark-only, same OKLCH tokens (background `oklch(0.16 0.012 285)`, brand blue `oklch(0.68 0.17 258)`, hairline borders `oklch(1 0 0 / 11%)`, radius `0.5rem`), Geist Variable + Geist Mono self-hosted, mono for every command/path, no gradients or glow effects.
-3. **Mobile-first responsive** — base font-size drops from 16px to 15px at `≤640px` so every `rem`-sized type shrinks consistently; all headings use `clamp()`. Layouts collapse: nav → hamburger dropdown (`≤767px`), features 4→2→1 columns, gallery 3→2→1, CTA buttons go full-width with a `3rem` (≥44px) touch target.
+2. **Brand-consistent** — the page mirrors the dashboard design system (`docs/design-system/README.md`): light-themed, same OKLCH tokens (background `oklch(0.965 0.006 285)`, brand blue `oklch(0.55 0.19 258)`, hairline borders, radius `0.5rem`), Geist Variable + Geist Mono self-hosted, mono for every command/path.
+3. **No text branding** — the header and footer show only the logo in its full landscape aspect ratio, omitting the "RAGBuddy" text for a cleaner, modern look.
+4. **Mobile-first responsive** — base font-size drops from 16px to 15px at `≤640px` so every `rem`-sized type shrinks consistently; all headings use `clamp()`. Layouts collapse: nav → hamburger dropdown (`≤767px`), features 4→2→1 columns, gallery 3→2→1, CTA buttons go full-width with a `3rem` (≥44px) touch target.
 4. **Served by the backend at `/`, but still standalone** — `ragbuddy web` mounts `landing/` statically before the SPA bundle, so `/` answers the landing while `/dashboard/*` runs the app and `/login` the login screen (see `docs/steering/routing.md`). Because it's plain static files with only relative asset paths and external links, the same folder also works on any static host or via `file://`.
 5. **Accessibility basics** — semantic landmarks (`header`/`nav`/`main`/`footer`), `aria-label`s on icon-only and mobile controls, `:focus-visible` rings, `prefers-reduced-motion` flattens all transitions, `alt` text on every screenshot.
 
@@ -40,14 +41,14 @@ landing/
 
 | Section | Anchor | Content |
 |---------|--------|---------|
-| Nav | — | Sticky: logo + RAGBuddy, links (Features, How it works, Screens, MCP, Quick start), GitHub button; hamburger + dropdown below `768px` |
+| Nav | — | Sticky: landscape logo (no text), links (Features, How it works, Screens, MCP, Quick start), GitHub button; hamburger + dropdown below `768px` |
 | Hero | `#top` | Badge ("open source · MIT · local-first"), headline "Project-aware RAG for coding agents", README-derived subcopy, **"Try it on GitHub"** (→ `https://github.com/azmirizkifar20/RAGBuddy`) + "Quick start ↓", "Works with Claude Code · OpenCode · Codex · Ollama · OpenAI-compatible", dashboard screenshot in a browser-frame mockup (mono URL bar `http://localhost:4300`) |
 | Features | `#features` | 8 hairline cards: multi-project RAG isolation; git hook auto-sync; MCP server; one-shot CLI `ragbuddy ask`; web AI chat; document uploads; local-first & private; REST API for external apps |
 | How it works | `#how-it-works` | 3 numbered steps: Register & index → Sync automatically → Ask anywhere |
 | Screens | `#screens` | 7 screenshot cards with captions (AI chat, Retrieval search, Documents, Sync history, MCP setup, How RAG works, Project overview) + lightbox |
 | MCP | `#mcp` | The 4 MCP tools (mono) + `claude mcp add ragbuddy -- node .../dist/cli/index.js mcp` code block with copy button |
 | Quick start | `#quick-start` | Terminal block: clone → `npm install`/`npm run build` → `cp .env.example .env` → `docker compose up -d` → `ollama pull bge-m3` → `project register` → `ingest` → `ask`, with copy button |
-| Footer | — | Logo, MIT note, GitHub / Documentation / Quick start links, stack line (`TypeScript · React · Qdrant · Ollama`) |
+| Footer | — | Landscape logo (no text), MIT note, GitHub / Documentation / Quick start links, stack line (`TypeScript · React · Qdrant · Ollama`) |
 
 ## 5) Screenshots
 
