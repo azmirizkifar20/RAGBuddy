@@ -624,6 +624,7 @@ img { display: block; max-width: 100%; }
       <a href="#how-it-works">How it works</a>
       <a href="#screens">Screens</a>
       <a href="#mcp">MCP</a>
+      <a href="#api">API</a>
       <a href="#quick-start">Quick start</a>
     </nav>
     <a class="btn btn-outline nav-cta" href="https://github.com/azmirizkifar20/RAGBuddy" target="_blank" rel="noopener">
@@ -639,6 +640,7 @@ img { display: block; max-width: 100%; }
     <a href="#how-it-works">How it works</a>
     <a href="#screens">Screens</a>
     <a href="#mcp">MCP</a>
+    <a href="#api">API</a>
     <a href="#quick-start">Quick start</a>
     <a class="btn btn-outline" href="https://github.com/azmirizkifar20/RAGBuddy" target="_blank" rel="noopener">GitHub</a>
   </nav>
@@ -815,6 +817,79 @@ img { display: block; max-width: 100%; }
 <pre><span class="cmt"># connect RAGBuddy to Claude Code (OpenCode &amp; Codex supported too)</span>
 <span class="cmd">claude mcp add ragbuddy</span> -- node /absolute/path/to/ragbuddy/dist/cli/index.js mcp</pre>
       </div>
+      <div class="codeblock" style="margin-top:1.2rem">
+        <div class="codehead"><span>opencode mcp add ragbuddy</span><button class="copy-btn" data-copy="claude mcp add ragbuddy -- node /absolute/path/to/ragbuddy/dist/cli/index.js mcp" aria-label="Copy MCP command">Copy</button></div>
+<pre><span class="cmt"># Add it to opencode.json</span>
+<span class="cmt">{
+  "mcpServers": {
+    "ragbuddy": {
+      "command": "node",
+      "args": ["/var/www/html/ragbuddy/dist/cli/index.js", "mcp"]
+    }
+  }
+}</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ API INTEGRATION ============ -->
+  <section class="section" id="api">
+    <div class="container">
+      <div class="section-head">
+        <h2>RAG for your own apps</h2>
+        <p>Integrate the same high-quality retrieval into your internal tools and dashboards through a simple REST API.</p>
+      </div>
+      
+      <div class="mcp-grid">
+        <div class="mcp-tool">
+          <code>POST /api/search</code>
+          <p>Retrieve ranked document chunks. Returns a list of segments with relevance scores and original file metadata.</p>
+        </div>
+        <div class="mcp-tool">
+          <code>POST /api/chat</code>
+          <p>Full RAG pipeline with streaming support (SSE). Returns cited answers grounded in your indexed repository.</p>
+        </div>
+      </div>
+
+      <div class="codeblock" style="margin-top:1.2rem">
+        <div class="codehead"><span>curl /api/search</span><button class="copy-btn" data-copy="curl -X POST http://localhost:4300/api/search \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: your_key' \
+  -d '{
+    &quot;projectId&quot;: &quot;my-project&quot;,
+    &quot;query&quot;: &quot;how to set up auth&quot;,
+    &quot;limit&quot;: 5
+  }'" aria-label="Copy search API command">Copy</button></div>
+<pre><span class="cmt"># Search document segments for any project</span>
+<span class="cmd">curl</span> -X POST http://localhost:4300/api/search \
+  -H <span class="cmd">'Content-Type: application/json'</span> \
+  -H <span class="cmd">'X-API-Key: your_key'</span> \
+  -d '{
+    "projectId": "my-project",
+    "query": "how to set up auth",
+    "limit": 5
+  }'</pre>
+      </div>
+
+      <div class="codeblock" style="margin-top:1.2rem">
+        <div class="codehead"><span>curl /api/chat</span><button class="copy-btn" data-copy="curl -X POST http://localhost:4300/api/chat \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: your_key' \
+  -d '{
+    &quot;projectId&quot;: &quot;my-project&quot;,
+    &quot;message&quot;: &quot;how does the sync work?&quot;,
+    &quot;stream&quot;: false
+  }'" aria-label="Copy chat API command">Copy</button></div>
+<pre><span class="cmt"># Get a cited answer from your docs</span>
+<span class="cmd">curl</span> -X POST http://localhost:4300/api/chat \
+  -H <span class="cmd">'Content-Type: application/json'</span> \
+  -H <span class="cmd">'X-API-Key: your_key'</span> \
+  -d '{
+    "projectId": "my-project",
+    "message": "how does the sync work?",
+    "stream": false
+  }'</pre>
+      </div>
     </div>
   </section>
 
@@ -832,10 +907,16 @@ cd RAGBuddy
 npm install
 npm run build
 cp .env.example .env
+
+# optional, if you have already installed Qdrant & have another embedding model, you can skip this step
 docker compose up -d          # Qdrant
 ollama pull bge-m3            # local embeddings (optional)
+
+# register a project and ingest its docs
 ragbuddy project register my-project /path/to/my-project
 ragbuddy ingest my-project
+
+# ask a question from the project docs
 ragbuddy ask my-project "how does auto-sync work?"" aria-label="Copy quick start commands">Copy</button></div>
 <pre><span class="cmt"># requirements: Node.js 18+, npm, Docker (Qdrant), optional Ollama</span>
 git clone git@github.com:azmirizkifar20/RAGBuddy.git
@@ -843,10 +924,17 @@ cd RAGBuddy
 npm install
 npm run build
 cp .env.example .env
+
+<span class="cmt"># optional, if you have already installed Qdrant & have another embedding model, you can skip this step</span>
 docker compose up -d          <span class="cmt"># Qdrant</span>
 ollama pull bge-m3            <span class="cmt"># local embeddings (optional)</span>
+
+<span class="cmt"># register a project and ingest its docs</span>
 ragbuddy project register my-project /path/to/my-project
 ragbuddy ingest my-project
+
+<span class="cmt"># Set up Chat credentials (OpenAI Compatible or Ollama) in /settings page of the dashboard</span>
+<span class="cmt"># then you can ask a question from the project docs</span>
 ragbuddy ask my-project "how does auto-sync work?"</pre>
       </div>
     </div>

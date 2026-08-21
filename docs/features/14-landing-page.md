@@ -41,12 +41,13 @@ landing/
 
 | Section | Anchor | Content |
 |---------|--------|---------|
-| Nav | — | Sticky: landscape logo (no text), links (Features, How it works, Screens, MCP, Quick start), GitHub button; hamburger + dropdown below `768px` |
+| Nav | — | Sticky: landscape logo (no text), links (Features, How it works, Screens, MCP, API, Quick start), GitHub button; hamburger + dropdown below `768px` |
 | Hero | `#top` | Badge ("open source · MIT · local-first"), headline "Project-aware RAG for coding agents", README-derived subcopy, **"Try it on GitHub"** (→ `https://github.com/azmirizkifar20/RAGBuddy`) + "Quick start ↓", "Works with Claude Code · OpenCode · Codex · Ollama · OpenAI-compatible", dashboard screenshot in a browser-frame mockup (mono URL bar `http://localhost:4300`) |
 | Features | `#features` | 8 hairline cards: multi-project RAG isolation; git hook auto-sync; MCP server; one-shot CLI `ragbuddy ask`; web AI chat; document uploads; local-first & private; REST API for external apps |
 | How it works | `#how-it-works` | 3 numbered steps: Register & index → Sync automatically → Ask anywhere |
 | Screens | `#screens` | 7 screenshot cards with captions (AI chat, Retrieval search, Documents, Sync history, MCP setup, How RAG works, Project overview) + lightbox |
-| MCP | `#mcp` | The 4 MCP tools (mono) + `claude mcp add ragbuddy -- node .../dist/cli/index.js mcp` code block with copy button |
+| MCP | `#mcp` | The 4 MCP tools (mono) + `claude mcp add ragbuddy` and `opencode` JSON configuration blocks with copy buttons |
+| API | `#api` | The 2 RAG API endpoints (`/api/search` and `/api/chat`) with curl examples for integration into external apps |
 | Quick start | `#quick-start` | Terminal block: clone → `npm install`/`npm run build` → `cp .env.example .env` → `docker compose up -d` → `ollama pull bge-m3` → `project register` → `ingest` → `ask`, with copy button |
 | Footer | — | Landscape logo (no text), MIT note, GitHub / Documentation / Quick start links, stack line (`TypeScript · React · Qdrant · Ollama`) |
 
