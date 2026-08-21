@@ -851,27 +851,23 @@ img { display: block; max-width: 100%; }
         <p>Integrate the same high-quality retrieval into your internal tools and dashboards through a simple REST API.</p>
       </div>
       
-      <div class="mcp-grid">
-        <div class="mcp-tool">
+      <!-- Search API -->
+      <div style="margin-bottom: 3rem;">
+        <div class="mcp-tool" style="margin-bottom: 1.2rem;">
           <code>POST /api/search</code>
           <p>Retrieve ranked document chunks. Returns a list of segments with relevance scores and original file metadata.</p>
         </div>
-        <div class="mcp-tool">
-          <code>POST /api/chat</code>
-          <p>Full RAG pipeline with streaming support (SSE). Returns cited answers grounded in your indexed repository.</p>
-        </div>
-      </div>
 
-      <div class="api-grid">
-        <div class="codeblock">
-          <div class="codehead"><span>curl /api/search</span><button class="copy-btn" data-copy="curl -X POST http://localhost:4300/api/search \
-  -H 'Content-Type: application/json' \
-  -H 'X-API-Key: your_key' \
-  -d '{
-    &quot;projectId&quot;: &quot;my-project&quot;,
-    &quot;query&quot;: &quot;how to set up auth&quot;,
-    &quot;limit&quot;: 5
-  }'" aria-label="Copy search API command">Copy Request</button></div>
+        <div class="api-grid">
+          <div class="codeblock">
+            <div class="codehead"><span>curl /api/search</span><button class="copy-btn" data-copy="curl -X POST http://localhost:4300/api/search \
+    -H 'Content-Type: application/json' \
+    -H 'X-API-Key: your_key' \
+    -d '{
+      &quot;projectId&quot;: &quot;my-project&quot;,
+      &quot;query&quot;: &quot;how to set up auth&quot;,
+      &quot;limit&quot;: 5
+    }'" aria-label="Copy search API command">Copy Request</button></div>
 <pre><span class="cmt"># Search document segments for any project</span>
 <span class="cmd">curl</span> -X POST http://localhost:4300/api/search \
   -H <span class="cmd">'Content-Type: application/json'</span> \
@@ -881,19 +877,19 @@ img { display: block; max-width: 100%; }
     "query": "how to set up auth",
     "limit": 5
   }'</pre>
-        </div>
+          </div>
 
-        <div class="codeblock">
-          <div class="codehead"><span>Response</span><button class="copy-btn" data-copy="{
-  &quot;results&quot;: [
-    {
-      &quot;file&quot;: &quot;docs/auth.md&quot;,
-      &quot;section&quot;: &quot;## Implementation&quot;,
-      &quot;score&quot;: 0.92,
-      &quot;content&quot;: &quot;To set up authentication...&quot;
-    }
-  ]
-}" aria-label="Copy search API response">Copy Response</button></div>
+          <div class="codeblock">
+            <div class="codehead"><span>Response</span><button class="copy-btn" data-copy="{
+    &quot;results&quot;: [
+      {
+        &quot;file&quot;: &quot;docs/auth.md&quot;,
+        &quot;section&quot;: &quot;## Implementation&quot;,
+        &quot;score&quot;: 0.92,
+        &quot;content&quot;: &quot;To set up authentication...&quot;
+      }
+    ]
+  }" aria-label="Copy search API response">Copy Response</button></div>
 <pre>{
   <span class="cmd">"results"</span>: [
     {
@@ -904,17 +900,27 @@ img { display: block; max-width: 100%; }
     }
   ]
 }</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat API -->
+      <div>
+        <div class="mcp-tool" style="margin-bottom: 1.2rem;">
+          <code>POST /api/chat</code>
+          <p>Full RAG pipeline with streaming support (SSE). Returns cited answers grounded in your indexed repository.</p>
         </div>
 
-        <div class="codeblock">
-          <div class="codehead"><span>curl /api/chat</span><button class="copy-btn" data-copy="curl -X POST http://localhost:4300/api/chat \
-  -H 'Content-Type: application/json' \
-  -H 'X-API-Key: your_key' \
-  -d '{
-    &quot;projectId&quot;: &quot;my-project&quot;,
-    &quot;messages&quot;: [{ &quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;how does the sync work?&quot; }],
-    &quot;stream&quot;: false
-  }'" aria-label="Copy chat API command">Copy Request</button></div>
+        <div class="api-grid">
+          <div class="codeblock">
+            <div class="codehead"><span>curl /api/chat</span><button class="copy-btn" data-copy="curl -X POST http://localhost:4300/api/chat \
+    -H 'Content-Type: application/json' \
+    -H 'X-API-Key: your_key' \
+    -d '{
+      &quot;projectId&quot;: &quot;my-project&quot;,
+      &quot;messages&quot;: [{ &quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;how does the sync work?&quot; }],
+      &quot;stream&quot;: false
+    }'" aria-label="Copy chat API command">Copy Request</button></div>
 <pre><span class="cmt"># Get a cited answer from your docs</span>
 <span class="cmd">curl</span> -X POST http://localhost:4300/api/chat \
   -H <span class="cmd">'Content-Type: application/json'</span> \
@@ -924,17 +930,17 @@ img { display: block; max-width: 100%; }
     "messages": [{ "role": "user", "content": "how does the sync work?" }],
     "stream": false
   }'</pre>
-        </div>
+          </div>
 
-        <div class="codeblock">
-          <div class="codehead"><span>Response (SSE events)</span><button class="copy-btn" data-copy="event: token
-data: {&quot;text&quot;:&quot;The sync process...&quot;}
-
-event: sources
-data: {&quot;sources&quot;:[{&quot;file&quot;:&quot;sync.md&quot;,&quot;section&quot;:&quot;## Flow&quot;,&quot;score&quot;:0.85}]}
-
-event: done
-data: {}" aria-label="Copy chat API response">Copy Response</button></div>
+          <div class="codeblock">
+            <div class="codehead"><span>Response (SSE events)</span><button class="copy-btn" data-copy="event: token
+  data: {&quot;text&quot;:&quot;The sync process...&quot;}
+  
+  event: sources
+  data: {&quot;sources&quot;:[{&quot;file&quot;:&quot;sync.md&quot;,&quot;section&quot;:&quot;## Flow&quot;,&quot;score&quot;:0.85}]}
+  
+  event: done
+  data: {}" aria-label="Copy chat API response">Copy Response</button></div>
 <pre><span class="cmt"># Streaming tokens followed by sources metadata</span>
 event: <span class="cmd">token</span>
 data: {"text": "The sync process..."}
@@ -944,6 +950,7 @@ data: {"sources": [{"file": "sync.md", "section": "## Flow", "score": 0.85}]}
 
 event: <span class="cmd">done</span>
 data: {}</pre>
+          </div>
         </div>
       </div>
     </div>
